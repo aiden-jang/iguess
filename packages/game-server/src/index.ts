@@ -11,6 +11,7 @@ import { GameEngine } from "./engine.ts";
 import { ClassicMode } from "./modes/ClassicMode.ts";
 import { AIGuesserMode } from "./modes/AIGuesserMode.ts";
 import type { GameMode, PlayerRef } from "./modes/GameMode.ts";
+import { requestAIGuess } from "./services/aiWorkerClient.ts";
 
 const PORT = Number(process.env.PORT ?? 8080);
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
@@ -41,8 +42,13 @@ function findConn(roomId: string, playerId: string): Conn | undefined {
   return connsInRoom(roomId).find((c) => c.player.id === playerId);
 }
 
-function makeMode(name: string | null): GameMode {
-  return name === "ai" ? new AIGuesserMode() : new ClassicMode();
+function makeMode(name: string | null, roomId: string): GameMode {
+  if (name === "ai") {
+    // Bind the AI's guess function to this room: render the current stroke
+    // log (via the worker) and return the model's guess.
+    return new AIGuesserMode(async () => requestAIGuess(await strokeHistory(roomId)));
+  }
+  return new ClassicMode();
 }
 
 // Build (or fetch) the engine for a room, wiring its dependencies to the
@@ -75,7 +81,7 @@ function gameFor(roomId: string, modeName: string | null): GameEngine {
           void broadcastPresence(roomId);
         },
       },
-      makeMode(modeName)
+      makeMode(modeName, roomId)
     );
     games.set(roomId, g);
   }
