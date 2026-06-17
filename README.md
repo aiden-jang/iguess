@@ -8,6 +8,9 @@ The interesting part isn't the game; it's the architecture. The core game engine
 knows nothing about AI. Game **modes** are pluggable strategies layered on top, so
 "AI as guesser", "AI as drawer", or "Humans vs AI" are additions, not rewrites.
 
+> 📐 For the design rationale, trade-offs, and how I'd scale it, see
+> **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
+
 ---
 
 ## Highlights
@@ -125,6 +128,24 @@ npm run dev:client
 Open two browser tabs, join the same room, and pick the **AI** mode from the
 join screen (or append `?mode=ai`) to play against the vision model. With no API
 key configured the mock provider makes random guesses so everything still works.
+
+### 30-second demo script
+
+The most compelling thing to show is **real-time sync + a live AI competitor in
+one screen.** Use two browser windows side by side.
+
+1. **Window A:** join room `demo`, name `Alice`, mode **"AI guesser (🤖 competes)"**.
+2. **Window B:** join room `demo`, name `Bob`. Click **Start game**.
+3. Whoever is the drawer: **start drawing** — point at Window B and note the
+   strokes appear there instantly (authoritative server relaying live ops).
+4. Within ~8s, **🤖 AI** starts dropping guesses into the same chat feed,
+   racing the human guesser. Land a guess and watch the scoreboard update.
+5. Punchline line to say out loud: *"The AI is a vision model looking at the
+   canvas in a separate worker process — and the engine has no idea it exists.
+   It's just another player plugged in through the mode interface."*
+
+Want to show range? Re-join a fresh room as **"AI drawer"** — the AI draws and
+you guess — or **"Team battle"** for Humans-vs-AI. Same engine, different mode.
 
 ### Docker Compose
 
