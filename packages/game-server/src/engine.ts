@@ -52,6 +52,15 @@ export class GameEngine {
       type: "game_state",
       state: this.publicState(),
     });
+    // If the drawer reconnects mid-turn, re-deliver their secret word so they
+    // can keep drawing. Only the drawer ever receives it.
+    if (
+      this.phase === "playing" &&
+      playerId === this.drawerId &&
+      this.word
+    ) {
+      this.deps.sendToPlayer(playerId, { type: "your_word", word: this.word });
+    }
   }
 
   startGame(humanIds: string[]) {
@@ -62,6 +71,13 @@ export class GameEngine {
         text: "Need at least 2 players to start.",
       });
       return;
+    }
+
+    // Drop any virtual players (e.g. an AI) left over from a previous game so
+    // they don't accumulate in presence across replays. The mode re-adds the
+    // ones it wants in configure().
+    for (const p of this.roster.values()) {
+      if (p.isAI) this.deps.removeVirtualPlayer(p.id);
     }
 
     // Reset and seed the roster with the human players.

@@ -55,12 +55,14 @@ export function startGuessLoop(
     // Stop if the turn moved on or the AI already nailed it.
     if (ctx.currentWord() !== turn.word || ctx.hasGuessed(opts.aiId)) { stop(); return; }
     if (attempts >= MAX_GUESSES) { stop(); return; }
-    attempts++;
 
     const guess = await getGuess();
     // Re-check after the await — the turn may have ended meanwhile.
     if (!guess || ctx.currentWord() !== turn.word || ctx.hasGuessed(opts.aiId)) return;
 
+    // Count only REAL guesses against the budget, so a flaky worker returning
+    // "" doesn't silently burn the cap without ever guessing.
+    attempts++;
     ctx.broadcast({ type: "chat", from: { id: opts.aiId, name: opts.aiName }, text: guess });
     if (matchesWord(guess, turn.word)) { stop(); opts.onCorrect(); }
   };

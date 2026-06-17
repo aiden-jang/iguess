@@ -225,12 +225,21 @@ up front — is the design discipline I'm most happy with here.
 
 ## 7. Known limitations & what I'd do next
 
-Honest list — these are not done:
+Honest list:
 
-- **Reconnect doesn't preserve identity.** A reconnecting client is minted a new
-  player id, so it rejoins as a fresh participant and loses its score / drawer
-  role mid-game. Fix: a client-held session token in the connect URL, mapped to
-  a stable player id in Redis.
+- **Reconnect now preserves identity** via a client-held `pid` on the connect
+  URL: a dropped client rejoins as the same player (keeps score, draw order,
+  drawer role), the drawer's secret word is re-delivered on reconnect, and an
+  overlap reconnect no longer ends the turn or duplicates the roster entry.
+  *Remaining:* the `pid` is client-asserted (a signed session token would stop
+  one client claiming another's id), and a drawer dropping for longer than the
+  reconnect gap still ends their turn (no grace period).
+- **Error handling hardened:** the connect/close handlers are wrapped, the
+  client guards malformed frames, and process-level `unhandledRejection` /
+  `uncaughtException` handlers keep one bad async path from killing every room.
+- **Basic flood protection:** a coarse per-connection token bucket (200 msg/s)
+  drops pathological floods without throttling normal play. *Remaining:* no
+  auth — anyone can join any room and `start_game`.
 - **Single process / no horizontal scale yet.** §4 is the design, not the
   implementation. The engine isn't checkpointed to Redis, so it can't currently
   fail over.
@@ -238,15 +247,11 @@ Honest list — these are not done:
   ad-hoc integration scripts (two `ws` clients driving a real server) and
   `tsc`; those should be committed as a proper test suite (engine unit tests +
   the integration harness).
-- **No auth, no rate limiting.** Anyone can join any room and `start_game`;
-  chat/draw aren't flood-controlled. Fine for a demo, not for the open internet.
 - **The AI drawer is canned, not generative.** It draws from a small doodle
   library. A model-based generator (LLM emitting stroke ops, or image→trace) can
   slot behind the existing injected `requestDrawing` callback without touching
   the mode.
-- **Error handling is uneven.** Redis/async errors in the connection handler
-  aren't all guarded (see the code-review notes); a malformed frame is handled
-  on the server but not on the client.
 
-**Next three things, in order:** (1) stable identity + real reconnect; (2) a
-committed test suite; (3) engine checkpointing to unlock the §4 scaling story.
+**Next three things, in order:** (1) a committed test suite; (2) engine
+checkpointing to unlock the §4 scaling story; (3) signed session tokens + a
+reconnect grace period for the drawer.
