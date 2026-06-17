@@ -1,0 +1,14 @@
+{
+  "name": "drawing-game",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "shared",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace=game-server",
+    "dev:client": "npm run dev --workspace=client",
+    "redis": "docker compose up redis"
+  }
+}

@@ -1,0 +1,17 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  game-server:
+    build:
+      context: .
+      dockerfile: packages/game-server/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
