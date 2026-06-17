@@ -1,10 +1,7 @@
 import type { GameMode, EngineContext, PlayerRef, TurnContext } from "./GameMode.ts";
+import { WORDS, randomWord } from "../words.ts";
 
-export const WORDS = [
-  "apple", "house", "rocket", "guitar", "elephant", "pizza", "bicycle",
-  "umbrella", "snowman", "lighthouse", "cactus", "robot", "octopus",
-  "volcano", "hamburger", "butterfly", "castle", "anchor", "ladder", "ghost",
-];
+export { WORDS }; // re-export so AIGuesserMode's fallback can reuse it
 
 // Classic skribbl-style mode: humans take turns drawing, everyone else
 // guesses. Designed as the base class — AIGuesserMode extends it to add a
@@ -25,7 +22,7 @@ export class ClassicMode implements GameMode {
   }
 
   pickWord(_ctx: EngineContext): string {
-    return WORDS[Math.floor(Math.random() * WORDS.length)];
+    return randomWord();
   }
 
   onTurnStart(turn: TurnContext, ctx: EngineContext): void {
