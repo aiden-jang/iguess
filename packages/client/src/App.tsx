@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { useGameSocket } from "./useWebSocket";
+import { DrawingCanvas } from "./DrawingCanvas";
+
+const COLORS = ["#111", "#e11d48", "#2563eb", "#16a34a", "#f59e0b", "#fff"];
 
 export function App() {
   // Simple join gate: pick a name + room, then connect.
@@ -42,8 +45,19 @@ export function App() {
 }
 
 function Room({ name, room }: { name: string; room: string }) {
-  const { connected, you, players, log, sendChat } = useGameSocket(room, name);
+  const {
+    connected,
+    you,
+    players,
+    log,
+    sendChat,
+    sendDraw,
+    subscribeDraw,
+    clearBoard,
+  } = useGameSocket(room, name);
   const [text, setText] = useState("");
+  const [color, setColor] = useState(COLORS[0]);
+  const [width, setWidth] = useState(4);
 
   return (
     <div style={styles.layout}>
@@ -62,6 +76,41 @@ function Room({ name, room }: { name: string; room: string }) {
           ))}
         </ul>
       </aside>
+
+      <section style={styles.canvasPane}>
+        <div style={styles.toolbar}>
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              onClick={() => setColor(c)}
+              style={{
+                ...styles.swatch,
+                background: c,
+                outline: c === color ? "3px solid #4f46e5" : "1px solid #ccc",
+              }}
+              aria-label={`color ${c}`}
+            />
+          ))}
+          <input
+            type="range"
+            min={1}
+            max={32}
+            value={width}
+            onChange={(e) => setWidth(Number(e.target.value))}
+          />
+          <button style={styles.button} onClick={clearBoard}>
+            Clear
+          </button>
+        </div>
+        <div style={styles.canvasWrap}>
+          <DrawingCanvas
+            sendDraw={sendDraw}
+            subscribeDraw={subscribeDraw}
+            color={color}
+            width={width}
+          />
+        </div>
+      </section>
 
       <main style={styles.main}>
         <div style={styles.chatLog}>
@@ -113,8 +162,32 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "sans-serif",
   },
   layout: { display: "flex", height: "100vh", fontFamily: "sans-serif" },
-  sidebar: { width: 220, borderRight: "1px solid #ddd", padding: 16 },
-  main: { flex: 1, display: "flex", flexDirection: "column", padding: 16 },
+  sidebar: { width: 200, borderRight: "1px solid #ddd", padding: 16 },
+  canvasPane: {
+    flex: 2,
+    display: "flex",
+    flexDirection: "column",
+    padding: 16,
+    gap: 8,
+    minWidth: 0,
+  },
+  toolbar: { display: "flex", alignItems: "center", gap: 8 },
+  swatch: {
+    width: 24,
+    height: 24,
+    borderRadius: "50%",
+    cursor: "pointer",
+    border: "none",
+  },
+  canvasWrap: { flex: 1, minHeight: 0 },
+  main: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    padding: 16,
+    borderLeft: "1px solid #ddd",
+    minWidth: 280,
+  },
   chatLog: {
     flex: 1,
     overflowY: "auto",
