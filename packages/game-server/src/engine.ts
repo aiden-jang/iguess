@@ -1,4 +1,4 @@
-import type { ServerMessage, PublicGameState, GamePhase } from "shared";
+import type { ServerMessage, PublicGameState, GamePhase, DrawOp } from "shared";
 import type { GameMode, EngineContext, PlayerRef, TurnContext } from "./modes/GameMode.ts";
 
 const TURN_MS = 60_000;
@@ -10,6 +10,8 @@ export interface EngineDeps {
   broadcast: (msg: ServerMessage) => void;
   sendToPlayer: (playerId: string, msg: ServerMessage) => void;
   clearCanvas: () => void | Promise<void>;
+  // Emit a mode-originated draw op: persist to the stroke log AND broadcast.
+  drawOp: (op: DrawOp) => void | Promise<void>;
   getName: (playerId: string) => string;
   // Reflect a virtual participant (AI) into room presence so it appears in
   // the roster/scoreboard like any other player.
@@ -175,6 +177,7 @@ export class GameEngine {
     broadcast: (msg) => this.deps.broadcast(msg),
     sendToPlayer: (id, msg) => this.deps.sendToPlayer(id, msg),
     clearCanvas: () => void this.deps.clearCanvas(),
+    draw: (op) => void this.deps.drawOp(op),
     awardPoints: (id, pts) => {
       this.scoreboard[id] = (this.scoreboard[id] ?? 0) + pts;
     },

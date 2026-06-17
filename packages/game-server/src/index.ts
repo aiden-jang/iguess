@@ -10,6 +10,7 @@ import type {
 import { GameEngine } from "./engine.ts";
 import { ClassicMode } from "./modes/ClassicMode.ts";
 import { AIGuesserMode } from "./modes/AIGuesserMode.ts";
+import { AIDrawerMode } from "./modes/AIDrawerMode.ts";
 import type { GameMode, PlayerRef } from "./modes/GameMode.ts";
 import { requestAIGuess } from "./services/aiWorkerClient.ts";
 
@@ -48,6 +49,10 @@ function makeMode(name: string | null, roomId: string): GameMode {
     // log (via the worker) and return the model's guess.
     return new AIGuesserMode(async () => requestAIGuess(await strokeHistory(roomId)));
   }
+  if (name === "ai-drawer") {
+    // No generator injected → uses the curated doodle library.
+    return new AIDrawerMode();
+  }
   return new ClassicMode();
 }
 
@@ -66,6 +71,12 @@ function gameFor(roomId: string, modeName: string | null): GameEngine {
         clearCanvas: async () => {
           await redis.del(redisStrokesKey(roomId));
           broadcast(roomId, { type: "draw", op: { kind: "clear" } });
+        },
+        // Mode-originated stroke (AI drawer): same persist + broadcast path a
+        // human socket draw takes, so late joiners replay it via canvas_sync.
+        drawOp: async (op) => {
+          await persistDrawOp(roomId, op);
+          broadcast(roomId, { type: "draw", op });
         },
         getName: (playerId) =>
           findConn(roomId, playerId)?.player.name ??

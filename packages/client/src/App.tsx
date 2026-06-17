@@ -38,6 +38,7 @@ export function App() {
         >
           <option value="classic">Classic (humans only)</option>
           <option value="ai">AI guesser (🤖 competes)</option>
+          <option value="ai-drawer">AI drawer (🤖 draws, you guess)</option>
         </select>
         <small style={{ color: "#888" }}>
           Mode is fixed by whoever creates the room first.

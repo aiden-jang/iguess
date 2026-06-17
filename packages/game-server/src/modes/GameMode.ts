@@ -1,4 +1,4 @@
-import type { ServerMessage } from "shared";
+import type { ServerMessage, DrawOp } from "shared";
 
 // A participant in a game — a human (backed by a socket) or a virtual player
 // such as the AI. The engine treats them uniformly for turn order + scoring.
@@ -25,6 +25,13 @@ export interface EngineContext {
   broadcast(msg: ServerMessage): void;
   sendToPlayer(id: string, msg: ServerMessage): void;
   clearCanvas(): void;
+
+  // Emit a draw op that ORIGINATES from the mode (e.g. an AI drawer), as
+  // opposed to a human socket. Persisted to the stroke log AND broadcast, so
+  // late joiners replay it correctly via canvas_sync. Symmetric with
+  // clearCanvas — the seam that lets strokes come from somewhere other than a
+  // socket.
+  draw(op: DrawOp): void;
 
   // Score ledger.
   awardPoints(id: string, points: number): void;
