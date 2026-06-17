@@ -7,6 +7,7 @@ import type {
   PlayerInfo,
   DrawOp,
 } from "shared";
+import { GameController } from "./game.ts";
 
 const PORT = Number(process.env.PORT ?? 8080);
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
@@ -21,6 +22,40 @@ redis.on("error", (e) => console.error("[redis] error", e.message));
 // must survive a restart or be shared across future server instances.
 type Conn = { ws: WebSocket; player: PlayerInfo; roomId: string };
 const rooms = new Map<string, Set<Conn>>();
+
+// One game state machine per room, created lazily on first connection.
+const games = new Map<string, GameController>();
+
+function connsInRoom(roomId: string): Conn[] {
+  return [...(rooms.get(roomId) ?? [])];
+}
+
+function findConn(roomId: string, playerId: string): Conn | undefined {
+  return connsInRoom(roomId).find((c) => c.player.id === playerId);
+}
+
+// Build (or fetch) the controller for a room, wiring its dependencies to the
+// socket/Redis layer. The controller itself stays transport-agnostic.
+function gameFor(roomId: string): GameController {
+  let g = games.get(roomId);
+  if (!g) {
+    g = new GameController({
+      broadcast: (msg) => broadcast(roomId, msg),
+      sendToPlayer: (playerId, msg) => {
+        const c = findConn(roomId, playerId);
+        if (c) send(c.ws, msg);
+      },
+      clearCanvas: async () => {
+        await redis.del(redisStrokesKey(roomId));
+        broadcast(roomId, { type: "draw", op: { kind: "clear" } });
+      },
+      getName: (playerId) =>
+        findConn(roomId, playerId)?.player.name ?? "Someone",
+    });
+    games.set(roomId, g);
+  }
+  return g;
+}
 
 function redisRoomKey(roomId: string) {
   return `room:${roomId}:players`;
@@ -91,8 +126,10 @@ wss.on("connection", async (ws, req) => {
 
   // Tell the new player who they are, replay the canvas so they catch up,
   // then refresh everyone's roster.
+  const game = gameFor(roomId);
   send(ws, { type: "welcome", you: player, roomId });
   send(ws, { type: "canvas_sync", ops: await strokeHistory(roomId) });
+  game.sendStateTo(player.id); // catch the joiner up on the current game
   broadcast(roomId, { type: "presence", players: await presenceList(roomId) });
   broadcast(roomId, { type: "system", text: `${name} joined` });
 
@@ -105,20 +142,28 @@ wss.on("connection", async (ws, req) => {
     }
     if (msg.type === "chat") {
       const text = msg.text.slice(0, 500).trim();
-      if (text) broadcast(roomId, { type: "chat", from: player, text });
+      if (!text) return;
+      // Let the game inspect it first: a correct guess is consumed here
+      // (suppressed + scored) and never broadcast as plain chat.
+      const consumed = game.handleChat(player.id, text);
+      if (!consumed) broadcast(roomId, { type: "chat", from: player, text });
     } else if (msg.type === "draw") {
-      // Persist for replay, then relay to everyone except the drawer
-      // (who already rendered it locally). Fire-and-forget the persist;
-      // ordering within a single connection is guaranteed by TCP.
+      // Authoritative gate: ignore draw ops from anyone but the current
+      // drawer. Client-side disabling is just UX; this is the real rule.
+      if (!game.canDraw(player.id)) return;
       void persistDrawOp(roomId, msg.op);
       broadcastExcept(roomId, conn, { type: "draw", op: msg.op });
+    } else if (msg.type === "start_game") {
+      game.startGame(connsInRoom(roomId).map((c) => c.player.id));
     }
   });
 
   ws.on("close", async () => {
     rooms.get(roomId)?.delete(conn);
+    game.onPlayerLeave(player.id); // may end the turn if the drawer left
     if (rooms.get(roomId)?.size === 0) {
       rooms.delete(roomId);
+      games.delete(roomId); // tear down the game with the empty room
       // Empty room → discard the canvas so it doesn't haunt the next session.
       await redis.del(redisStrokesKey(roomId));
     }

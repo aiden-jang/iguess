@@ -6,6 +6,7 @@ interface Props {
   subscribeDraw: (fn: (op: DrawOp | { kind: "reset" }) => void) => () => void;
   color: string;
   width: number;
+  canDraw: boolean; // only the current drawer may paint
 }
 
 // Per-stroke render state, keyed by strokeId, so interleaved remote strokes
@@ -16,7 +17,13 @@ interface StrokeState {
   width: number;
 }
 
-export function DrawingCanvas({ sendDraw, subscribeDraw, color, width }: Props) {
+export function DrawingCanvas({
+  sendDraw,
+  subscribeDraw,
+  color,
+  width,
+  canDraw,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const strokes = useRef<Map<string, StrokeState>>(new Map());
@@ -109,6 +116,7 @@ export function DrawingCanvas({ sendDraw, subscribeDraw, color, width }: Props) 
   }
 
   function onPointerDown(e: React.PointerEvent) {
+    if (!canDraw) return; // not your turn
     e.currentTarget.setPointerCapture(e.pointerId);
     drawing.current = true;
     strokeId.current = Math.random().toString(36).slice(2, 10);
@@ -158,7 +166,7 @@ export function DrawingCanvas({ sendDraw, subscribeDraw, color, width }: Props) 
         border: "1px solid #ccc",
         borderRadius: 4,
         touchAction: "none",
-        cursor: "crosshair",
+        cursor: canDraw ? "crosshair" : "not-allowed",
         background: "white",
       }}
     />
