@@ -23,7 +23,7 @@ export interface ChatLine {
 // Owns the single persistent WebSocket connection and the derived view
 // state (who you are, the roster, the message log). The component just
 // renders this and calls `sendChat`.
-export function useGameSocket(room: string, name: string) {
+export function useGameSocket(room: string, name: string, mode: string) {
   const [connected, setConnected] = useState(false);
   const [you, setYou] = useState<PlayerInfo | null>(null);
   const [players, setPlayers] = useState<PlayerInfo[]>([]);
@@ -42,7 +42,7 @@ export function useGameSocket(room: string, name: string) {
     if (!room || !name) return;
     const url = `${SERVER_URL}/?room=${encodeURIComponent(
       room
-    )}&name=${encodeURIComponent(name)}`;
+    )}&name=${encodeURIComponent(name)}&mode=${encodeURIComponent(mode)}`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
@@ -89,7 +89,7 @@ export function useGameSocket(room: string, name: string) {
     };
 
     return () => ws.close();
-  }, [room, name]);
+  }, [room, name, mode]);
 
   const sendChat = useCallback((text: string) => {
     const ws = wsRef.current;
