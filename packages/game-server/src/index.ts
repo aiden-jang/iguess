@@ -1,7 +1,12 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "node:crypto";
 import Redis from "ioredis";
-import type { ClientMessage, ServerMessage, PlayerInfo } from "shared";
+import type {
+  ClientMessage,
+  ServerMessage,
+  PlayerInfo,
+  DrawOp,
+} from "shared";
 
 const PORT = Number(process.env.PORT ?? 8080);
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
@@ -21,6 +26,10 @@ function redisRoomKey(roomId: string) {
   return `room:${roomId}:players`;
 }
 
+function redisStrokesKey(roomId: string) {
+  return `room:${roomId}:strokes`;
+}
+
 // Send one typed message to a single socket.
 function send(ws: WebSocket, msg: ServerMessage) {
   if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
@@ -33,6 +42,30 @@ function broadcast(roomId: string, msg: ServerMessage) {
   const conns = rooms.get(roomId);
   if (!conns) return;
   for (const c of conns) send(c.ws, msg);
+}
+
+// Like broadcast, but skips one connection — used for draw ops, since the
+// drawer already painted the stroke locally and must not draw it twice.
+function broadcastExcept(roomId: string, except: Conn, msg: ServerMessage) {
+  const conns = rooms.get(roomId);
+  if (!conns) return;
+  for (const c of conns) if (c !== except) send(c.ws, msg);
+}
+
+// Persist a draw op to the room's ordered log so late joiners can replay it.
+// `clear` resets the log instead of appending.
+async function persistDrawOp(roomId: string, op: DrawOp) {
+  const key = redisStrokesKey(roomId);
+  if (op.kind === "clear") {
+    await redis.del(key);
+  } else {
+    await redis.rpush(key, JSON.stringify(op));
+  }
+}
+
+async function strokeHistory(roomId: string): Promise<DrawOp[]> {
+  const raw = await redis.lrange(redisStrokesKey(roomId), 0, -1);
+  return raw.map((s) => JSON.parse(s) as DrawOp);
 }
 
 async function presenceList(roomId: string): Promise<PlayerInfo[]> {
@@ -56,8 +89,10 @@ wss.on("connection", async (ws, req) => {
   rooms.get(roomId)!.add(conn);
   await redis.hset(redisRoomKey(roomId), player.id, player.name);
 
-  // Tell the new player who they are, then refresh everyone's roster.
+  // Tell the new player who they are, replay the canvas so they catch up,
+  // then refresh everyone's roster.
   send(ws, { type: "welcome", you: player, roomId });
+  send(ws, { type: "canvas_sync", ops: await strokeHistory(roomId) });
   broadcast(roomId, { type: "presence", players: await presenceList(roomId) });
   broadcast(roomId, { type: "system", text: `${name} joined` });
 
@@ -71,12 +106,22 @@ wss.on("connection", async (ws, req) => {
     if (msg.type === "chat") {
       const text = msg.text.slice(0, 500).trim();
       if (text) broadcast(roomId, { type: "chat", from: player, text });
+    } else if (msg.type === "draw") {
+      // Persist for replay, then relay to everyone except the drawer
+      // (who already rendered it locally). Fire-and-forget the persist;
+      // ordering within a single connection is guaranteed by TCP.
+      void persistDrawOp(roomId, msg.op);
+      broadcastExcept(roomId, conn, { type: "draw", op: msg.op });
     }
   });
 
   ws.on("close", async () => {
     rooms.get(roomId)?.delete(conn);
-    if (rooms.get(roomId)?.size === 0) rooms.delete(roomId);
+    if (rooms.get(roomId)?.size === 0) {
+      rooms.delete(roomId);
+      // Empty room → discard the canvas so it doesn't haunt the next session.
+      await redis.del(redisStrokesKey(roomId));
+    }
     await redis.hdel(redisRoomKey(roomId), player.id);
     broadcast(roomId, { type: "presence", players: await presenceList(roomId) });
     broadcast(roomId, { type: "system", text: `${name} left` });

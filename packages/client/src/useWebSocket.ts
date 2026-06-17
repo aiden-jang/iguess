@@ -3,7 +3,13 @@ import type {
   ClientMessage,
   ServerMessage,
   PlayerInfo,
+  DrawOp,
 } from "shared";
+
+// Draw ops bypass React state on purpose: re-rendering a component on every
+// pointer-move would be wasteful. Instead the canvas registers a listener and
+// paints imperatively. `null` op signals a full reset before a canvas_sync.
+type DrawListener = (op: DrawOp | { kind: "reset" }) => void;
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? "ws://localhost:8080";
 
@@ -22,6 +28,11 @@ export function useGameSocket(room: string, name: string) {
   const [players, setPlayers] = useState<PlayerInfo[]>([]);
   const [log, setLog] = useState<ChatLine[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  const drawListeners = useRef<Set<DrawListener>>(new Set());
+
+  const emitDraw = (op: DrawOp | { kind: "reset" }) => {
+    for (const l of drawListeners.current) l(op);
+  };
 
   useEffect(() => {
     if (!room || !name) return;
@@ -48,6 +59,13 @@ export function useGameSocket(room: string, name: string) {
         case "system":
           setLog((l) => [...l, { kind: "system", text: msg.text }]);
           break;
+        case "draw":
+          emitDraw(msg.op);
+          break;
+        case "canvas_sync":
+          emitDraw({ kind: "reset" });
+          for (const op of msg.ops) emitDraw(op);
+          break;
       }
     };
 
@@ -62,5 +80,35 @@ export function useGameSocket(room: string, name: string) {
     }
   }, []);
 
-  return { connected, you, players, log, sendChat };
+  const sendDraw = useCallback((op: DrawOp) => {
+    const ws = wsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      const msg: ClientMessage = { type: "draw", op };
+      ws.send(JSON.stringify(msg));
+    }
+  }, []);
+
+  // Canvas subscribes here to receive remote ops; returns an unsubscribe.
+  const subscribeDraw = useCallback((fn: DrawListener) => {
+    drawListeners.current.add(fn);
+    return () => drawListeners.current.delete(fn);
+  }, []);
+
+  // Clear: tell the server (it wipes the log + relays) AND reset our own
+  // canvas, since the server never echoes our own ops back to us.
+  const clearBoard = useCallback(() => {
+    sendDraw({ kind: "clear" });
+    emitDraw({ kind: "reset" });
+  }, [sendDraw]);
+
+  return {
+    connected,
+    you,
+    players,
+    log,
+    sendChat,
+    sendDraw,
+    subscribeDraw,
+    clearBoard,
+  };
 }
