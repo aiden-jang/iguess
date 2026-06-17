@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useGameSocket } from "./useWebSocket";
 import { DrawingCanvas } from "./DrawingCanvas";
 
@@ -44,20 +44,51 @@ export function App() {
   return <Room name={joined.name} room={joined.room} />;
 }
 
+function Countdown({ endsAt }: { endsAt: number | null }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!endsAt) return;
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, [endsAt]);
+  if (!endsAt) return null;
+  const secs = Math.max(0, Math.ceil((endsAt - now) / 1000));
+  return <span style={styles.timer}>⏱ {secs}s</span>;
+}
+
 function Room({ name, room }: { name: string; room: string }) {
   const {
     connected,
     you,
     players,
     log,
+    game,
+    myWord,
     sendChat,
     sendDraw,
     subscribeDraw,
     clearBoard,
+    startGame,
   } = useGameSocket(room, name);
   const [text, setText] = useState("");
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(4);
+
+  const phase = game?.phase ?? "lobby";
+  const isDrawer = !!game && game.drawerId === you?.id;
+  const canDraw = phase === "playing" && isDrawer;
+  const inGame = phase === "playing" || phase === "intermission";
+
+  // Word line: drawer sees the real word; guessers see one underscore per
+  // letter (the server never sent them the word).
+  const wordDisplay = isDrawer
+    ? myWord ?? ""
+    : Array.from({ length: game?.wordLength ?? 0 }, () => "_").join(" ");
+
+  // Players sorted by score for the scoreboard.
+  const ranked = [...players].sort(
+    (a, b) => (game?.scores[b.id] ?? 0) - (game?.scores[a.id] ?? 0)
+  );
 
   return (
     <div style={styles.layout}>
@@ -66,26 +97,64 @@ function Room({ name, room }: { name: string; room: string }) {
         <p style={{ color: connected ? "green" : "crimson" }}>
           {connected ? "● connected" : "○ disconnected"}
         </p>
-        <h4>Players ({players.length})</h4>
-        <ul>
-          {players.map((p) => (
-            <li key={p.id}>
-              {p.name}
-              {p.id === you?.id ? " (you)" : ""}
+        <h4>Scores</h4>
+        <ul style={styles.scoreList}>
+          {ranked.map((p) => (
+            <li key={p.id} style={styles.scoreRow}>
+              <span>
+                {game?.drawerId === p.id ? "✏️ " : ""}
+                {game?.guessedIds.includes(p.id) ? "✅ " : ""}
+                {p.name}
+                {p.id === you?.id ? " (you)" : ""}
+              </span>
+              <strong>{game?.scores[p.id] ?? 0}</strong>
             </li>
           ))}
         </ul>
       </aside>
 
       <section style={styles.canvasPane}>
+        <div style={styles.banner}>
+          {phase === "lobby" && (
+            <>
+              <span>Waiting in lobby — {players.length} player(s)</span>
+              <button style={styles.button} onClick={startGame}>
+                Start game
+              </button>
+            </>
+          )}
+          {phase === "ended" && (
+            <>
+              <span>Game over!</span>
+              <button style={styles.button} onClick={startGame}>
+                Play again
+              </button>
+            </>
+          )}
+          {inGame && (
+            <>
+              <span>
+                Turn {(game?.turnIndex ?? 0) + 1}/{game?.totalTurns ?? 0}
+              </span>
+              <span style={styles.word}>
+                {isDrawer ? "Draw: " : "Guess: "}
+                <strong>{wordDisplay}</strong>
+              </span>
+              <Countdown endsAt={game?.turnEndsAt ?? null} />
+            </>
+          )}
+        </div>
+
         <div style={styles.toolbar}>
           {COLORS.map((c) => (
             <button
               key={c}
+              disabled={!canDraw}
               onClick={() => setColor(c)}
               style={{
                 ...styles.swatch,
                 background: c,
+                opacity: canDraw ? 1 : 0.4,
                 outline: c === color ? "3px solid #4f46e5" : "1px solid #ccc",
               }}
               aria-label={`color ${c}`}
@@ -96,9 +165,10 @@ function Room({ name, room }: { name: string; room: string }) {
             min={1}
             max={32}
             value={width}
+            disabled={!canDraw}
             onChange={(e) => setWidth(Number(e.target.value))}
           />
-          <button style={styles.button} onClick={clearBoard}>
+          <button style={styles.button} onClick={clearBoard} disabled={!canDraw}>
             Clear
           </button>
         </div>
@@ -108,6 +178,7 @@ function Room({ name, room }: { name: string; room: string }) {
             subscribeDraw={subscribeDraw}
             color={color}
             width={width}
+            canDraw={canDraw}
           />
         </div>
       </section>
@@ -139,7 +210,14 @@ function Room({ name, room }: { name: string; room: string }) {
         >
           <input
             style={{ ...styles.input, flex: 1, margin: 0 }}
-            placeholder="Type a message…"
+            placeholder={
+              canDraw
+                ? "You're drawing…"
+                : inGame
+                ? "Type your guess…"
+                : "Type a message…"
+            }
+            disabled={canDraw}
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
@@ -170,6 +248,24 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 16,
     gap: 8,
     minWidth: 0,
+  },
+  banner: {
+    display: "flex",
+    alignItems: "center",
+    gap: 16,
+    padding: "8px 12px",
+    background: "#f5f5f7",
+    borderRadius: 6,
+    minHeight: 24,
+  },
+  word: { fontSize: 18, letterSpacing: 2 },
+  timer: { marginLeft: "auto", fontWeight: 600 },
+  scoreList: { listStyle: "none", padding: 0, margin: 0 },
+  scoreRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    padding: "4px 0",
+    borderBottom: "1px solid #f0f0f0",
   },
   toolbar: { display: "flex", alignItems: "center", gap: 8 },
   swatch: {

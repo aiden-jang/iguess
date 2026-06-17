@@ -26,6 +26,24 @@ export type DrawOp =
   | { kind: "end"; strokeId: string }
   | { kind: "clear" };
 
+// ---- Game state ----
+
+export type GamePhase = "lobby" | "playing" | "intermission" | "ended";
+
+// The view of game state that is safe for EVERY client to see. Note it
+// carries only `wordLength`, never the word itself — the secret word is
+// delivered separately and only to the drawer (see `your_word`).
+export interface PublicGameState {
+  phase: GamePhase;
+  drawerId: string | null;
+  turnIndex: number; // 0-based index of the current turn
+  totalTurns: number;
+  turnEndsAt: number | null; // epoch ms; clients derive their own countdown
+  wordLength: number;
+  scores: Record<string, number>; // playerId -> points
+  guessedIds: string[]; // who has guessed correctly this turn
+}
+
 // ---- Client → Server ----
 // Messages the browser sends. The room + name are supplied at connect
 // time via the WebSocket URL query string, so they are not repeated here.
@@ -39,6 +57,10 @@ export type ClientMessage =
       // A drawing operation produced locally by this client.
       type: "draw";
       op: DrawOp;
+    }
+  | {
+      // Request to start (or restart) the game. Allowed from lobby/ended.
+      type: "start_game";
     };
 
 // ---- Server → Client ----
@@ -78,6 +100,23 @@ export type ServerMessage =
       // late-comer catches up to the in-progress drawing.
       type: "canvas_sync";
       ops: DrawOp[];
+    }
+  | {
+      // Authoritative snapshot of public game state. Broadcast on every
+      // phase change, guess, or score update.
+      type: "game_state";
+      state: PublicGameState;
+    }
+  | {
+      // The secret word — sent ONLY to the current drawer at turn start.
+      type: "your_word";
+      word: string;
+    }
+  | {
+      // End of a turn: reveal the word and the updated scores.
+      type: "turn_end";
+      word: string;
+      scores: Record<string, number>;
     };
 
 // Narrowing helpers so consumers get exhaustive switch checking.

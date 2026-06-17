@@ -4,6 +4,7 @@ import type {
   ServerMessage,
   PlayerInfo,
   DrawOp,
+  PublicGameState,
 } from "shared";
 
 // Draw ops bypass React state on purpose: re-rendering a component on every
@@ -27,6 +28,9 @@ export function useGameSocket(room: string, name: string) {
   const [you, setYou] = useState<PlayerInfo | null>(null);
   const [players, setPlayers] = useState<PlayerInfo[]>([]);
   const [log, setLog] = useState<ChatLine[]>([]);
+  const [game, setGame] = useState<PublicGameState | null>(null);
+  // The secret word, set only when WE are the drawer; cleared each turn end.
+  const [myWord, setMyWord] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const drawListeners = useRef<Set<DrawListener>>(new Set());
 
@@ -66,6 +70,21 @@ export function useGameSocket(room: string, name: string) {
           emitDraw({ kind: "reset" });
           for (const op of msg.ops) emitDraw(op);
           break;
+        case "game_state":
+          setGame(msg.state);
+          // If we're no longer the drawer, forget any word we held.
+          setMyWord((w) => (msg.state.phase === "playing" ? w : null));
+          break;
+        case "your_word":
+          setMyWord(msg.word);
+          break;
+        case "turn_end":
+          setMyWord(null);
+          setLog((l) => [
+            ...l,
+            { kind: "system", text: `The word was: ${msg.word}` },
+          ]);
+          break;
       }
     };
 
@@ -101,14 +120,24 @@ export function useGameSocket(room: string, name: string) {
     emitDraw({ kind: "reset" });
   }, [sendDraw]);
 
+  const startGame = useCallback(() => {
+    const ws = wsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "start_game" } satisfies ClientMessage));
+    }
+  }, []);
+
   return {
     connected,
     you,
     players,
     log,
+    game,
+    myWord,
     sendChat,
     sendDraw,
     subscribeDraw,
     clearBoard,
+    startGame,
   };
 }
