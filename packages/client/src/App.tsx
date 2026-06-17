@@ -8,9 +8,12 @@ export function App() {
   // Simple join gate: pick a name + room, then connect.
   const [draftName, setDraftName] = useState("");
   const [draftRoom, setDraftRoom] = useState("lobby");
-  const [joined, setJoined] = useState<{ name: string; room: string } | null>(
-    null
-  );
+  const [draftMode, setDraftMode] = useState("classic");
+  const [joined, setJoined] = useState<{
+    name: string;
+    room: string;
+    mode: string;
+  } | null>(null);
 
   if (!joined) {
     return (
@@ -28,11 +31,26 @@ export function App() {
           onChange={(e) => setDraftRoom(e.target.value)}
           style={styles.input}
         />
+        <select
+          value={draftMode}
+          onChange={(e) => setDraftMode(e.target.value)}
+          style={styles.input}
+        >
+          <option value="classic">Classic (humans only)</option>
+          <option value="ai">AI guesser (🤖 competes)</option>
+        </select>
+        <small style={{ color: "#888" }}>
+          Mode is fixed by whoever creates the room first.
+        </small>
         <button
           style={styles.button}
           disabled={!draftName.trim()}
           onClick={() =>
-            setJoined({ name: draftName.trim(), room: draftRoom.trim() || "lobby" })
+            setJoined({
+              name: draftName.trim(),
+              room: draftRoom.trim() || "lobby",
+              mode: draftMode,
+            })
           }
         >
           Join
@@ -41,7 +59,7 @@ export function App() {
     );
   }
 
-  return <Room name={joined.name} room={joined.room} />;
+  return <Room name={joined.name} room={joined.room} mode={joined.mode} />;
 }
 
 function Countdown({ endsAt }: { endsAt: number | null }) {
@@ -56,7 +74,15 @@ function Countdown({ endsAt }: { endsAt: number | null }) {
   return <span style={styles.timer}>⏱ {secs}s</span>;
 }
 
-function Room({ name, room }: { name: string; room: string }) {
+function Room({
+  name,
+  room,
+  mode,
+}: {
+  name: string;
+  room: string;
+  mode: string;
+}) {
   const {
     connected,
     you,
@@ -69,7 +95,7 @@ function Room({ name, room }: { name: string; room: string }) {
     subscribeDraw,
     clearBoard,
     startGame,
-  } = useGameSocket(room, name);
+  } = useGameSocket(room, name, mode);
   const [text, setText] = useState("");
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(4);

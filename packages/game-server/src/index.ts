@@ -7,7 +7,10 @@ import type {
   PlayerInfo,
   DrawOp,
 } from "shared";
-import { GameController } from "./game.ts";
+import { GameEngine } from "./engine.ts";
+import { ClassicMode } from "./modes/ClassicMode.ts";
+import { AIGuesserMode } from "./modes/AIGuesserMode.ts";
+import type { GameMode, PlayerRef } from "./modes/GameMode.ts";
 
 const PORT = Number(process.env.PORT ?? 8080);
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
@@ -23,8 +26,12 @@ redis.on("error", (e) => console.error("[redis] error", e.message));
 type Conn = { ws: WebSocket; player: PlayerInfo; roomId: string };
 const rooms = new Map<string, Set<Conn>>();
 
-// One game state machine per room, created lazily on first connection.
-const games = new Map<string, GameController>();
+// One game engine per room, created lazily on first connection.
+const games = new Map<string, GameEngine>();
+
+// Virtual (non-socket) players per room — e.g. the AI. Merged into presence
+// so they show up in the roster/scoreboard like any human.
+const virtualPlayers = new Map<string, Map<string, PlayerInfo>>();
 
 function connsInRoom(roomId: string): Conn[] {
   return [...(rooms.get(roomId) ?? [])];
@@ -34,24 +41,42 @@ function findConn(roomId: string, playerId: string): Conn | undefined {
   return connsInRoom(roomId).find((c) => c.player.id === playerId);
 }
 
-// Build (or fetch) the controller for a room, wiring its dependencies to the
-// socket/Redis layer. The controller itself stays transport-agnostic.
-function gameFor(roomId: string): GameController {
+function makeMode(name: string | null): GameMode {
+  return name === "ai" ? new AIGuesserMode() : new ClassicMode();
+}
+
+// Build (or fetch) the engine for a room, wiring its dependencies to the
+// socket/Redis layer. The engine + mode stay transport-agnostic.
+function gameFor(roomId: string, modeName: string | null): GameEngine {
   let g = games.get(roomId);
   if (!g) {
-    g = new GameController({
-      broadcast: (msg) => broadcast(roomId, msg),
-      sendToPlayer: (playerId, msg) => {
-        const c = findConn(roomId, playerId);
-        if (c) send(c.ws, msg);
+    g = new GameEngine(
+      {
+        broadcast: (msg) => broadcast(roomId, msg),
+        sendToPlayer: (playerId, msg) => {
+          const c = findConn(roomId, playerId);
+          if (c) send(c.ws, msg);
+        },
+        clearCanvas: async () => {
+          await redis.del(redisStrokesKey(roomId));
+          broadcast(roomId, { type: "draw", op: { kind: "clear" } });
+        },
+        getName: (playerId) =>
+          findConn(roomId, playerId)?.player.name ??
+          virtualPlayers.get(roomId)?.get(playerId)?.name ??
+          "Someone",
+        addVirtualPlayer: (p: PlayerRef) => {
+          if (!virtualPlayers.has(roomId)) virtualPlayers.set(roomId, new Map());
+          virtualPlayers.get(roomId)!.set(p.id, { id: p.id, name: p.name });
+          void broadcastPresence(roomId);
+        },
+        removeVirtualPlayer: (id: string) => {
+          virtualPlayers.get(roomId)?.delete(id);
+          void broadcastPresence(roomId);
+        },
       },
-      clearCanvas: async () => {
-        await redis.del(redisStrokesKey(roomId));
-        broadcast(roomId, { type: "draw", op: { kind: "clear" } });
-      },
-      getName: (playerId) =>
-        findConn(roomId, playerId)?.player.name ?? "Someone",
-    });
+      makeMode(modeName)
+    );
     games.set(roomId, g);
   }
   return g;
@@ -105,7 +130,13 @@ async function strokeHistory(roomId: string): Promise<DrawOp[]> {
 
 async function presenceList(roomId: string): Promise<PlayerInfo[]> {
   const hash = await redis.hgetall(redisRoomKey(roomId));
-  return Object.entries(hash).map(([id, name]) => ({ id, name }));
+  const humans = Object.entries(hash).map(([id, name]) => ({ id, name }));
+  const virtuals = [...(virtualPlayers.get(roomId)?.values() ?? [])];
+  return [...humans, ...virtuals];
+}
+
+async function broadcastPresence(roomId: string) {
+  broadcast(roomId, { type: "presence", players: await presenceList(roomId) });
 }
 
 const wss = new WebSocketServer({ port: PORT });
@@ -117,6 +148,8 @@ wss.on("connection", async (ws, req) => {
   const url = new URL(req.url ?? "", "http://localhost");
   const roomId = (url.searchParams.get("room") || "lobby").slice(0, 32);
   const name = (url.searchParams.get("name") || "Anon").slice(0, 24);
+  // Mode is fixed per room at creation (first connection wins): ?mode=ai
+  const modeName = url.searchParams.get("mode");
   const player: PlayerInfo = { id: randomUUID().slice(0, 8), name };
 
   const conn: Conn = { ws, player, roomId };
@@ -126,7 +159,7 @@ wss.on("connection", async (ws, req) => {
 
   // Tell the new player who they are, replay the canvas so they catch up,
   // then refresh everyone's roster.
-  const game = gameFor(roomId);
+  const game = gameFor(roomId, modeName);
   send(ws, { type: "welcome", you: player, roomId });
   send(ws, { type: "canvas_sync", ops: await strokeHistory(roomId) });
   game.sendStateTo(player.id); // catch the joiner up on the current game
@@ -164,6 +197,7 @@ wss.on("connection", async (ws, req) => {
     if (rooms.get(roomId)?.size === 0) {
       rooms.delete(roomId);
       games.delete(roomId); // tear down the game with the empty room
+      virtualPlayers.delete(roomId); // drop the AI with it
       // Empty room → discard the canvas so it doesn't haunt the next session.
       await redis.del(redisStrokesKey(roomId));
     }
