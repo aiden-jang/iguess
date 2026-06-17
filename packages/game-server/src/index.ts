@@ -11,6 +11,7 @@ import { GameEngine } from "./engine.ts";
 import { ClassicMode } from "./modes/ClassicMode.ts";
 import { AIGuesserMode } from "./modes/AIGuesserMode.ts";
 import { AIDrawerMode } from "./modes/AIDrawerMode.ts";
+import { TeamBattleMode } from "./modes/TeamBattleMode.ts";
 import type { GameMode, PlayerRef } from "./modes/GameMode.ts";
 import { requestAIGuess } from "./services/aiWorkerClient.ts";
 
@@ -52,6 +53,11 @@ function makeMode(name: string | null, roomId: string): GameMode {
   if (name === "ai-drawer") {
     // No generator injected → uses the curated doodle library.
     return new AIDrawerMode();
+  }
+  if (name === "team-battle") {
+    // AI guesses (on human-draw turns) via the worker; draws (on AI-draw
+    // turns) via the doodle library.
+    return new TeamBattleMode(async () => requestAIGuess(await strokeHistory(roomId)));
   }
   return new ClassicMode();
 }
