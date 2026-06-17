@@ -22,11 +22,40 @@ const redis = new Redis(REDIS_URL);
 redis.on("connect", () => console.log("[redis] connected"));
 redis.on("error", (e) => console.error("[redis] error", e.message));
 
+// Last-resort guards: an async slip in a handler shouldn't take the whole
+// server (and every other room) down. Log loudly and stay up.
+process.on("unhandledRejection", (reason) =>
+  console.error("[fatal] unhandledRejection:", reason)
+);
+process.on("uncaughtException", (err) =>
+  console.error("[fatal] uncaughtException:", err)
+);
+
 // In-memory registry of live sockets, grouped by room. The socket objects
 // themselves can't live in Redis (they're process-local), so the server
 // keeps connections in memory and uses Redis only for *durable* state that
 // must survive a restart or be shared across future server instances.
-type Conn = { ws: WebSocket; player: PlayerInfo; roomId: string };
+type Conn = {
+  ws: WebSocket;
+  player: PlayerInfo;
+  roomId: string;
+  // Coarse per-connection flood guard (token bucket, see allowMessage).
+  rate: { count: number; windowStart: number };
+};
+
+// Allow up to this many client messages per second per connection. Generous
+// headroom over the client's rAF-batched draw stream (~60/s) — this only stops
+// pathological floods, it won't throttle normal play.
+const MSG_LIMIT_PER_SEC = 200;
+function allowMessage(conn: Conn): boolean {
+  const now = Date.now();
+  if (now - conn.rate.windowStart >= 1000) {
+    conn.rate.windowStart = now;
+    conn.rate.count = 0;
+  }
+  conn.rate.count += 1;
+  return conn.rate.count <= MSG_LIMIT_PER_SEC;
+}
 const rooms = new Map<string, Set<Conn>>();
 
 // One game engine per room, created lazily on first connection.
@@ -42,6 +71,10 @@ function connsInRoom(roomId: string): Conn[] {
 
 function findConn(roomId: string, playerId: string): Conn | undefined {
   return connsInRoom(roomId).find((c) => c.player.id === playerId);
+}
+
+function connsForPlayer(roomId: string, playerId: string): Conn[] {
+  return connsInRoom(roomId).filter((c) => c.player.id === playerId);
 }
 
 function makeMode(name: string | null, roomId: string): GameMode {
@@ -71,8 +104,10 @@ function gameFor(roomId: string, modeName: string | null): GameEngine {
       {
         broadcast: (msg) => broadcast(roomId, msg),
         sendToPlayer: (playerId, msg) => {
-          const c = findConn(roomId, playerId);
-          if (c) send(c.ws, msg);
+          // Fan out to every socket holding this id. During a reconnect overlap
+          // both the old and new socket share the id; targeting only the first
+          // would deliver to the dying connection.
+          for (const c of connsForPlayer(roomId, playerId)) send(c.ws, msg);
         },
         clearCanvas: async () => {
           await redis.del(redisStrokesKey(roomId));
@@ -173,23 +208,37 @@ wss.on("connection", async (ws, req) => {
   const name = (url.searchParams.get("name") || "Anon").slice(0, 24);
   // Mode is fixed per room at creation (first connection wins): ?mode=ai
   const modeName = url.searchParams.get("mode");
-  const player: PlayerInfo = { id: randomUUID().slice(0, 8), name };
+  // A client supplies a stable `pid` so a reconnect keeps its identity (score,
+  // draw order, drawer role). Falls back to a fresh id for first connects.
+  // NOTE: this is client-asserted — fine for a demo; production would bind it
+  // to a signed session token to stop a client claiming another's id.
+  const pid = url.searchParams.get("pid");
+  const id = pid ? pid.slice(0, 12) : randomUUID().slice(0, 8);
+  const player: PlayerInfo = { id, name };
 
-  const conn: Conn = { ws, player, roomId };
+  const conn: Conn = { ws, player, roomId, rate: { count: 0, windowStart: Date.now() } };
   if (!rooms.has(roomId)) rooms.set(roomId, new Set());
   rooms.get(roomId)!.add(conn);
-  await redis.hset(redisRoomKey(roomId), player.id, player.name);
 
-  // Tell the new player who they are, replay the canvas so they catch up,
-  // then refresh everyone's roster.
   const game = gameFor(roomId, modeName);
-  send(ws, { type: "welcome", you: player, roomId });
-  send(ws, { type: "canvas_sync", ops: await strokeHistory(roomId) });
-  game.sendStateTo(player.id); // catch the joiner up on the current game
-  broadcast(roomId, { type: "presence", players: await presenceList(roomId) });
-  broadcast(roomId, { type: "system", text: `${name} joined` });
+  try {
+    await redis.hset(redisRoomKey(roomId), player.id, player.name);
+
+    // Tell the new player who they are, replay the canvas so they catch up,
+    // then refresh everyone's roster.
+    send(ws, { type: "welcome", you: player, roomId });
+    send(ws, { type: "canvas_sync", ops: await strokeHistory(roomId) });
+    game.sendStateTo(player.id); // catch the joiner up (re-delivers word if drawer)
+    broadcast(roomId, { type: "presence", players: await presenceList(roomId) });
+    broadcast(roomId, { type: "system", text: `${name} joined` });
+  } catch (e) {
+    console.error("[ws] join setup failed:", (e as Error).message);
+    ws.close();
+    return;
+  }
 
   ws.on("message", (raw) => {
+    if (!allowMessage(conn)) return; // drop floods silently
     let msg: ClientMessage;
     try {
       msg = JSON.parse(raw.toString());
@@ -215,17 +264,27 @@ wss.on("connection", async (ws, req) => {
   });
 
   ws.on("close", async () => {
-    rooms.get(roomId)?.delete(conn);
-    game.onPlayerLeave(player.id); // may end the turn if the drawer left
-    if (rooms.get(roomId)?.size === 0) {
-      rooms.delete(roomId);
-      games.delete(roomId); // tear down the game with the empty room
-      virtualPlayers.delete(roomId); // drop the AI with it
-      // Empty room → discard the canvas so it doesn't haunt the next session.
-      await redis.del(redisStrokesKey(roomId));
+    try {
+      rooms.get(roomId)?.delete(conn);
+
+      // Reconnect overlap: if another live connection already holds this same
+      // player id, the player hasn't really left — skip teardown so we don't
+      // end their turn or remove them from presence.
+      if (findConn(roomId, player.id)) return;
+
+      game.onPlayerLeave(player.id); // may end the turn if the drawer left
+      if (rooms.get(roomId)?.size === 0) {
+        rooms.delete(roomId);
+        games.delete(roomId); // tear down the game with the empty room
+        virtualPlayers.delete(roomId); // drop the AI with it
+        // Empty room → discard the canvas so it doesn't haunt the next session.
+        await redis.del(redisStrokesKey(roomId));
+      }
+      await redis.hdel(redisRoomKey(roomId), player.id);
+      broadcast(roomId, { type: "presence", players: await presenceList(roomId) });
+      broadcast(roomId, { type: "system", text: `${name} left` });
+    } catch (e) {
+      console.error("[ws] close cleanup failed:", (e as Error).message);
     }
-    await redis.hdel(redisRoomKey(roomId), player.id);
-    broadcast(roomId, { type: "presence", players: await presenceList(roomId) });
-    broadcast(roomId, { type: "system", text: `${name} left` });
   });
 });

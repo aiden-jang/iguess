@@ -40,9 +40,18 @@ export function useGameSocket(room: string, name: string, mode: string) {
 
   useEffect(() => {
     if (!room || !name) return;
+    // A stable per-session id so a dropped connection reconnects as the SAME
+    // player (keeps score, draw order, drawer role). Generated once per effect
+    // run and reused by every reconnect; resets only when room/name/mode change.
+    const pid =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID().slice(0, 12)
+        : Math.random().toString(36).slice(2, 14);
     const url = `${SERVER_URL}/?room=${encodeURIComponent(
       room
-    )}&name=${encodeURIComponent(name)}&mode=${encodeURIComponent(mode)}`;
+    )}&name=${encodeURIComponent(name)}&mode=${encodeURIComponent(
+      mode
+    )}&pid=${encodeURIComponent(pid)}`;
 
     // `alive` distinguishes an intentional unmount (no reconnect) from a
     // dropped connection (reconnect with capped backoff). The server replays
@@ -67,7 +76,12 @@ export function useGameSocket(room: string, name: string, mode: string) {
         reconnectTimer = setTimeout(connect, delay);
       };
       ws.onmessage = (e) => {
-        const msg: ServerMessage = JSON.parse(e.data);
+        let msg: ServerMessage;
+        try {
+          msg = JSON.parse(e.data);
+        } catch {
+          return; // ignore malformed frames instead of breaking the pump
+        }
         handle(msg);
       };
     };
