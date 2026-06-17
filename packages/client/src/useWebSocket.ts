@@ -43,13 +43,36 @@ export function useGameSocket(room: string, name: string, mode: string) {
     const url = `${SERVER_URL}/?room=${encodeURIComponent(
       room
     )}&name=${encodeURIComponent(name)}&mode=${encodeURIComponent(mode)}`;
-    const ws = new WebSocket(url);
-    wsRef.current = ws;
 
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => setConnected(false);
-    ws.onmessage = (e) => {
-      const msg: ServerMessage = JSON.parse(e.data);
+    // `alive` distinguishes an intentional unmount (no reconnect) from a
+    // dropped connection (reconnect with capped backoff). The server replays
+    // full state on every connect, so reconnecting is enough to recover.
+    let alive = true;
+    let attempt = 0;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const connect = () => {
+      const ws = new WebSocket(url);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        attempt = 0;
+        setConnected(true);
+      };
+      ws.onclose = () => {
+        setConnected(false);
+        if (!alive) return;
+        attempt += 1;
+        const delay = Math.min(5000, 500 * attempt); // 0.5s → 5s cap
+        reconnectTimer = setTimeout(connect, delay);
+      };
+      ws.onmessage = (e) => {
+        const msg: ServerMessage = JSON.parse(e.data);
+        handle(msg);
+      };
+    };
+
+    const handle = (msg: ServerMessage) => {
       switch (msg.type) {
         case "welcome":
           setYou(msg.you);
@@ -88,7 +111,13 @@ export function useGameSocket(room: string, name: string, mode: string) {
       }
     };
 
-    return () => ws.close();
+    connect();
+
+    return () => {
+      alive = false;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      wsRef.current?.close();
+    };
   }, [room, name, mode]);
 
   const sendChat = useCallback((text: string) => {
