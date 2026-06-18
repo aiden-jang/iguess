@@ -44,6 +44,40 @@
         0%, 100% { transform: translateY(0) rotate(0deg); }
         50% { transform: translateY(-6px) rotate(-6deg); }
       }
+      @keyframes shimmer {
+        0% { background-position: 0% 50%; }
+        100% { background-position: 200% 50%; }
+      }
+      @keyframes pop {
+        0% { transform: scale(0.96); opacity: 0; }
+        60% { transform: scale(1.02); }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      @keyframes glowPulse {
+        0%, 100% { box-shadow: 0 6px 18px rgba(168,85,247,0.30); }
+        50% { box-shadow: 0 8px 28px rgba(244,114,182,0.55); }
+      }
+      /* Animated gradient text (title / room name). */
+      .grad-anim {
+        background: linear-gradient(90deg, #a855f7, #f472b6, #fb923c, #f472b6, #a855f7);
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: shimmer 5s linear infinite;
+      }
+      /* Frosted glass panel. */
+      .glass {
+        background: rgba(29, 26, 43, 0.55);
+        backdrop-filter: blur(14px) saturate(140%);
+        -webkit-backdrop-filter: blur(14px) saturate(140%);
+      }
+      /* Hover lift for clickable cards / buttons. */
+      .lift { transition: transform .12s ease, box-shadow .12s ease, filter .12s ease; }
+      .lift:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.08); }
+      .lift:active:not(:disabled) { transform: translateY(0) scale(0.98); }
+      .pulse-cta { animation: glowPulse 2.4s ease-in-out infinite; }
+      .pop-in { animation: pop .28s ease-out both; }
     </style>
   </head>
   <body>
