@@ -7,6 +7,8 @@ interface Props {
   color: string;
   width: number;
   canDraw: boolean; // only the current drawer may paint
+  // Hands the underlying <canvas> element up so the parent can snapshot it.
+  onCanvas?: (el: HTMLCanvasElement | null) => void;
 }
 
 // Per-stroke render state, keyed by strokeId, so interleaved remote strokes
@@ -23,6 +25,7 @@ export function DrawingCanvas({
   color,
   width,
   canDraw,
+  onCanvas,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -83,9 +86,13 @@ export function DrawingCanvas({
     canvas.width = rect.width;
     canvas.height = rect.height;
     ctxRef.current = canvas.getContext("2d");
+    onCanvas?.(canvas);
 
     const unsub = subscribeDraw(applyOp);
-    return unsub;
+    return () => {
+      unsub();
+      onCanvas?.(null);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subscribeDraw]);
 
