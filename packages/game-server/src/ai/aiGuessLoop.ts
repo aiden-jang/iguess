@@ -21,7 +21,7 @@ const GUESS_PHRASINGS = [
   "calling it now: %",
   "no cap that's a %",
 ];
-function phraseGuess(guess: string): string {
+export function phraseGuess(guess: string): string {
   const t = GUESS_PHRASINGS[Math.floor(Math.random() * GUESS_PHRASINGS.length)]!;
   return t.replace("%", guess);
 }
