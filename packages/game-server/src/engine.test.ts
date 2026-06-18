@@ -2,7 +2,7 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import type { ServerMessage, PublicGameState } from "shared";
 import { GameEngine, type EngineDeps } from "./engine.ts";
-import { ClassicMode } from "./modes/ClassicMode.ts";
+import { ClassicMode, isClose } from "./modes/ClassicMode.ts";
 
 // ---- Minimal fake timer harness ----
 // The engine schedules a 60s per-turn timer and a 5s intermission timer via
@@ -203,4 +203,39 @@ test("a wrong guess is passed through as normal chat", () => {
   const wrong = word === "zzzz" ? "yyyy" : "zzzz";
   // false === "not consumed by the game, show it as chat"
   assert.equal(engine.handleChat("b", wrong), false);
+});
+
+test("isClose flags one-edit near-misses but not exact or distant guesses", () => {
+  // One substitution / deletion / insertion away → close.
+  assert.ok(isClose("rabbit", "rabbil"));
+  assert.ok(isClose("planet", "planets"));
+  assert.ok(isClose("guitar", "gitar"));
+  // Exact match is a win, not "close".
+  assert.equal(isClose("guitar", "guitar"), false);
+  // Two or more edits away → not close.
+  assert.equal(isClose("guitar", "guitng"), false); // two substitutions
+  assert.equal(isClose("banana", "orange"), false);
+  // Short words don't trigger the nudge (avoids constant noise).
+  assert.equal(isClose("cat", "bat"), false);
+});
+
+test("a near-miss privately nudges only the guesser and stays public chat", () => {
+  const { engine, sent } = makeHarness({ a: "alice", b: "bob" });
+  engine.startGame(["a", "b"]);
+  const word = wordSentTo(sent, "a");
+  // Build a guess one letter off the secret word (only words >= 4 trigger).
+  if (word.length < 4) return; // skip if the random word is too short
+  const off = word.slice(0, -1) + (word.endsWith("x") ? "y" : "x");
+
+  // Not consumed by the game → still shown as ordinary chat.
+  assert.equal(engine.handleChat("b", off), false);
+  // The guesser got a private "so close" nudge; the drawer did not.
+  assert.ok(
+    (sent["b"] ?? []).some((m) => m.type === "system" && /close/i.test(m.text)),
+    "guesser should receive a private close nudge"
+  );
+  assert.ok(
+    !(sent["a"] ?? []).some((m) => m.type === "system" && /close/i.test(m.text)),
+    "nudge must not leak to the drawer"
+  );
 });
