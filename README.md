@@ -1,63 +1,69 @@
 # is-it-a-dog
 
-A real-time, multiplayer drawing-and-guessing game (skribbl.io style) where an
-**AI vision model competes as one of the guessers** — looking at the live canvas
-and shouting out answers alongside the humans. (Spoiler: it guesses "dog" a lot.)
+A multiplayer drawing-and-guessing game in the skribbl.io vein, with one twist:
+an AI vision model plays as one of the guessers. It looks at the live canvas and
+types answers into chat along with everyone else. (It guesses "dog" a lot.)
 
 `TypeScript` · `Node` · `raw ws (WebSockets)` · `Redis` · `React` · `Vite` · `Canvas`
 
-The interesting part isn't the game; it's the architecture. The core game engine
-knows nothing about AI. Game **modes** are pluggable strategies layered on top, so
-"AI as guesser", "AI as drawer", or "Humans vs AI" are additions, not rewrites.
+The game itself is straightforward; I built it mostly to work on the structure.
+The game engine has no idea AI exists. Everything AI-related lives in game
+*modes*, which plug into the engine, so "AI guesser", "AI drawer", and "humans vs
+AI" are separate modes rather than changes to the core.
 
-> 📐 For the design rationale, trade-offs, and how I'd scale it, see
+> For the design decisions and how I'd scale it, see
 > **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
 
 ---
 
-## Demo
+## Screenshots
 
-![is-it-a-dog demo — two players and an AI guessing in real time](docs/demo.gif)
+The drawer sees the word and sketches it; the AI is in chat guessing off the
+canvas. Here, "GUITAR":
 
-*Two browser windows in one room: strokes sync live, and 🤖 AI races the human
-guesser off the same canvas. The drawer first picks one of three offered words.*
+![Drawer's view: the word GUITAR, a sketch on the canvas, and the AI guessing in chat](docs/gameplay.png)
+
+The same canvas in a guesser's window. They only see masked letters, not the
+word — proof the strokes sync live and the word stays secret:
+
+![Guesser's view: masked word tiles and the same live canvas](docs/gameplay-guesser.png)
+
+| Join screen | Word choice |
+|---|---|
+| ![Join screen with name, room, and mode picker](docs/join.png) | ![Drawer picking one of three offered words](docs/choosing.png) |
 
 <!--
-  To record this GIF (the most compelling 15–20s loop):
-    1. Run locally (see "Running locally"); open two windows side by side in one room.
-    2. Start a game, pick a word, draw — show strokes appearing in the other window.
-    3. Let the 🤖 AI drop a guess, then land a human guess so the scoreboard moves.
-    4. Capture with QuickTime / Kap (https://getkap.co) and export to docs/demo.gif.
-    5. Save it as docs/demo.gif (keep it < ~10 MB so it loads on GitHub).
+  Screenshots captured by driving two browser sessions through a real game with
+  Playwright; the script lives outside the repo. To refresh them, run the app
+  (see "Running locally"), play a round, and replace the PNGs in docs/.
+  A short GIF of the live sync would be even better if you record one.
 -->
 
 ---
 
-## Highlights
+## What's in it
 
-- **Authoritative server.** The drawer paints locally for zero perceived latency;
-  the server is the source of truth, persists every stroke, and relays to others.
-  No client can cheat the game state.
-- **Word secrecy by construction.** The secret word is only ever *sent* to the
-  drawer (`your_word`), and is **never** sent to the AI worker. Anti-cheat is
-  enforced by the absence of data, not by client-side trust.
-- **Engine / mode separation.** `engine.ts` owns the turn timeline and scoring
-  machinery and is mode-agnostic. A `GameMode` (strategy pattern + dependency
-  injection) decides drawer order, word choice, and how chat is interpreted.
-  `AIGuesserMode` adds a whole feature in ~70 lines without touching the engine.
-- **A polished play loop.** Multiple rounds with a rotating drawer, a skribbl-style
-  **word-choice phase** (the drawer picks one of three before drawing), progressive
-  letter hints that reveal as the clock drains, speed-weighted scoring, and
-  forgiving guess matching (case/accents/punctuation-insensitive, with a private
-  "so close!" nudge on a one-letter miss).
-- **AI as a virtual player.** The AI is injected into the roster as a normal
-  participant, so it flows through the *same* presence, scoring, and turn-end
-  logic as humans — no special cases in the engine.
-- **Vision off the hot path.** A separate `ai-worker` process renders the stroke
-  log to a PNG and calls a vision model. Slow/failed calls never block the
-  WebSocket event loop; failures degrade gracefully to "no guess".
-- **Pluggable vision providers.** Mock / OpenAI / Anthropic behind one interface,
-  auto-selected by environment. Runs with **zero API keys** via the mock provider.
+- The server is authoritative. The drawer paints locally so their own strokes
+  feel instant, but the server holds the real state, saves every stroke, and
+  relays them to everyone else. Clients can't fake game state.
+- The secret word is only ever sent to the drawer (`your_word`), and never to the
+  AI worker. So there's nothing to cheat with — the word just isn't in the data a
+  client or the AI receives.
+- The engine and the modes are separate. `engine.ts` runs the turn timeline and
+  scoring and doesn't know any game rules. A `GameMode` decides who draws, what
+  the word is, and how chat is read. `AIGuesserMode` is about 70 lines and
+  doesn't touch the engine.
+- Full game loop: multiple rounds with a rotating drawer, a word-choice step
+  (pick one of three), letter hints that reveal as the timer runs down, scoring
+  that rewards guessing fast, and guess matching that ignores case, accents, and
+  punctuation (plus a private "so close!" when you're one letter off).
+- The AI joins the roster as a regular player, so it goes through the same
+  presence, scoring, and turn-end code as a human. The engine has no AI branch.
+- Vision runs in a separate `ai-worker` process that turns the stroke log into a
+  PNG and calls a model. A slow or failed call won't block the WebSocket loop; it
+  just means no guess that round.
+- Vision providers (mock / OpenAI / Anthropic) sit behind one interface and are
+  picked based on env vars. With no API key it uses the mock and still runs.
 
 ---
 
@@ -97,16 +103,16 @@ guesser off the same canvas. The drawer first picks one of three offered words.*
         └───────────────────────────────────────┘
 ```
 
-**Why these choices:**
+A few of the choices and why:
 
-| Decision | Choice | Rationale |
+| Decision | Choice | Why |
 |---|---|---|
-| State authority | Authoritative server | Prevents cheating; one source of truth. Drawer renders locally to hide latency. |
-| Transport | Raw `ws` (not Socket.IO) | Visibility into the protocol; no hidden reconnection/room magic. |
-| Stroke format | Normalized 0–1 coords, streamed ops | Resolution-independent; small messages; replayable for late joiners and the AI. |
-| AI guess timing | Interval (≈8s first, every 10s, max 4/turn) | Bounds cost/latency; live guessing feels alive without spamming the model. |
-| AI process | Separate worker | Vision calls are slow; isolating them keeps the WS loop responsive. |
-| AI identity | Virtual player in roster | Reuses all human scoring/turn logic; no engine special-casing. |
+| State authority | Authoritative server | One source of truth, and clients can't cheat. The drawer renders locally to hide latency. |
+| Transport | Raw `ws`, not Socket.IO | I wanted to see the actual protocol instead of relying on hidden reconnection/room behavior. |
+| Stroke format | Normalized 0–1 coords, streamed ops | Works at any canvas size, messages stay small, and the op log replays for late joiners and the AI. |
+| AI guess timing | Interval (~8s first, then every 10s, max 4/turn) | Keeps cost and latency bounded without spamming the model. |
+| AI process | Separate worker | Vision calls are slow, so I kept them off the WebSocket loop. |
+| AI identity | Virtual player in roster | Lets it reuse the human scoring/turn code instead of adding AI special cases. |
 
 ---
 
@@ -160,23 +166,20 @@ Open two browser tabs, join the same room, and pick the **AI** mode from the
 join screen (or append `?mode=ai`) to play against the vision model. With no API
 key configured the mock provider makes random guesses so everything still works.
 
-### 30-second demo script
+### Quick demo
 
-The most compelling thing to show is **real-time sync + a live AI competitor in
-one screen.** Use two browser windows side by side.
+The thing worth showing is live sync plus the AI guessing on one screen. Open two
+browser windows side by side.
 
-1. **Window A:** join room `demo`, name `Alice`, mode **"AI guesser (🤖 competes)"**.
-2. **Window B:** join room `demo`, name `Bob`. Click **Start game**.
-3. Whoever is the drawer: **start drawing** — point at Window B and note the
-   strokes appear there instantly (authoritative server relaying live ops).
-4. Within ~8s, **🤖 AI** starts dropping guesses into the same chat feed,
-   racing the human guesser. Land a guess and watch the scoreboard update.
-5. Punchline line to say out loud: *"The AI is a vision model looking at the
-   canvas in a separate worker process — and the engine has no idea it exists.
-   It's just another player plugged in through the mode interface."*
+1. Window A: join room `demo` as `Alice`, mode "AI guesser (🤖 competes)".
+2. Window B: join room `demo` as `Bob`, then click Start game.
+3. Whoever's drawing, start drawing. The strokes show up in the other window
+   right away.
+4. After ~8s the AI starts guessing in the same chat as the human. Land a guess
+   and the scoreboard updates.
 
-Want to show range? Re-join a fresh room as **"AI drawer"** — the AI draws and
-you guess — or **"Team battle"** for Humans-vs-AI. Same engine, different mode.
+For the other modes, start a fresh room as "AI drawer" (the AI draws, you guess)
+or "Team battle" (humans vs AI). Same engine, different mode.
 
 ### Tests
 
@@ -184,9 +187,9 @@ you guess — or **"Team battle"** for Humans-vs-AI. Same engine, different mode
 npm test    # engine + modes + helpers, via Node's built-in test runner
 ```
 
-The suite drives the `GameEngine` through whole games against in-memory deps —
-no sockets, Redis, or timers required — covering rounds, scoring, hints, the
-word-choice phase, and forgiving guess matching.
+The tests run whole games through the `GameEngine` with in-memory deps (no
+sockets, Redis, or real timers), covering rounds, scoring, hints, the word-choice
+step, and guess matching.
 
 ### Docker Compose
 
@@ -202,21 +205,21 @@ real vision model.
 
 ## Game modes
 
-A mode implements the `GameMode` interface and receives an `EngineContext` of
-verbs (`broadcast`, `awardPoints`, `endTurn`, `addParticipant`, …). The engine
-calls into the mode at well-defined points (`configure`, `pickDrawer`,
-`pickWord`, `pickWordChoices`, `onTurnStart`, `onChat`, `canDraw`, `onTurnEnd`,
-`onGameEnd`). To add a mode you write a class — you don't modify the engine.
+A mode implements the `GameMode` interface and gets an `EngineContext` of verbs
+(`broadcast`, `awardPoints`, `endTurn`, `addParticipant`, and so on). The engine
+calls the mode at set points (`configure`, `pickDrawer`, `pickWord`,
+`pickWordChoices`, `onTurnStart`, `onChat`, `canDraw`, `onTurnEnd`, `onGameEnd`).
+Adding a mode means writing a class, not editing the engine.
 
-- **ClassicMode** — humans take turns drawing; everyone else guesses via chat.
-  The base class the other three extend or compose.
-- **AIGuesserMode** — extends ClassicMode, injects a virtual AI participant that
-  guesses off the live canvas on an interval.
-- **AIDrawerMode** — the AI is the sole drawer (strokes arrive through the engine
-  via `ctx.draw`); humans race to guess.
-- **TeamBattleMode** — Humans vs AI: rounds alternate who draws, and the first
-  correct guess wins the round for its side.
+- **ClassicMode** — humans take turns drawing, everyone else guesses in chat.
+  The other three build on this one.
+- **AIGuesserMode** — adds an AI player that guesses off the live canvas on a
+  timer.
+- **AIDrawerMode** — the AI does all the drawing (its strokes go through the
+  engine via `ctx.draw`) and humans guess.
+- **TeamBattleMode** — humans vs AI. Rounds alternate who draws, and the first
+  correct guess wins the round for that side.
 
-The optional `pickWordChoices` hook is what powers the word-choice phase: a mode
-returns 2+ words to trigger a "choosing" phase (human drawers), or `null` to skip
-it (AI drawers pick their own renderable word).
+The `pickWordChoices` hook drives the word-choice step: return 2+ words and the
+drawer gets to choose one; return `null` to skip it (the AI drawer just picks its
+own word).

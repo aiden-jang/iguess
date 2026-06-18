@@ -1,14 +1,15 @@
 # docs/ — media assets
 
-Drop the demo recording here as **`demo.gif`** — the root `README.md` embeds it.
+Screenshots embedded by the root `README.md`:
 
-Recording tips (a tight 15–20s loop sells it best):
+- `join.png` — the join screen (name, room, mode picker)
+- `choosing.png` — the drawer picking one of three offered words
+- `gameplay.png` — the drawer's view (word shown, sketch, AI guessing in chat)
+- `gameplay-guesser.png` — a guesser's view (masked word, same live canvas)
 
-1. Run the app locally (see the root README's "Running locally").
-2. Open two browser windows side by side, join the **same room**, pick the
-   **AI guesser** mode in one of them.
-3. Start a game, pick one of the three offered words, and draw — show the
-   strokes appearing live in the other window.
-4. Let 🤖 AI drop a guess, then land a human guess so the scoreboard updates.
-5. Capture with [Kap](https://getkap.co) or QuickTime and export to
-   `docs/demo.gif`. Keep it under ~10 MB so GitHub renders it inline.
+These were captured by driving two browser sessions through a real game. To
+refresh them, run the app locally (see the root README), play a round, and
+replace the PNGs here.
+
+A short `demo.gif` of the live sync would be a nice addition if you record one
+(Kap or QuickTime → export GIF, keep it under ~10 MB so GitHub renders it inline).
