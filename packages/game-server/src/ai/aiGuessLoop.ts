@@ -1,5 +1,6 @@
 import type { EngineContext, TurnContext } from "../modes/GameMode.ts";
 import { WORDS } from "../words.ts";
+import { normalizeGuess } from "../modes/ClassicMode.ts";
 
 // Extracted from AIGuesserMode so any mode can give an AI participant a
 // guessing loop without inheriting a whole mode class. This is mode POLICY
@@ -26,12 +27,16 @@ export function phraseGuess(guess: string): string {
   return t.replace("%", guess);
 }
 
-// Lenient match: a vision model says "elephant", "an elephant", etc.
+// Lenient match for vision output: a model says "elephant", "an elephant",
+// "It's a café!", etc. Normalize both sides (case/accents/punctuation) first
+// so it matches as forgivingly as a human guess, then allow the target to
+// appear as a whole word or substring of a longer phrase.
 export function matchesWord(guess: string, word: string): boolean {
-  const g = guess.toLowerCase();
-  const w = word.toLowerCase();
+  const g = normalizeGuess(guess);
+  const w = normalizeGuess(word);
+  if (!w) return false;
   if (g === w) return true;
-  return g.split(/\W+/).includes(w) || g.includes(w);
+  return g.split(/\s+/).includes(w) || g.includes(w);
 }
 
 export interface GuessLoopOpts {

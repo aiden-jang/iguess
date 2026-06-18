@@ -20,6 +20,12 @@ test("matchesWord rejects unrelated guesses", () => {
   assert.ok(!matchesWord("", "dog"));
 });
 
+test("matchesWord forgives accents and punctuation like a human guess", () => {
+  assert.ok(matchesWord("It's a café!", "cafe"));
+  assert.ok(matchesWord("ICE-CREAM", "ice cream"));
+  assert.ok(matchesWord("a piñata 🎉", "pinata"));
+});
+
 // ---- phraseGuess: personality must never change what gets matched ----
 // This is the invariant that lets the bot have a voice without affecting
 // scoring: the displayed text is decorated, but matching runs on the raw
