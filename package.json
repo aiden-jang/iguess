@@ -9,6 +9,7 @@
   "scripts": {
     "dev:server": "npm run dev --workspace=game-server",
     "dev:client": "npm run dev --workspace=client",
-    "redis": "docker compose up redis"
+    "redis": "docker compose up redis",
+    "test": "npm test --workspace=game-server"
   }
 }
