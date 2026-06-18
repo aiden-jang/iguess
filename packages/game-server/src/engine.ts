@@ -226,16 +226,16 @@ export class GameEngine {
   }
 
   private publicState(): PublicGameState {
+    const totalRounds = Math.max(1, Math.ceil(this.totalTurns / this.turnsPerRound));
+    // Clamp so the post-increment end-of-game turnIndex can't overshoot.
+    const round = Math.min(totalRounds, Math.floor(this.turnIndex / this.turnsPerRound) + 1);
     return {
       phase: this.phase,
       drawerId: this.drawerId,
       turnIndex: this.turnIndex,
       totalTurns: this.totalTurns,
-      round: Math.min(
-        Math.max(1, Math.ceil(this.totalTurns / this.turnsPerRound)),
-        Math.floor(this.turnIndex / this.turnsPerRound) + 1
-      ),
-      totalRounds: Math.max(1, Math.ceil(this.totalTurns / this.turnsPerRound)),
+      round,
+      totalRounds,
       turnEndsAt: this.turnEndsAt,
       wordLength: this.word?.length ?? 0,
       hint: this.computeHint(),
