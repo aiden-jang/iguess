@@ -542,22 +542,40 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   // Wordle-style flex text: a copy-pasteable recap of how you stacked up. This
   // is the share loop — text + a link is what actually spreads.
   const flexText = () => {
-    const myScore = you ? game?.scores[you.id] ?? 0 : 0;
     const place = you ? ranked.findIndex((p) => p.id === you.id) + 1 : 0;
-    const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : place === 3 ? "🥉" : "💀";
     const beatAI =
       ranked.some((p) => isAI(p.id)) &&
       you != null &&
       (game?.scores[you.id] ?? 0) >
         Math.max(...ranked.filter((p) => isAI(p.id)).map((p) => game?.scores[p.id] ?? 0));
+    const streak = getStreak();
+
+    // Wordle-style visual grid: each player is a row of blocks sized to their
+    // score (fixed-width emoji, so it stays aligned when pasted anywhere).
+    // 🟪 = you, 🤖 = the bot, ⬜ = everyone else. This is the shareable hook.
+    const top = Math.max(1, ...ranked.map((p) => game?.scores[p.id] ?? 0));
+    const medals = ["🥇", "🥈", "🥉"];
+    const rows = ranked.slice(0, 4).map((p, i) => {
+      const score = game?.scores[p.id] ?? 0;
+      const filled = Math.max(1, Math.round((score / top) * 8));
+      const block = p.id === you?.id ? "🟪" : isAI(p.id) ? "🤖" : "⬜";
+      return `${medals[i] ?? "▪️"} ${block.repeat(filled)} ${score}`;
+    });
+
+    const brags = [
+      beatAI ? "cooked the bot too 🤖💥 no cap" : null,
+      streak > 1 ? `🔥 ${streak}-win streak` : null,
+    ].filter(Boolean);
+
     return [
-      `is it a dog? 🐶 — ${modeMeta?.label ?? mode}`,
-      `${medal} #${place || "?"}/${ranked.length} · ${myScore} pts and that's on periodt`,
-      beatAI ? "cooked the bot too 🤖💥 no cap" : "",
+      `is it a dog? 🐶 · ${modeMeta?.label ?? mode}`,
+      `i came #${place || "?"}/${ranked.length} and that's on periodt`,
+      "",
+      ...rows,
+      ...(brags.length ? ["", ...brags] : []),
+      "",
       `pull up: ${inviteLink(room, mode)}`,
-    ]
-      .filter(Boolean)
-      .join("\n");
+    ].join("\n");
   };
 
   const handleFlex = async () => {
