@@ -66,11 +66,14 @@ export class ClassicMode implements GameMode {
     if (!word) return false; // not in a live turn → normal chat
     if (playerId === ctx.currentDrawerId()) return true; // hide drawer chat
     if (ctx.hasGuessed(playerId)) return true; // already done → stay quiet
-    const guess = text.trim().toLowerCase();
-    if (guess !== word.toLowerCase()) {
+    // Normalize both sides so punctuation, accents, casing and stray spaces
+    // don't stand between a guesser and an obviously-correct answer.
+    const guess = normalizeGuess(text);
+    const target = normalizeGuess(word);
+    if (guess !== target) {
       // A near-miss? Privately nudge just this guesser so they lean in —
       // the wrong guess still passes through to the public chat as normal.
-      if (isClose(guess, word.toLowerCase())) {
+      if (isClose(guess, target)) {
         ctx.sendToPlayer(playerId, { type: "system", text: "🔥 so close!" });
       }
       return false;
@@ -138,6 +141,20 @@ export function winnerLine(ctx: EngineContext): string {
       ? names.join(" & ")
       : `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
   return `🏆 it's a tie! ${joined} share the W with ${top} points each.`;
+}
+
+// Canonicalize a guess/word for comparison: lowercase, strip diacritics
+// (café → cafe), drop punctuation, and collapse whitespace. This makes
+// matching forgiving without accepting anything that isn't really the word.
+// Exported for testing.
+export function normalizeGuess(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // combining accent marks
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ") // punctuation/symbols → space
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 // A guess is "close" when it's within one edit (insert/delete/substitute) of
