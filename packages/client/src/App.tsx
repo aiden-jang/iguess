@@ -85,11 +85,11 @@ export function App() {
   if (!joined) {
     return (
       <div style={styles.gate}>
-        <div style={styles.card}>
+        <div className="glass pop-in" style={styles.card}>
           <div style={styles.brand}>
             <span style={styles.brandMark}>🐶</span>
             <div>
-              <h1 style={styles.title}>is it a dog?</h1>
+              <h1 className="grad-anim" style={styles.title}>is it a dog?</h1>
               <p style={styles.subtitle}>probably not. draw it anyway, no cap.</p>
             </div>
           </div>
@@ -125,6 +125,7 @@ export function App() {
               return (
                 <button
                   key={m.value}
+                  className="lift"
                   onClick={() => setDraftMode(m.value)}
                   style={{
                     ...styles.modeCard,
@@ -143,6 +144,7 @@ export function App() {
           </small>
 
           <button
+            className={draftName.trim() ? "lift pulse-cta" : undefined}
             style={{
               ...styles.button,
               ...styles.buttonBig,
@@ -256,11 +258,11 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   return (
     <div style={styles.layout}>
       {/* ---- Sidebar: roster + scores ---- */}
-      <aside style={styles.sidebar}>
+      <aside className="glass" style={styles.sidebar}>
         <div style={styles.roomHead}>
           <span style={styles.roomMark}>🐶</span>
           <div style={{ minWidth: 0 }}>
-            <div style={styles.roomName}>#{room}</div>
+            <div className="grad-anim" style={styles.roomName}>#{room}</div>
             <div style={styles.roomMode}>
               {modeMeta?.icon} {modeMeta?.label ?? mode}
             </div>
@@ -277,6 +279,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
         </div>
 
         <button
+          className="lift"
           style={{ ...styles.inviteButton, ...(copied ? styles.inviteButtonOk : null) }}
           onClick={handleInvite}
         >
@@ -318,27 +321,28 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
 
       {/* ---- Canvas pane ---- */}
       <section style={styles.canvasPane}>
-        <div style={styles.banner}>
+        <div className="glass" style={styles.banner}>
           {phase === "lobby" && (
             <>
               <span style={styles.bannerText}>
                 lowkey waiting · {players.length} pulled up
               </span>
-              <button style={{ ...styles.button, marginLeft: "auto" }} onClick={startGame}>
+              <button className="lift pulse-cta" style={{ ...styles.button, marginLeft: "auto" }} onClick={startGame}>
                 send it
               </button>
             </>
           )}
           {phase === "ended" && (
             <>
-              <span style={styles.bannerText}>🏁 and that's on periodt</span>
+              <span className="pop-in" style={styles.bannerText}>🏁 and that's on periodt</span>
               <button
+                className="lift"
                 style={{ ...styles.ghostButton, marginLeft: "auto" }}
                 onClick={handleFlex}
               >
                 {flexed ? "✅ copied, go flex" : "📋 post your dub"}
               </button>
-              <button style={styles.button} onClick={startGame}>
+              <button className="lift pulse-cta" style={styles.button} onClick={startGame}>
                 run it back
               </button>
             </>
@@ -363,7 +367,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           )}
         </div>
 
-        <div style={styles.toolbar}>
+        <div className="glass" style={styles.toolbar}>
           {COLORS.map((c) => (
             <button
               key={c}
@@ -393,6 +397,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           />
           <span style={widthDot(width, color, canDraw)} />
           <button
+            className="lift"
             style={{ ...styles.ghostButton, marginLeft: "auto" }}
             onClick={clearBoard}
             disabled={!canDraw}
@@ -420,7 +425,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
       </section>
 
       {/* ---- Chat ---- */}
-      <main style={styles.main}>
+      <main className="glass" style={styles.main}>
         <div style={styles.sectionLabel}>the group chat</div>
         <div style={styles.chatLog}>
           {log.map((line, i) =>
@@ -469,7 +474,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
-          <button style={styles.button} type="submit" disabled={canDraw}>
+          <button className="lift" style={styles.button} type="submit" disabled={canDraw}>
             Send
           </button>
         </form>
@@ -494,7 +499,6 @@ const styles: Record<string, React.CSSProperties> = {
   card: {
     width: "100%",
     maxWidth: 440,
-    background: "var(--panel)",
     border: "1px solid var(--line)",
     borderRadius: 20,
     padding: 28,
@@ -592,7 +596,6 @@ const styles: Record<string, React.CSSProperties> = {
     background: "var(--line)",
   },
   sidebar: {
-    background: "var(--panel)",
     padding: 18,
     display: "flex",
     flexDirection: "column",
@@ -702,7 +705,6 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 14,
     padding: "10px 14px",
-    background: "var(--panel)",
     border: "1px solid var(--line)",
     borderRadius: 12,
     minHeight: 30,
@@ -752,7 +754,6 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 10,
     padding: "8px 12px",
-    background: "var(--panel)",
     border: "1px solid var(--line)",
     borderRadius: 12,
   },
@@ -783,7 +784,6 @@ const styles: Record<string, React.CSSProperties> = {
 
   // ---- Chat ----
   main: {
-    background: "var(--panel)",
     display: "flex",
     flexDirection: "column",
     padding: 18,
