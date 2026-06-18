@@ -3,7 +3,42 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Drawing Game</title>
+    <title>is it a dog? · drawing game</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fredoka:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0f1117;
+        --panel: #181b24;
+        --panel-2: #1f2330;
+        --line: #2a2f3d;
+        --text: #e7e9ee;
+        --muted: #9aa0ad;
+        --accent: #6366f1;
+        --accent-2: #818cf8;
+        --good: #22c55e;
+        --bad: #ef4444;
+      }
+      * { box-sizing: border-box; }
+      html, body, #root { height: 100%; }
+      body {
+        margin: 0;
+        font-family: "Inter", system-ui, sans-serif;
+        background:
+          radial-gradient(1200px 600px at 80% -10%, #1b2030 0%, transparent 60%),
+          radial-gradient(1000px 500px at -10% 110%, #1a1530 0%, transparent 55%),
+          var(--bg);
+        color: var(--text);
+      }
+      input, button, select { font-family: inherit; }
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-thumb { background: #2c3140; border-radius: 8px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
