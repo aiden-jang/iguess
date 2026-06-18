@@ -13,6 +13,72 @@ const MODES = [
 
 const isAI = (id?: string | null) => !!id && id.startsWith("ai-");
 
+// Rotating join-screen taglines — keeps the landing feeling alive.
+const TAGLINES = [
+  "probably not. draw it anyway, no cap.",
+  "your art skills? questionable. your vibes? immaculate.",
+  "warning: contains 100% organic chaos 🧪",
+  "the bot is judging your circles rn",
+  "ms paint energy, olympic confidence",
+  "draw bad, win anyway. that's the lore.",
+];
+
+// Funny throwaway handles for the dice button.
+const NAME_ADJ = ["sleepy", "feral", "based", "soggy", "spicy", "chaotic", "lowkey", "sus", "gigarad", "unhinged", "moist", "elite"];
+const NAME_NOUN = ["goblin", "pigeon", "raccoon", "doodler", "gamer", "wizard", "shrimp", "menace", "legend", "noodle", "gremlin", "duck"];
+function randomName(): string {
+  const a = NAME_ADJ[Math.floor(Math.random() * NAME_ADJ.length)];
+  const n = NAME_NOUN[Math.floor(Math.random() * NAME_NOUN.length)];
+  return `${a}_${n}${Math.floor(Math.random() * 90 + 10)}`;
+}
+
+// Open a pre-filled X/Twitter compose window — the actual viral loop.
+function shareToX(text: string) {
+  const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+// Lightweight emoji confetti — no deps. Renders a burst of falling emoji that
+// auto-clears after the animation. Fired on a win.
+function Confetti({ go }: { go: boolean }) {
+  const [pieces, setPieces] = useState<
+    { id: number; left: number; delay: number; dur: number; emoji: string }[]
+  >([]);
+  useEffect(() => {
+    if (!go) return;
+    const emojis = ["🎉", "🎨", "🐶", "🔥", "💀", "✨", "🏆", "💅", "🤖"];
+    const burst = Array.from({ length: 48 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 0.6,
+      dur: 2.4 + Math.random() * 1.8,
+      emoji: emojis[Math.floor(Math.random() * emojis.length)],
+    }));
+    setPieces(burst);
+    const t = setTimeout(() => setPieces([]), 4800);
+    return () => clearTimeout(t);
+  }, [go]);
+  if (pieces.length === 0) return null;
+  return (
+    <>
+      {pieces.map((p) => (
+        <span
+          key={p.id}
+          className="confetti-piece"
+          style={{
+            left: `${p.left}vw`,
+            animation: `confettiFall ${p.dur}s linear ${p.delay}s forwards`,
+          }}
+        >
+          {p.emoji}
+        </span>
+      ))}
+    </>
+  );
+}
+
+const REACTIONS = ["😂", "🔥", "💀", "👏", "😭", "🐶"];
+
 // Copy text to the clipboard with a graceful fallback for older/insecure
 // contexts (clipboard API needs https or localhost).
 async function copyText(text: string): Promise<boolean> {
@@ -82,6 +148,14 @@ export function App() {
     mode: string;
   } | null>(null);
 
+  // Cycle taglines while sitting on the join screen.
+  const [tagIdx, setTagIdx] = useState(() => Math.floor(Math.random() * TAGLINES.length));
+  useEffect(() => {
+    if (joined) return;
+    const t = setInterval(() => setTagIdx((i) => (i + 1) % TAGLINES.length), 3200);
+    return () => clearInterval(t);
+  }, [joined]);
+
   if (!joined) {
     return (
       <div style={styles.gate}>
@@ -90,7 +164,9 @@ export function App() {
             <span style={styles.brandMark}>🐶</span>
             <div>
               <h1 className="grad-anim" style={styles.title}>is it a dog?</h1>
-              <p style={styles.subtitle}>probably not. draw it anyway, no cap.</p>
+              <p key={tagIdx} className="pop-in" style={styles.subtitle}>
+                {TAGLINES[tagIdx]}
+              </p>
             </div>
           </div>
 
@@ -102,13 +178,24 @@ export function App() {
           )}
 
           <label style={styles.fieldLabel}>Your name</label>
-          <input
-            placeholder="whatever you want, really"
-            value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
-            style={styles.input}
-            autoFocus
-          />
+          <div style={styles.nameRow}>
+            <input
+              placeholder="whatever you want, really"
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              style={{ ...styles.input, flex: 1 }}
+              autoFocus
+            />
+            <button
+              type="button"
+              className="lift wiggle"
+              style={styles.diceButton}
+              title="gimme a random name"
+              onClick={() => setDraftName(randomName())}
+            >
+              🎲
+            </button>
+          </div>
 
           <label style={styles.fieldLabel}>Room</label>
           <input
@@ -231,9 +318,9 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
     }
   };
 
-  // Wordle-style flex: a copy-pasteable recap of how you stacked up. This is
-  // the share loop — text + a link is what actually spreads.
-  const handleFlex = async () => {
+  // Wordle-style flex text: a copy-pasteable recap of how you stacked up. This
+  // is the share loop — text + a link is what actually spreads.
+  const flexText = () => {
     const myScore = you ? game?.scores[you.id] ?? 0 : 0;
     const place = you ? ranked.findIndex((p) => p.id === you.id) + 1 : 0;
     const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : place === 3 ? "🥉" : "💀";
@@ -242,13 +329,18 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
       you != null &&
       (game?.scores[you.id] ?? 0) >
         Math.max(...ranked.filter((p) => isAI(p.id)).map((p) => game?.scores[p.id] ?? 0));
-    const lines = [
+    return [
       `is it a dog? 🐶 — ${modeMeta?.label ?? mode}`,
       `${medal} #${place || "?"}/${ranked.length} · ${myScore} pts and that's on periodt`,
       beatAI ? "cooked the bot too 🤖💥 no cap" : "",
       `pull up: ${inviteLink(room, mode)}`,
-    ].filter(Boolean);
-    const ok = await copyText(lines.join("\n"));
+    ]
+      .filter(Boolean)
+      .join("\n");
+  };
+
+  const handleFlex = async () => {
+    const ok = await copyText(flexText());
     if (ok) {
       setFlexed(true);
       setTimeout(() => setFlexed(false), 1800);
@@ -257,6 +349,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
 
   return (
     <div style={styles.layout}>
+      <Confetti go={phase === "ended"} />
       {/* ---- Sidebar: roster + scores ---- */}
       <aside className="glass" style={styles.sidebar}>
         <div style={styles.roomHead}>
@@ -340,7 +433,14 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
                 style={{ ...styles.ghostButton, marginLeft: "auto" }}
                 onClick={handleFlex}
               >
-                {flexed ? "✅ copied, go flex" : "📋 post your dub"}
+                {flexed ? "✅ copied, go flex" : "📋 copy dub"}
+              </button>
+              <button
+                className="lift"
+                style={styles.xButton}
+                onClick={() => shareToX(flexText())}
+              >
+                𝕏 post it
               </button>
               <button className="lift pulse-cta" style={styles.button} onClick={startGame}>
                 run it back
@@ -449,6 +549,21 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
             )
           )}
           {log.length === 0 && <div style={styles.system}>crickets… break the ice bestie 👀</div>}
+        </div>
+        <div style={styles.reactRow}>
+          {REACTIONS.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              className="lift"
+              style={styles.reactBtn}
+              onClick={() => sendChat(emoji)}
+              disabled={canDraw}
+              title={`react ${emoji}`}
+            >
+              {emoji}
+            </button>
+          ))}
         </div>
         <form
           style={styles.inputRow}
@@ -804,6 +919,16 @@ const styles: Record<string, React.CSSProperties> = {
   chatText: { color: "var(--text)", wordBreak: "break-word" },
   system: { color: "var(--muted)", fontStyle: "italic", fontSize: 13 },
   inputRow: { display: "flex", gap: 8 },
+  reactRow: { display: "flex", gap: 6, marginBottom: 8 },
+  reactBtn: {
+    flex: 1,
+    padding: "6px 0",
+    fontSize: 17,
+    cursor: "pointer",
+    border: "1px solid var(--line)",
+    borderRadius: 10,
+    background: "var(--panel-2)",
+  },
 
   // ---- Shared controls ----
   input: {
@@ -828,6 +953,26 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: "0 6px 18px rgba(168,85,247,0.35)",
   },
   buttonBig: { width: "100%", marginTop: 18, padding: "13px 16px", fontSize: 15 },
+  nameRow: { display: "flex", gap: 8, alignItems: "stretch" },
+  diceButton: {
+    width: 46,
+    fontSize: 20,
+    cursor: "pointer",
+    borderRadius: 10,
+    border: "1px solid var(--line)",
+    background: "var(--panel-2)",
+    flexShrink: 0,
+  },
+  xButton: {
+    padding: "10px 14px",
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: "pointer",
+    border: "none",
+    borderRadius: 10,
+    background: "#111111",
+    color: "white",
+  },
   buttonDisabled: { opacity: 0.45, cursor: "not-allowed" },
   ghostButton: {
     padding: "8px 14px",
