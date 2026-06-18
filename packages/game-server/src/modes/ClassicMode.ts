@@ -87,8 +87,12 @@ export class ClassicMode implements GameMode {
     return playerId === ctx.currentDrawerId();
   }
 
-  onTurnEnd(_turn: TurnContext, _ctx: EngineContext): void {
-    // nothing extra in classic mode
+  onTurnEnd(turn: TurnContext, ctx: EngineContext): void {
+    // A whiff: the turn ran out with no correct guesses. The word is already
+    // revealed in the turn_end message, so naming it here leaks nothing.
+    if (ctx.guessedIds().length === 0) {
+      ctx.broadcast({ type: "system", text: `oof — nobody got "${turn.word}" 💀` });
+    }
   }
 
   onGameEnd(ctx: EngineContext): void {

@@ -185,6 +185,22 @@ test("hints start fully masked and reveal letters as the turn progresses", () =>
   assert.ok(revealedCount <= Math.ceil(word.length / 3), "reveal cap respected");
 });
 
+test("a turn that times out with no correct guess announces the whiff", () => {
+  const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
+  engine.startGame(["a", "b"]);
+  const word = wordSentTo(sent, "a");
+
+  // Nobody guesses; fire the 60s turn timer (and the cascade) to end the turn.
+  flush(60000);
+
+  assert.ok(
+    broadcasts.some(
+      (m) => m.type === "system" && m.text.includes("nobody got") && m.text.includes(word)
+    ),
+    "an empty turn should announce that nobody guessed the word"
+  );
+});
+
 test("the drawer's own chat is swallowed, not treated as a guess", () => {
   const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
   engine.startGame(["a", "b"]);
