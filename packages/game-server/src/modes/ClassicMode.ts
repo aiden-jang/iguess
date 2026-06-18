@@ -12,9 +12,18 @@ export class ClassicMode implements GameMode {
   // Ordered list of player ids eligible to draw. Captured at configure.
   protected drawOrder: string[] = [];
 
+  // How many times the draw order repeats — each player draws once per round.
+  // skribbl's default is 3; pickDrawer already wraps via modulo so rotation
+  // continues correctly across rounds.
+  protected rounds: number;
+
+  constructor(rounds = 3) {
+    this.rounds = Math.max(1, rounds);
+  }
+
   configure(humans: PlayerRef[], _ctx: EngineContext): { totalTurns: number } {
     this.drawOrder = humans.map((h) => h.id);
-    return { totalTurns: this.drawOrder.length }; // one round
+    return { totalTurns: this.drawOrder.length * this.rounds };
   }
 
   pickDrawer(turnIndex: number, _ctx: EngineContext): string {

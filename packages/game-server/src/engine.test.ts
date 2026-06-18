@@ -47,7 +47,7 @@ function flush(maxDelay = 5000) {
 }
 
 // ---- Harness: an engine wired to in-memory deps that record output ----
-function makeHarness(names: Record<string, string>) {
+function makeHarness(names: Record<string, string>, rounds = 1) {
   const broadcasts: ServerMessage[] = [];
   const sent: Record<string, ServerMessage[]> = {};
   const deps: EngineDeps = {
@@ -59,7 +59,7 @@ function makeHarness(names: Record<string, string>) {
     addVirtualPlayer: () => {},
     removeVirtualPlayer: () => {},
   };
-  const engine = new GameEngine(deps, new ClassicMode());
+  const engine = new GameEngine(deps, new ClassicMode(rounds));
   return { engine, broadcasts, sent };
 }
 
@@ -203,6 +203,25 @@ test("a wrong guess is passed through as normal chat", () => {
   const wrong = word === "zzzz" ? "yyyy" : "zzzz";
   // false === "not consumed by the game, show it as chat"
   assert.equal(engine.handleChat("b", wrong), false);
+});
+
+test("multiple rounds: each player draws once per round and rotation wraps", () => {
+  // 2 players × 3 rounds = 6 turns; drawer alternates a,b,a,b,a,b.
+  const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" }, 3);
+  engine.startGame(["a", "b"]);
+  assert.equal(latestState(broadcasts).totalTurns, 6);
+
+  const drawers: string[] = [];
+  for (let i = 0; i < 6; i++) {
+    const st = latestState(broadcasts);
+    drawers.push(st.drawerId!);
+    const drawer = st.drawerId!;
+    const guesser = drawer === "a" ? "b" : "a";
+    engine.handleChat(guesser, wordSentTo(sent, drawer));
+    flush(5000); // intermission → next turn (or end after the last)
+  }
+  assert.deepEqual(drawers, ["a", "b", "a", "b", "a", "b"]);
+  assert.equal(latestState(broadcasts).phase, "ended");
 });
 
 test("isClose flags one-edit near-misses but not exact or distant guesses", () => {
