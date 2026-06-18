@@ -25,6 +25,11 @@ knows nothing about AI. Game **modes** are pluggable strategies layered on top, 
   machinery and is mode-agnostic. A `GameMode` (strategy pattern + dependency
   injection) decides drawer order, word choice, and how chat is interpreted.
   `AIGuesserMode` adds a whole feature in ~70 lines without touching the engine.
+- **A polished play loop.** Multiple rounds with a rotating drawer, a skribbl-style
+  **word-choice phase** (the drawer picks one of three before drawing), progressive
+  letter hints that reveal as the clock drains, speed-weighted scoring, and
+  forgiving guess matching (case/accents/punctuation-insensitive, with a private
+  "so close!" nudge on a one-letter miss).
 - **AI as a virtual player.** The AI is injected into the roster as a normal
   participant, so it flows through the *same* presence, scoring, and turn-end
   logic as humans — no special cases in the engine.
@@ -58,7 +63,9 @@ knows nothing about AI. Game **modes** are pluggable strategies layered on top, 
         ║       ▼                               ║    stroke LIST)
         ║   GameMode (strategy)                 ║
         ║   ├─ ClassicMode   (humans only)      ║
-        ║   └─ AIGuesserMode (adds virtual AI)  ║
+        ║   ├─ AIGuesserMode (adds virtual AI)  ║
+        ║   ├─ AIDrawerMode  (AI draws)         ║
+        ║   └─ TeamBattleMode(humans vs AI)     ║
         ║              │                        ║
         ╚══════════════┼═══════════════════════ ╝
                        │ HTTP POST /guess { ops }
@@ -93,6 +100,10 @@ packages/game-server/            WebSocket server + engine + modes
   src/modes/GameMode.ts          EngineContext + GameMode interface
   src/modes/ClassicMode.ts       base mode (humans take turns)
   src/modes/AIGuesserMode.ts     extends ClassicMode, adds AI guesser
+  src/modes/AIDrawerMode.ts      AI is the sole drawer
+  src/modes/TeamBattleMode.ts    Humans vs AI, round-win race
+  src/ai/{aiGuessLoop,aiDrawLoop}.ts  composable AI cadence helpers
+  src/text.ts                    guess normalization + close-match
   src/services/aiWorkerClient.ts resilient HTTP client to ai-worker
   src/words.{ts,json}            configurable word list
 packages/ai-worker/              vision service (Express)
@@ -147,6 +158,16 @@ one screen.** Use two browser windows side by side.
 Want to show range? Re-join a fresh room as **"AI drawer"** — the AI draws and
 you guess — or **"Team battle"** for Humans-vs-AI. Same engine, different mode.
 
+### Tests
+
+```bash
+npm test    # engine + modes + helpers, via Node's built-in test runner
+```
+
+The suite drives the `GameEngine` through whole games against in-memory deps —
+no sockets, Redis, or timers required — covering rounds, scoring, hints, the
+word-choice phase, and forgiving guess matching.
+
 ### Docker Compose
 
 ```bash
@@ -164,11 +185,18 @@ real vision model.
 A mode implements the `GameMode` interface and receives an `EngineContext` of
 verbs (`broadcast`, `awardPoints`, `endTurn`, `addParticipant`, …). The engine
 calls into the mode at well-defined points (`configure`, `pickDrawer`,
-`pickWord`, `onTurnStart`, `onChat`, `canDraw`, `onTurnEnd`). To add a mode you
-write a class — you don't modify the engine.
+`pickWord`, `pickWordChoices`, `onTurnStart`, `onChat`, `canDraw`, `onTurnEnd`,
+`onGameEnd`). To add a mode you write a class — you don't modify the engine.
 
 - **ClassicMode** — humans take turns drawing; everyone else guesses via chat.
+  The base class the other three extend or compose.
 - **AIGuesserMode** — extends ClassicMode, injects a virtual AI participant that
   guesses off the live canvas on an interval.
+- **AIDrawerMode** — the AI is the sole drawer (strokes arrive through the engine
+  via `ctx.draw`); humans race to guess.
+- **TeamBattleMode** — Humans vs AI: rounds alternate who draws, and the first
+  correct guess wins the round for its side.
 
-Planned: AI-as-drawer, Humans-vs-AI team battle — both as new modes.
+The optional `pickWordChoices` hook is what powers the word-choice phase: a mode
+returns 2+ words to trigger a "choosing" phase (human drawers), or `null` to skip
+it (AI drawers pick their own renderable word).
