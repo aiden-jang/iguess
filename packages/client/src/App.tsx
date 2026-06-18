@@ -421,6 +421,8 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
     subscribeDraw,
     clearBoard,
     startGame,
+    wordChoices,
+    chooseWord,
   } = useGameSocket(room, name, mode);
   const [text, setText] = useState("");
   const [color, setColor] = useState(COLORS[0]);
@@ -698,6 +700,39 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
               <button className="lift pulse-cta" style={styles.button} onClick={startGame}>
                 run it back
               </button>
+            </>
+          )}
+          {phase === "choosing" && (
+            <>
+              <span style={styles.turnPill}>
+                {(game?.totalRounds ?? 1) > 1
+                  ? `Round ${game?.round ?? 1}/${game?.totalRounds ?? 1}`
+                  : "Choosing"}
+              </span>
+              {isDrawer && wordChoices ? (
+                <span style={styles.wordZone}>
+                  <span style={styles.wordVerb}>pick one</span>
+                  <span style={styles.tiles}>
+                    {wordChoices.map((w) => (
+                      <button
+                        key={w}
+                        className="lift"
+                        style={styles.button}
+                        onClick={() => chooseWord(w)}
+                      >
+                        {w}
+                      </button>
+                    ))}
+                  </span>
+                </span>
+              ) : (
+                <span style={styles.wordZone}>
+                  <span style={styles.wordVerb}>
+                    {(game?.drawerId ? playerName(players, game.drawerId) : "someone")} is
+                    picking a word…
+                  </span>
+                </span>
+              )}
             </>
           )}
           {inGame && (

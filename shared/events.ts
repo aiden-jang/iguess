@@ -28,7 +28,9 @@ export type DrawOp =
 
 // ---- Game state ----
 
-export type GamePhase = "lobby" | "playing" | "intermission" | "ended";
+// "choosing": a turn's drawer has been picked and is choosing their word from
+// a few options; nobody can draw or guess yet. Followed by "playing".
+export type GamePhase = "lobby" | "choosing" | "playing" | "intermission" | "ended";
 
 // The view of game state that is safe for EVERY client to see. Note it
 // carries only `wordLength`, never the word itself — the secret word is
@@ -67,6 +69,12 @@ export type ClientMessage =
   | {
       // Request to start (or restart) the game. Allowed from lobby/ended.
       type: "start_game";
+    }
+  | {
+      // The drawer's pick among the offered word choices (sent only while
+      // this client is the drawer in the "choosing" phase). Ignored otherwise.
+      type: "choose_word";
+      word: string;
     };
 
 // ---- Server → Client ----
@@ -112,6 +120,12 @@ export type ServerMessage =
       // phase change, guess, or score update.
       type: "game_state";
       state: PublicGameState;
+    }
+  | {
+      // Word options offered to the drawer during the "choosing" phase. Sent
+      // ONLY to the drawer; they reply with `choose_word`.
+      type: "word_choices";
+      words: string[];
     }
   | {
       // The secret word — sent ONLY to the current drawer at turn start.

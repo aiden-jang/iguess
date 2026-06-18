@@ -83,6 +83,32 @@ function wordSentTo(sent: Record<string, ServerMessage[]>, id: string): string {
   throw new Error(`no your_word sent to ${id}`);
 }
 
+// ClassicMode now opens each turn with a "choosing" phase: the drawer is
+// offered a few words and must pick one before drawing begins. In tests we
+// auto-accept the drawer's first offered word so the turn proceeds. No-op if
+// we're not currently choosing.
+function settleChoosing(
+  engine: GameEngine,
+  broadcasts: ServerMessage[],
+  sent: Record<string, ServerMessage[]>
+) {
+  let st: PublicGameState;
+  try {
+    st = latestState(broadcasts);
+  } catch {
+    return;
+  }
+  if (st.phase !== "choosing" || !st.drawerId) return;
+  const inbox = sent[st.drawerId] ?? [];
+  for (let i = inbox.length - 1; i >= 0; i--) {
+    const m = inbox[i]!;
+    if (m.type === "word_choices") {
+      engine.handleChooseWord(st.drawerId, m.words[0]!);
+      return;
+    }
+  }
+}
+
 beforeEach(installFakeTimers);
 afterEach(restoreTimers);
 
@@ -101,6 +127,7 @@ test("startGame is rejected with fewer than 2 players", () => {
 test("startGame begins turn 0 with the first player drawing", () => {
   const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
   engine.startGame(["a", "b"]);
+  settleChoosing(engine, broadcasts, sent);
   const st = latestState(broadcasts);
   assert.equal(st.phase, "playing");
   assert.equal(st.drawerId, "a");
@@ -115,6 +142,7 @@ test("startGame begins turn 0 with the first player drawing", () => {
 test("a correct guess scores the guesser and the drawer, and ends the turn", () => {
   const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
   engine.startGame(["a", "b"]);
+  settleChoosing(engine, broadcasts, sent);
   const word = wordSentTo(sent, "a");
 
   engine.handleChat("b", word); // bob guesses correctly
@@ -131,10 +159,12 @@ test("a correct guess scores the guesser and the drawer, and ends the turn", () 
 test("the drawer rotates and the game ends after one full round", () => {
   const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
   engine.startGame(["a", "b"]);
+  settleChoosing(engine, broadcasts, sent);
 
   // Turn 0: a draws, b guesses.
   engine.handleChat("b", wordSentTo(sent, "a"));
   flush(5000); // intermission → turn 1 starts
+  settleChoosing(engine, broadcasts, sent);
 
   let st = latestState(broadcasts);
   assert.equal(st.phase, "playing");
@@ -156,6 +186,7 @@ test("the drawer rotates and the game ends after one full round", () => {
 test("hints start fully masked and reveal letters as the turn progresses", () => {
   const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
   engine.startGame(["a", "b"]);
+  settleChoosing(engine, broadcasts, sent);
   const word = wordSentTo(sent, "a");
 
   // At turn start nothing is revealed: one "_" per letter, same length.
@@ -188,6 +219,7 @@ test("hints start fully masked and reveal letters as the turn progresses", () =>
 test("a turn that times out with no correct guess announces the whiff", () => {
   const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
   engine.startGame(["a", "b"]);
+  settleChoosing(engine, broadcasts, sent);
   const word = wordSentTo(sent, "a");
 
   // Nobody guesses; fire the 60s turn timer (and the cascade) to end the turn.
@@ -204,6 +236,7 @@ test("a turn that times out with no correct guess announces the whiff", () => {
 test("the drawer's own chat is swallowed, not treated as a guess", () => {
   const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
   engine.startGame(["a", "b"]);
+  settleChoosing(engine, broadcasts, sent);
   const word = wordSentTo(sent, "a");
 
   // The drawer typing the word must not score or end the turn.
@@ -215,8 +248,9 @@ test("the drawer's own chat is swallowed, not treated as a guess", () => {
 });
 
 test("a wrong guess is passed through as normal chat", () => {
-  const { engine, sent } = makeHarness({ a: "alice", b: "bob" });
+  const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
   engine.startGame(["a", "b"]);
+  settleChoosing(engine, broadcasts, sent);
   const word = wordSentTo(sent, "a");
   const wrong = word === "zzzz" ? "yyyy" : "zzzz";
   // false === "not consumed by the game, show it as chat"
@@ -236,6 +270,7 @@ test("a guess matches the word despite punctuation/casing/accent differences", (
   // Force a known multi-word target via a tiny custom mode word.
   const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
   engine.startGame(["a", "b"]);
+  settleChoosing(engine, broadcasts, sent);
   const word = wordSentTo(sent, "a");
   // Build a "messy" but normalization-equivalent version of the word.
   const messy = ` ${word.toUpperCase()}!! `;
@@ -272,8 +307,10 @@ test("winnerLine announces a sole winner, a tie, and a scoreless game", () => {
 test("the engine broadcasts a winner announcement when the game ends", () => {
   const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
   engine.startGame(["a", "b"]);
+  settleChoosing(engine, broadcasts, sent);
   engine.handleChat("b", wordSentTo(sent, "a"));
   flush(5000);
+  settleChoosing(engine, broadcasts, sent);
   engine.handleChat("a", wordSentTo(sent, "b"));
   flush(5000); // → ended → onGameEnd fires
 
@@ -307,12 +344,14 @@ test("multiple rounds: each player draws once per round and rotation wraps", () 
   // 2 players × 3 rounds = 6 turns; drawer alternates a,b,a,b,a,b.
   const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" }, 3);
   engine.startGame(["a", "b"]);
+  settleChoosing(engine, broadcasts, sent);
   assert.equal(latestState(broadcasts).totalTurns, 6);
   assert.equal(latestState(broadcasts).totalRounds, 3);
 
   const drawers: string[] = [];
   const rounds: number[] = [];
   for (let i = 0; i < 6; i++) {
+    settleChoosing(engine, broadcasts, sent);
     const st = latestState(broadcasts);
     drawers.push(st.drawerId!);
     rounds.push(st.round);
@@ -325,6 +364,56 @@ test("multiple rounds: each player draws once per round and rotation wraps", () 
   // Two turns per round → rounds advance 1,1,2,2,3,3.
   assert.deepEqual(rounds, [1, 1, 2, 2, 3, 3]);
   assert.equal(latestState(broadcasts).phase, "ended");
+});
+
+test("the drawer is offered word choices and picking one starts the turn", () => {
+  const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
+  engine.startGame(["a", "b"]);
+
+  // The game opens in "choosing": a drawer is set but no word is live yet.
+  const st0 = latestState(broadcasts);
+  assert.equal(st0.phase, "choosing");
+  assert.equal(st0.drawerId, "a");
+  assert.equal(st0.wordLength, 0);
+
+  // Options go only to the drawer.
+  const offer = (sent["a"] ?? []).find((m) => m.type === "word_choices");
+  assert.ok(offer && offer.type === "word_choices", "drawer should be offered words");
+  assert.ok(offer.words.length >= 2, "at least two options");
+  assert.ok(!(sent["b"] ?? []).some((m) => m.type === "word_choices"), "guesser sees none");
+  assert.ok(!(sent["a"] ?? []).some((m) => m.type === "your_word"), "no word until picked");
+
+  // The drawer picks one → the turn begins with exactly that word.
+  const pick = offer.words[1]!;
+  engine.handleChooseWord("a", pick);
+  const st1 = latestState(broadcasts);
+  assert.equal(st1.phase, "playing");
+  assert.equal(st1.wordLength, pick.length);
+  assert.equal(wordSentTo(sent, "a"), pick);
+});
+
+test("a choice from a non-drawer or off the menu is ignored", () => {
+  const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
+  engine.startGame(["a", "b"]);
+  const offer = (sent["a"] ?? []).find((m) => m.type === "word_choices");
+  assert.ok(offer && offer.type === "word_choices");
+
+  engine.handleChooseWord("b", offer.words[0]!); // not the drawer
+  engine.handleChooseWord("a", "definitely-not-an-option");
+  assert.equal(latestState(broadcasts).phase, "choosing", "still waiting on a valid pick");
+});
+
+test("an undecided drawer is auto-assigned a word when the clock runs out", () => {
+  const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
+  engine.startGame(["a", "b"]);
+  const offer = (sent["a"] ?? []).find((m) => m.type === "word_choices");
+  assert.ok(offer && offer.type === "word_choices");
+
+  flush(15000); // fire the choose-timeout
+
+  const st = latestState(broadcasts);
+  assert.equal(st.phase, "playing");
+  assert.ok(offer.words.includes(wordSentTo(sent, "a")), "auto-pick is one of the options");
 });
 
 test("isClose flags one-edit near-misses but not exact or distant guesses", () => {
@@ -342,8 +431,9 @@ test("isClose flags one-edit near-misses but not exact or distant guesses", () =
 });
 
 test("a near-miss privately nudges only the guesser and stays public chat", () => {
-  const { engine, sent } = makeHarness({ a: "alice", b: "bob" });
+  const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
   engine.startGame(["a", "b"]);
+  settleChoosing(engine, broadcasts, sent);
   const word = wordSentTo(sent, "a");
   // Build a guess one letter off the secret word (only words >= 4 trigger).
   if (word.length < 4) return; // skip if the random word is too short

@@ -43,8 +43,28 @@ export class ClassicMode implements GameMode {
   }
 
   pickWord(_ctx: EngineContext): string {
-    // Don't repeat a word within a single game. If the pool is exhausted
-    // (tiny WORDS list, many turns), start fresh so we never dead-end.
+    const word = this.freshWord();
+    this.usedWords.add(word);
+    return word;
+  }
+
+  // Offer the drawer three distinct, unused words to choose from. The engine
+  // turns this into a "choosing" phase; whichever word the drawer picks becomes
+  // live. We reserve all three as used so they don't recur later this game.
+  pickWordChoices(_ctx: EngineContext): string[] | null {
+    const choices: string[] = [];
+    while (choices.length < 3 && choices.length < WORDS.length) {
+      const word = this.freshWord();
+      if (choices.includes(word)) continue;
+      choices.push(word);
+      this.usedWords.add(word);
+    }
+    return choices;
+  }
+
+  // Pick one word not yet used this game (without marking it used — callers
+  // decide what to reserve). Resets the pool if exhausted so we never dead-end.
+  private freshWord(): string {
     if (this.usedWords.size >= WORDS.length) this.usedWords.clear();
     let word = randomWord();
     // A few random retries, then a linear fallback that guarantees an unused
@@ -53,7 +73,6 @@ export class ClassicMode implements GameMode {
     if (this.usedWords.has(word)) {
       word = WORDS.find((w) => !this.usedWords.has(w)) ?? word;
     }
-    this.usedWords.add(word);
     return word;
   }
 
