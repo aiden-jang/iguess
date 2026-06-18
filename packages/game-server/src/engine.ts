@@ -25,6 +25,9 @@ export class GameEngine {
   private phase: GamePhase = "lobby";
   private turnIndex = 0;
   private totalTurns = 0;
+  // How many turns make up one round (every drawer drawing once). Reported by
+  // the mode; defaults to the whole game (one round) when not provided.
+  private turnsPerRound = 1;
   private drawerId: string | null = null;
   private word: string | null = null;
   private turnEndsAt: number | null = null;
@@ -91,12 +94,14 @@ export class GameEngine {
     }
 
     // Let the mode configure the game (and add virtual players like the AI).
-    const { totalTurns } = this.mode.configure(
+    const { totalTurns, turnsPerRound } = this.mode.configure(
       humanIds.map((id) => this.roster.get(id)!),
       this.ctx
     );
 
     this.totalTurns = totalTurns;
+    // Fall back to a single round when the mode doesn't report a round size.
+    this.turnsPerRound = Math.max(1, turnsPerRound ?? totalTurns);
     this.turnIndex = 0;
     this.scoreboard = Object.fromEntries(
       [...this.roster.keys()].map((id) => [id, 0])
@@ -226,6 +231,11 @@ export class GameEngine {
       drawerId: this.drawerId,
       turnIndex: this.turnIndex,
       totalTurns: this.totalTurns,
+      round: Math.min(
+        Math.max(1, Math.ceil(this.totalTurns / this.turnsPerRound)),
+        Math.floor(this.turnIndex / this.turnsPerRound) + 1
+      ),
+      totalRounds: Math.max(1, Math.ceil(this.totalTurns / this.turnsPerRound)),
       turnEndsAt: this.turnEndsAt,
       wordLength: this.word?.length ?? 0,
       hint: this.computeHint(),
