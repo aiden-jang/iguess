@@ -2,7 +2,7 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import type { ServerMessage, PublicGameState } from "shared";
 import { GameEngine, type EngineDeps } from "./engine.ts";
-import { ClassicMode, isClose } from "./modes/ClassicMode.ts";
+import { ClassicMode, isClose, WORDS } from "./modes/ClassicMode.ts";
 
 // ---- Minimal fake timer harness ----
 // The engine schedules a 60s per-turn timer and a 5s intermission timer via
@@ -203,6 +203,25 @@ test("a wrong guess is passed through as normal chat", () => {
   const wrong = word === "zzzz" ? "yyyy" : "zzzz";
   // false === "not consumed by the game, show it as chat"
   assert.equal(engine.handleChat("b", wrong), false);
+});
+
+test("pickWord never repeats within a game until the pool is exhausted", () => {
+  const mode = new ClassicMode();
+  const ctx = {} as never; // pickWord ignores ctx
+  mode.configure([{ id: "a", name: "a" }, { id: "b", name: "b" }], ctx);
+
+  // Drawing exactly WORDS.length times should yield every word once — a
+  // permutation with no repeats.
+  const seen = WORDS.map(() => mode.pickWord(ctx));
+  assert.equal(new Set(seen).size, WORDS.length, "all picks within a game are unique");
+
+  // The pool is now exhausted; the next pick resets and reuses, never throwing.
+  const after = mode.pickWord(ctx);
+  assert.ok(WORDS.includes(after));
+
+  // A fresh game clears history, so it can pick freely again.
+  mode.configure([{ id: "a", name: "a" }, { id: "b", name: "b" }], ctx);
+  assert.ok(WORDS.includes(mode.pickWord(ctx)));
 });
 
 test("multiple rounds: each player draws once per round and rotation wraps", () => {
