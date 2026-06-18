@@ -8,6 +8,24 @@ const FIRST_GUESS_MS = 8_000; // let the drawer get something on the canvas
 const GUESS_INTERVAL_MS = 10_000; // re-guess cadence
 const MAX_GUESSES = 4; // cost cap per turn
 
+// Give the bot a voice. We decorate the DISPLAYED guess with hedging
+// personality, but matching always runs on the raw guess word, so phrasing
+// never affects whether a guess counts. `%` is replaced with the raw guess.
+const GUESS_PHRASINGS = [
+  "is it… %? 🤔",
+  "ok hear me out: %",
+  "giving %, respectfully",
+  "my circuits say %",
+  "%? final answer. probably.",
+  "lowkey think it's a %",
+  "calling it now: %",
+  "no cap that's a %",
+];
+function phraseGuess(guess: string): string {
+  const t = GUESS_PHRASINGS[Math.floor(Math.random() * GUESS_PHRASINGS.length)]!;
+  return t.replace("%", guess);
+}
+
 // Lenient match: a vision model says "elephant", "an elephant", etc.
 export function matchesWord(guess: string, word: string): boolean {
   const g = guess.toLowerCase();
@@ -63,8 +81,12 @@ export function startGuessLoop(
     // Count only REAL guesses against the budget, so a flaky worker returning
     // "" doesn't silently burn the cap without ever guessing.
     attempts++;
-    ctx.broadcast({ type: "chat", from: { id: opts.aiId, name: opts.aiName }, text: guess });
-    if (matchesWord(guess, turn.word)) { stop(); opts.onCorrect(); }
+    const correct = matchesWord(guess, turn.word);
+    // Correct guesses read straight (the engine adds a "guessed it!" notice);
+    // misses get the hedging personality so the bot feels alive, not robotic.
+    const text = correct ? guess : phraseGuess(guess);
+    ctx.broadcast({ type: "chat", from: { id: opts.aiId, name: opts.aiName }, text });
+    if (correct) { stop(); opts.onCorrect(); }
   };
 
   firstTimer = setTimeout(() => {
