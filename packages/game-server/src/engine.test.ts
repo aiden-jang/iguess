@@ -2,7 +2,7 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import type { ServerMessage, PublicGameState } from "shared";
 import { GameEngine, type EngineDeps } from "./engine.ts";
-import { ClassicMode, isClose, WORDS, winnerLine } from "./modes/ClassicMode.ts";
+import { ClassicMode, isClose, WORDS, winnerLine, normalizeGuess } from "./modes/ClassicMode.ts";
 import type { EngineContext } from "./modes/GameMode.ts";
 
 // ---- Minimal fake timer harness ----
@@ -204,6 +204,27 @@ test("a wrong guess is passed through as normal chat", () => {
   const wrong = word === "zzzz" ? "yyyy" : "zzzz";
   // false === "not consumed by the game, show it as chat"
   assert.equal(engine.handleChat("b", wrong), false);
+});
+
+test("normalizeGuess canonicalizes case, accents, punctuation and spacing", () => {
+  assert.equal(normalizeGuess("Café"), "cafe");
+  assert.equal(normalizeGuess("ICE-CREAM"), "ice cream");
+  assert.equal(normalizeGuess("  hot   dog  "), "hot dog");
+  assert.equal(normalizeGuess("piñata!"), "pinata");
+  // Two spellings that should be considered the same guess.
+  assert.equal(normalizeGuess("t-rex"), normalizeGuess("T Rex"));
+});
+
+test("a guess matches the word despite punctuation/casing/accent differences", () => {
+  // Force a known multi-word target via a tiny custom mode word.
+  const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
+  engine.startGame(["a", "b"]);
+  const word = wordSentTo(sent, "a");
+  // Build a "messy" but normalization-equivalent version of the word.
+  const messy = ` ${word.toUpperCase()}!! `;
+  const handled = engine.handleChat("b", messy);
+  assert.equal(handled, true, "messy-but-equivalent guess should count");
+  assert.ok(latestState(broadcasts).guessedIds.includes("b"));
 });
 
 test("winnerLine announces a sole winner, a tie, and a scoreless game", () => {
