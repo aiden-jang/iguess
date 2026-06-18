@@ -12,13 +12,13 @@ The central design bet is that **the game timeline and the game rules are
 different things and should never be tangled together.**
 
 - **`engine.ts` (`GameEngine`)** owns the *timeline*: phases
-  (`lobby → playing → intermission → ended`), the per-turn timer, the
+  (`lobby → choosing → playing → intermission → ended`), the per-turn timer, the
   scoreboard, the "who has guessed" set, and broadcasting public state. It
   contains **zero game rules**. It does not know what a "word" means, who is
   allowed to draw, or how points are earned.
 - **A `GameMode`** (the strategy) supplies every rule decision through a fixed
-  set of hooks: `configure`, `pickDrawer`, `pickWord`, `onTurnStart`, `onChat`,
-  `canDraw`, `onTurnEnd`, `onGameEnd`.
+  set of hooks: `configure`, `pickDrawer`, `pickWord`, `pickWordChoices`
+  (optional), `onTurnStart`, `onChat`, `canDraw`, `onTurnEnd`, `onGameEnd`.
 
 The two halves meet through two narrow interfaces:
 
@@ -243,15 +243,17 @@ Honest list:
 - **Single process / no horizontal scale yet.** §4 is the design, not the
   implementation. The engine isn't checkpointed to Redis, so it can't currently
   fail over.
-- **No automated test suite in the repo.** Each milestone was validated with
-  ad-hoc integration scripts (two `ws` clients driving a real server) and
-  `tsc`; those should be committed as a proper test suite (engine unit tests +
-  the integration harness).
+- **Unit-tested core; integration coverage is the gap.** The engine, modes, and
+  pure helpers have a committed suite (Node's built-in test runner, `npm test`)
+  that drives the engine through whole games against in-memory `EngineDeps` —
+  rounds, scoring, hints, forgiving-guess matching, and the word-choice phase.
+  *Remaining:* no end-to-end test that exercises the real `ws` transport + Redis
+  together; those paths are still validated by hand.
 - **The AI drawer is canned, not generative.** It draws from a small doodle
   library. A model-based generator (LLM emitting stroke ops, or image→trace) can
   slot behind the existing injected `requestDrawing` callback without touching
   the mode.
 
-**Next three things, in order:** (1) a committed test suite; (2) engine
-checkpointing to unlock the §4 scaling story; (3) signed session tokens + a
-reconnect grace period for the drawer.
+**Next three things, in order:** (1) engine checkpointing to unlock the §4
+scaling story; (2) an end-to-end test across the real `ws` transport + Redis;
+(3) signed session tokens + a reconnect grace period for the drawer.
