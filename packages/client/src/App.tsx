@@ -13,6 +13,49 @@ const MODES = [
 
 const isAI = (id?: string | null) => !!id && id.startsWith("ai-");
 
+// Copy text to the clipboard with a graceful fallback for older/insecure
+// contexts (clipboard API needs https or localhost).
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const el = document.createElement("textarea");
+      el.value = text;
+      el.style.position = "fixed";
+      el.style.opacity = "0";
+      document.body.appendChild(el);
+      el.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(el);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+// Build a shareable deep link that drops a friend straight into this room +
+// mode. Name is left out so they pick their own.
+function inviteLink(room: string, mode: string): string {
+  const base = `${window.location.origin}${window.location.pathname}`;
+  const q = new URLSearchParams({ room, mode });
+  return `${base}#${q.toString()}`;
+}
+
+// Read room/mode/name from the URL hash so an invite link pre-fills the gate.
+function readInvite(): { room?: string; mode?: string; name?: string } {
+  const raw = window.location.hash.replace(/^#/, "");
+  if (!raw) return {};
+  const q = new URLSearchParams(raw);
+  return {
+    room: q.get("room") ?? undefined,
+    mode: q.get("mode") ?? undefined,
+    name: q.get("name") ?? undefined,
+  };
+}
+
 function widthDot(w: number, c: string, on: boolean): React.CSSProperties {
   return {
     width: Math.max(6, Math.min(28, w)),
@@ -26,10 +69,13 @@ function widthDot(w: number, c: string, on: boolean): React.CSSProperties {
 }
 
 export function App() {
-  // Simple join gate: pick a name + room, then connect.
-  const [draftName, setDraftName] = useState("");
-  const [draftRoom, setDraftRoom] = useState("lobby");
-  const [draftMode, setDraftMode] = useState("classic");
+  // An invite link (#room=…&mode=…) pre-fills the gate so a friend lands in the
+  // same room + mode and only has to type a name.
+  const invite = readInvite();
+  const invited = !!invite.room;
+  const [draftName, setDraftName] = useState(invite.name ?? "");
+  const [draftRoom, setDraftRoom] = useState(invite.room ?? "lobby");
+  const [draftMode, setDraftMode] = useState(invite.mode ?? "classic");
   const [joined, setJoined] = useState<{
     name: string;
     room: string;
@@ -47,6 +93,13 @@ export function App() {
               <p style={styles.subtitle}>probably not. draw it anyway.</p>
             </div>
           </div>
+
+          {invited && (
+            <div style={styles.inviteRibbon}>
+              🎉 you got summoned to <strong>#{draftRoom}</strong> — just drop a
+              name
+            </div>
+          )}
 
           <label style={styles.fieldLabel}>Your name</label>
           <input
@@ -148,6 +201,8 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   const [text, setText] = useState("");
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(4);
+  const [copied, setCopied] = useState(false);
+  const [flexed, setFlexed] = useState(false);
 
   const phase = game?.phase ?? "lobby";
   const isDrawer = !!game && game.drawerId === you?.id;
@@ -165,6 +220,38 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   );
 
   const modeMeta = MODES.find((m) => m.value === mode);
+
+  const handleInvite = async () => {
+    const ok = await copyText(inviteLink(room, mode));
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    }
+  };
+
+  // Wordle-style flex: a copy-pasteable recap of how you stacked up. This is
+  // the share loop — text + a link is what actually spreads.
+  const handleFlex = async () => {
+    const myScore = you ? game?.scores[you.id] ?? 0 : 0;
+    const place = you ? ranked.findIndex((p) => p.id === you.id) + 1 : 0;
+    const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : place === 3 ? "🥉" : "💀";
+    const beatAI =
+      ranked.some((p) => isAI(p.id)) &&
+      you != null &&
+      (game?.scores[you.id] ?? 0) >
+        Math.max(...ranked.filter((p) => isAI(p.id)).map((p) => game?.scores[p.id] ?? 0));
+    const lines = [
+      `is it a dog? 🐶 — ${modeMeta?.label ?? mode}`,
+      `${medal} finished #${place || "?"}/${ranked.length} with ${myScore} pts`,
+      beatAI ? "and yes, I beat the robot 🤖💥" : "",
+      `play: ${inviteLink(room, mode)}`,
+    ].filter(Boolean);
+    const ok = await copyText(lines.join("\n"));
+    if (ok) {
+      setFlexed(true);
+      setTimeout(() => setFlexed(false), 1800);
+    }
+  };
 
   return (
     <div style={styles.layout}>
@@ -188,6 +275,13 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
         >
           <span style={styles.statusDot} /> {connected ? "we're so back" : "hang on…"}
         </div>
+
+        <button
+          style={{ ...styles.inviteButton, ...(copied ? styles.inviteButtonOk : null) }}
+          onClick={handleInvite}
+        >
+          {copied ? "✅ link copied!" : "🔗 drag your friends in"}
+        </button>
 
         <div style={styles.sectionLabel}>Scoreboard</div>
         <ul style={styles.scoreList}>
@@ -238,7 +332,13 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           {phase === "ended" && (
             <>
               <span style={styles.bannerText}>🏁 well, that happened</span>
-              <button style={{ ...styles.button, marginLeft: "auto" }} onClick={startGame}>
+              <button
+                style={{ ...styles.ghostButton, marginLeft: "auto" }}
+                onClick={handleFlex}
+              >
+                {flexed ? "✅ copied — go brag" : "📋 flex your score"}
+              </button>
+              <button style={styles.button} onClick={startGame}>
                 run it back
               </button>
             </>
@@ -451,6 +551,32 @@ const styles: Record<string, React.CSSProperties> = {
   modeLabel: { fontWeight: 600, fontSize: 14 },
   modeBlurb: { fontSize: 11, color: "var(--muted)" },
   hint: { display: "block", color: "var(--muted)", fontSize: 12, margin: "12px 0 4px" },
+  inviteRibbon: {
+    margin: "16px 0 4px",
+    padding: "10px 12px",
+    borderRadius: 12,
+    fontSize: 13,
+    background: "linear-gradient(180deg, rgba(99,102,241,0.18), rgba(99,102,241,0.06))",
+    border: "1px solid var(--accent)",
+    color: "var(--text)",
+  },
+  inviteButton: {
+    width: "100%",
+    padding: "9px 12px",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+    borderRadius: 10,
+    border: "1px dashed var(--accent)",
+    background: "rgba(99,102,241,0.08)",
+    color: "var(--accent-2)",
+    transition: "all .12s ease",
+  },
+  inviteButtonOk: {
+    border: "1px solid var(--good)",
+    background: "rgba(34,197,94,0.12)",
+    color: "#4ade80",
+  },
 
   // ---- Layout ----
   layout: {
