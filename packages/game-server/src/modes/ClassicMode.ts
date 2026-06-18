@@ -87,6 +87,10 @@ export class ClassicMode implements GameMode {
     // nothing extra in classic mode
   }
 
+  onGameEnd(ctx: EngineContext): void {
+    ctx.broadcast({ type: "system", text: winnerLine(ctx) });
+  }
+
   // ----- Shared scoring helpers (reused by subclasses) -----
 
   /** Award a correct guesser + the drawer, announce it, maybe end the turn. */
@@ -115,6 +119,25 @@ export class ClassicMode implements GameMode {
       .filter((p) => p.id !== drawerId).length;
     if (ctx.guessedIds().length >= expected) ctx.endTurn();
   }
+}
+
+// The end-of-game announcement: who won and with how many points. Handles a
+// tie (multiple players sharing the top score) and the degenerate all-zero
+// game gracefully. Exported for testing.
+export function winnerLine(ctx: EngineContext): string {
+  const scores = ctx.scores();
+  const ids = ctx.participants().map((p) => p.id);
+  if (ids.length === 0) return "🏁 game over!";
+  const top = Math.max(...ids.map((id) => scores[id] ?? 0));
+  if (top <= 0) return "🏁 game over — nobody scored. brutal.";
+  const winners = ids.filter((id) => (scores[id] ?? 0) === top);
+  const names = winners.map((id) => ctx.getName(id));
+  if (names.length === 1) return `🏆 ${names[0]} wins with ${top} points!`;
+  const joined =
+    names.length === 2
+      ? names.join(" & ")
+      : `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
+  return `🏆 it's a tie! ${joined} share the W with ${top} points each.`;
 }
 
 // A guess is "close" when it's within one edit (insert/delete/substitute) of
