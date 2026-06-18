@@ -2,7 +2,8 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import type { ServerMessage, PublicGameState } from "shared";
 import { GameEngine, type EngineDeps } from "./engine.ts";
-import { ClassicMode, isClose, WORDS, winnerLine, normalizeGuess } from "./modes/ClassicMode.ts";
+import { ClassicMode, WORDS, winnerLine } from "./modes/ClassicMode.ts";
+import { isClose, normalizeGuess } from "./text.ts";
 import type { EngineContext } from "./modes/GameMode.ts";
 
 // ---- Minimal fake timer harness ----

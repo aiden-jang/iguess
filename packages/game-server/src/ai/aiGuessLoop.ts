@@ -1,6 +1,6 @@
 import type { EngineContext, TurnContext } from "../modes/GameMode.ts";
 import { WORDS } from "../words.ts";
-import { normalizeGuess } from "../modes/ClassicMode.ts";
+import { normalizeGuess } from "../text.ts";
 
 // Extracted from AIGuesserMode so any mode can give an AI participant a
 // guessing loop without inheriting a whole mode class. This is mode POLICY
