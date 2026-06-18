@@ -2,7 +2,8 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import type { ServerMessage, PublicGameState } from "shared";
 import { GameEngine, type EngineDeps } from "./engine.ts";
-import { ClassicMode, isClose, WORDS } from "./modes/ClassicMode.ts";
+import { ClassicMode, isClose, WORDS, winnerLine } from "./modes/ClassicMode.ts";
+import type { EngineContext } from "./modes/GameMode.ts";
 
 // ---- Minimal fake timer harness ----
 // The engine schedules a 60s per-turn timer and a 5s intermission timer via
@@ -203,6 +204,46 @@ test("a wrong guess is passed through as normal chat", () => {
   const wrong = word === "zzzz" ? "yyyy" : "zzzz";
   // false === "not consumed by the game, show it as chat"
   assert.equal(engine.handleChat("b", wrong), false);
+});
+
+test("winnerLine announces a sole winner, a tie, and a scoreless game", () => {
+  // A tiny EngineContext stub exposing only what winnerLine reads.
+  const stub = (
+    scores: Record<string, number>,
+    names: Record<string, string>
+  ): EngineContext =>
+    ({
+      scores: () => scores,
+      participants: () => Object.keys(names).map((id) => ({ id, name: names[id]! })),
+      getName: (id: string) => names[id] ?? id,
+    }) as unknown as EngineContext;
+
+  assert.match(
+    winnerLine(stub({ a: 120, b: 90 }, { a: "alice", b: "bob" })),
+    /🏆 alice wins with 120 points!/
+  );
+  const tie = winnerLine(stub({ a: 100, b: 100 }, { a: "alice", b: "bob" }));
+  assert.match(tie, /tie/i);
+  assert.match(tie, /alice & bob/);
+  assert.match(
+    winnerLine(stub({ a: 0, b: 0 }, { a: "alice", b: "bob" })),
+    /nobody scored/i
+  );
+});
+
+test("the engine broadcasts a winner announcement when the game ends", () => {
+  const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
+  engine.startGame(["a", "b"]);
+  engine.handleChat("b", wordSentTo(sent, "a"));
+  flush(5000);
+  engine.handleChat("a", wordSentTo(sent, "b"));
+  flush(5000); // → ended → onGameEnd fires
+
+  assert.equal(latestState(broadcasts).phase, "ended");
+  assert.ok(
+    broadcasts.some((m) => m.type === "system" && /🏆|nobody scored/.test(m.text)),
+    "a winner/tie line should be broadcast at game end"
+  );
 });
 
 test("pickWord never repeats within a game until the pool is exhausted", () => {
