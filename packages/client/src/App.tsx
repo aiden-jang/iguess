@@ -721,7 +721,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           </button>
         </div>
 
-        <div style={styles.canvasWrap}>
+        <div className="canvas-wrap" style={styles.canvasWrap}>
           <DrawingCanvas
             sendDraw={sendDraw}
             subscribeDraw={subscribeDraw}

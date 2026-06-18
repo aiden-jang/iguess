@@ -147,7 +147,10 @@
           min-height: 100vh;
         }
         .app-layout > * { width: 100%; }
-        .app-layout .pane-canvas { order: 1; min-height: 60vh; }
+        .app-layout .pane-canvas { order: 1; }
+        /* Drive canvas height explicitly so the pane hugs its content
+           (no dead space) and the surface stays usefully large. */
+        .app-layout .canvas-wrap { flex: none; height: 56vh; }
         .app-layout > aside { order: 2; }
         .app-layout > main { order: 3; min-height: 50vh; }
       }
