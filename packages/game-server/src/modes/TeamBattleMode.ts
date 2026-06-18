@@ -1,10 +1,11 @@
 import type { DrawOp } from "shared";
 import type { EngineContext, PlayerRef, TurnContext } from "./GameMode.ts";
 import { ClassicMode } from "./ClassicMode.ts";
-import { startGuessLoop, matchesWord } from "../ai/aiGuessLoop.ts";
+import { startGuessLoop } from "../ai/aiGuessLoop.ts";
 import { startDrawLoop } from "../ai/aiDrawLoop.ts";
 import { DOODLE_WORDS } from "../doodles.ts";
 import { randomWord } from "../words.ts";
+import { normalizeGuess } from "../text.ts";
 
 const AI_ID = "ai-team";
 const AI_NAME = "🤖 AI";
@@ -96,7 +97,10 @@ export class TeamBattleMode extends ClassicMode {
     if (!word) return false; // not a live turn → normal chat
     if (playerId === ctx.currentDrawerId()) return true; // hide drawer chat
     if (this.roundDecided) return false; // round already won → let chat through
-    if (matchesWord(text.trim(), word)) {
+    // Match human guesses the same forgiving-but-strict way ClassicMode does
+    // (a sentence containing the word is NOT a win; the typed answer must be
+    // the word, modulo case/accents/punctuation).
+    if (normalizeGuess(text) === normalizeGuess(word)) {
       this.winRound("human", playerId, ctx);
       return true;
     }
@@ -123,8 +127,10 @@ export class TeamBattleMode extends ClassicMode {
     ctx.endTurn();
   }
 
-  override onTurnEnd(turn: TurnContext, ctx: EngineContext): void {
-    super.onTurnEnd(turn, ctx);
+  // NB: deliberately does NOT call super.onTurnEnd — this mode owns its own
+  // end-of-turn announcement (with team standings) for the no-guess case, so
+  // the base "nobody got it" line would just duplicate it.
+  override onTurnEnd(_turn: TurnContext, ctx: EngineContext): void {
     this.stopLoop?.();
     this.stopLoop = null;
     if (!this.roundDecided) {
