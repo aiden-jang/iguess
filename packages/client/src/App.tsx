@@ -94,14 +94,14 @@ function shareToX(text: string) {
 
 // Lightweight emoji confetti — no deps. Renders a burst of falling emoji that
 // auto-clears after the animation. Fired on a win.
-function Confetti({ go }: { go: boolean }) {
+function Confetti({ go, count = 48 }: { go: boolean; count?: number }) {
   const [pieces, setPieces] = useState<
     { id: number; left: number; delay: number; dur: number; emoji: string }[]
   >([]);
   useEffect(() => {
     if (!go) return;
     const emojis = ["🎉", "🎨", "🐶", "🔥", "💀", "✨", "🏆", "💅", "🤖"];
-    const burst = Array.from({ length: 48 }, (_, i) => ({
+    const burst = Array.from({ length: count }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
       delay: Math.random() * 0.6,
@@ -111,13 +111,14 @@ function Confetti({ go }: { go: boolean }) {
     setPieces(burst);
     const t = setTimeout(() => setPieces([]), 4800);
     return () => clearTimeout(t);
-  }, [go]);
+  }, [go, count]);
   if (pieces.length === 0) return null;
   return (
     <>
       {pieces.map((p) => (
         <span
           key={p.id}
+          aria-hidden
           className="confetti-piece"
           style={{
             left: `${p.left}vw`,
@@ -132,6 +133,18 @@ function Confetti({ go }: { go: boolean }) {
 }
 
 const REACTIONS = ["😂", "🔥", "💀", "👏", "😭", "🐶"];
+
+// Sassy bot commentary, cycled while an AI is in the room.
+const HOT_TAKES = [
+  "hmm… is it a dog? 🤔",
+  "my circuits say goose. final answer.",
+  "bestie what IS that 💀",
+  "I've seen better strokes in my training data",
+  "is that art or a ransom note?",
+  "calculating… nope still confused",
+  "bold of you to call that a circle",
+  "I'm an AI and even I can't cope rn",
+];
 
 // Animated "…" — three bouncing dots for live status text.
 function Dots() {
@@ -204,8 +217,13 @@ export function App() {
   // same room + mode and only has to type a name.
   const invite = readInvite();
   const invited = !!invite.room;
-  const [draftName, setDraftName] = useState(invite.name ?? "");
-  const [draftRoom, setDraftRoom] = useState(invite.room ?? "lobby");
+  // Returning players skip the typing: remember the last name/room locally.
+  const [draftName, setDraftName] = useState(
+    invite.name ?? localStorage.getItem("iiad_name") ?? ""
+  );
+  const [draftRoom, setDraftRoom] = useState(
+    invite.room ?? localStorage.getItem("iiad_room") ?? "lobby"
+  );
   const [draftMode, setDraftMode] = useState(invite.mode ?? "classic");
   const [joined, setJoined] = useState<{
     name: string;
@@ -309,13 +327,13 @@ export function App() {
               ...(draftName.trim() ? null : styles.buttonDisabled),
             }}
             disabled={!draftName.trim()}
-            onClick={() =>
-              setJoined({
-                name: draftName.trim(),
-                room: draftRoom.trim() || "lobby",
-                mode: draftMode,
-              })
-            }
+            onClick={() => {
+              const name = draftName.trim();
+              const room = draftRoom.trim() || "lobby";
+              localStorage.setItem("iiad_name", name);
+              localStorage.setItem("iiad_room", room);
+              setJoined({ name, room, mode: draftMode });
+            }}
           >
 pull up →
           </button>
@@ -327,19 +345,36 @@ pull up →
   return <Room name={joined.name} room={joined.room} mode={joined.mode} />;
 }
 
+// Server turn length — mirrors TURN_MS in engine.ts. Only used to size the
+// draining progress bar; the authoritative deadline is still turnEndsAt.
+const TURN_MS = 60_000;
+
 function Countdown({ endsAt }: { endsAt: number | null }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (!endsAt) return;
-    const id = setInterval(() => setNow(Date.now()), 250);
+    const id = setInterval(() => setNow(Date.now()), 120);
     return () => clearInterval(id);
   }, [endsAt]);
   if (!endsAt) return null;
-  const secs = Math.max(0, Math.ceil((endsAt - now) / 1000));
+  const msLeft = Math.max(0, endsAt - now);
+  const secs = Math.ceil(msLeft / 1000);
+  const frac = Math.max(0, Math.min(1, msLeft / TURN_MS));
   const low = secs <= 10;
   return (
-    <span style={{ ...styles.timer, ...(low ? styles.timerLow : null) }}>
-      ⏱ {secs}s
+    <span style={styles.timerWrap}>
+      <span style={styles.timerBarTrack}>
+        <span
+          style={{
+            ...styles.timerBarFill,
+            width: `${frac * 100}%`,
+            background: low ? "var(--bad)" : "var(--grad)",
+          }}
+        />
+      </span>
+      <span style={{ ...styles.timer, ...(low ? styles.timerLow : null) }}>
+        ⏱ {secs}s
+      </span>
     </span>
   );
 }
@@ -365,7 +400,11 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   const [flexed, setFlexed] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [muted, setMuted] = useState(() => localStorage.getItem(MUTE_KEY) === "1");
+  const [burstKey, setBurstKey] = useState(0);
+  const [takeIdx, setTakeIdx] = useState(0);
+  const [winConfetti, setWinConfetti] = useState(48);
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+  const prevGuessed = useRef<string[]>([]);
 
   const phase = game?.phase ?? "lobby";
   const isDrawer = !!game && game.drawerId === you?.id;
@@ -395,15 +434,37 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canDraw]);
 
+  // Celebrate correct guesses: a tick for anyone, a full burst + sting + toast
+  // when it's YOU who just nailed it.
+  useEffect(() => {
+    const cur = game?.guessedIds ?? [];
+    const prev = prevGuessed.current;
+    const fresh = cur.filter((id) => !prev.includes(id));
+    prevGuessed.current = cur;
+    if (fresh.length === 0) return;
+    if (you && fresh.includes(you.id)) {
+      setBurstKey((k) => k + 1);
+      blip([659, 880, 1175], muted);
+      setToast("✅ nailed it! big brain 🧠");
+      const t = setTimeout(() => setToast(null), 2400);
+      return () => clearTimeout(t);
+    } else {
+      blip([880], muted); // someone else got it
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.guessedIds]);
+
   // On game end: figure out if you won, update the streak, and play a sting.
   useEffect(() => {
     if (phase !== "ended") return;
     const won = ranked.length > 0 && ranked[0].id === you?.id;
     const streak = bumpStreak(won);
     if (won) {
+      setWinConfetti(Math.min(48 + streak * 16, 160)); // bigger party per streak
       blip([523, 659, 784, 1047], muted); // ascending fanfare
       setToast(streak > 1 ? `🏆 dub! ${streak} in a row 🔥` : "🏆 you ate that up");
     } else {
+      setWinConfetti(48);
       blip([330, 247], muted); // sad trombone-ish
       setToast("💀 it's giving L… run it back");
     }
@@ -423,6 +484,14 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   );
 
   const modeMeta = MODES.find((m) => m.value === mode);
+  const hasAI = players.some((p) => isAI(p.id));
+
+  // Cycle the bot's hot-takes while a game with an AI is in progress.
+  useEffect(() => {
+    if (!hasAI || !inGame) return;
+    const t = setInterval(() => setTakeIdx((i) => (i + 1) % HOT_TAKES.length), 4200);
+    return () => clearInterval(t);
+  }, [hasAI, inGame]);
 
   const toggleMute = () => {
     setMuted((m) => {
@@ -471,10 +540,11 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   };
 
   return (
-    <div style={styles.layout}>
-      <Confetti go={phase === "ended"} />
+    <div className="app-layout" style={styles.layout}>
+      <Confetti go={phase === "ended"} count={winConfetti} />
+      {burstKey > 0 && <Confetti key={burstKey} go count={28} />}
       {toast && (
-        <div className="toast-in" style={styles.toast}>
+        <div className="toast-in" role="status" aria-live="polite" style={styles.toast}>
           {toast}
         </div>
       )}
@@ -545,7 +615,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
       </aside>
 
       {/* ---- Canvas pane ---- */}
-      <section style={styles.canvasPane}>
+      <section className="pane-canvas" style={styles.canvasPane}>
         <div className="glass" style={styles.banner}>
           {phase === "lobby" && (
             <>
@@ -661,6 +731,11 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
                 ? "🤖 the bot is cooking"
                 : `${playerName(players, game?.drawerId ?? "")} is cooking 👨‍🍳`}
               <Dots />
+            </div>
+          )}
+          {hasAI && inGame && (
+            <div key={takeIdx} className="pop-in" style={styles.hotTake}>
+              🤖 {HOT_TAKES[takeIdx]}
             </div>
           )}
         </div>
@@ -1019,11 +1094,31 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 6,
     textTransform: "uppercase",
   },
-  timer: {
+  timerWrap: {
     marginLeft: "auto",
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  },
+  timerBarTrack: {
+    width: 70,
+    height: 6,
+    borderRadius: 999,
+    background: "var(--panel-2)",
+    overflow: "hidden",
+  },
+  timerBarFill: {
+    display: "block",
+    height: "100%",
+    borderRadius: 999,
+    transition: "width .12s linear",
+  },
+  timer: {
     fontWeight: 700,
     fontVariantNumeric: "tabular-nums",
     color: "var(--muted)",
+    minWidth: 40,
+    textAlign: "right",
   },
   timerLow: { color: "#f87171" },
 
@@ -1044,6 +1139,22 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 14,
     overflow: "hidden",
     boxShadow: "0 10px 40px rgba(0,0,0,0.35)",
+  },
+  hotTake: {
+    position: "absolute",
+    bottom: 12,
+    left: 12,
+    maxWidth: "70%",
+    background: "rgba(15,17,23,0.82)",
+    color: "#fbbf24",
+    fontSize: 13,
+    fontWeight: 600,
+    fontStyle: "italic",
+    padding: "7px 13px",
+    borderRadius: 14,
+    border: "1px solid rgba(251,191,36,0.35)",
+    backdropFilter: "blur(6px)",
+    pointerEvents: "none",
   },
   canvasHintBadge: {
     position: "absolute",
