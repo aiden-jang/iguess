@@ -79,6 +79,17 @@ function Confetti({ go }: { go: boolean }) {
 
 const REACTIONS = ["😂", "🔥", "💀", "👏", "😭", "🐶"];
 
+// Animated "…" — three bouncing dots for live status text.
+function Dots() {
+  return (
+    <span aria-hidden>
+      <span className="dot">.</span>
+      <span className="dot">.</span>
+      <span className="dot">.</span>
+    </span>
+  );
+}
+
 // Copy text to the clipboard with a graceful fallback for older/insecure
 // contexts (clipboard API needs https or localhost).
 async function copyText(text: string): Promise<boolean> {
@@ -292,11 +303,33 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   const [width, setWidth] = useState(4);
   const [copied, setCopied] = useState(false);
   const [flexed, setFlexed] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   const phase = game?.phase ?? "lobby";
   const isDrawer = !!game && game.drawerId === you?.id;
   const canDraw = phase === "playing" && isDrawer;
   const inGame = phase === "playing" || phase === "intermission";
+
+  // Live tab title — nudges people back to the tab when it's their turn.
+  useEffect(() => {
+    document.title = canDraw
+      ? "✏️ YOUR TURN — is it a dog?"
+      : inGame
+      ? "🎨 playing · is it a dog?"
+      : "is it a dog? 🐶";
+    return () => {
+      document.title = "is it a dog? 🐶";
+    };
+  }, [canDraw, inGame]);
+
+  // Pop a transient toast the moment it becomes your turn to draw.
+  useEffect(() => {
+    if (canDraw) {
+      setToast("🎨 you're up — cook!");
+      const t = setTimeout(() => setToast(null), 2600);
+      return () => clearTimeout(t);
+    }
+  }, [canDraw]);
 
   // Word line: drawer sees the real word; guessers see one tile per letter.
   const wordLetters = isDrawer
@@ -350,6 +383,11 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   return (
     <div style={styles.layout}>
       <Confetti go={phase === "ended"} />
+      {toast && (
+        <div className="toast-in" style={styles.toast}>
+          {toast}
+        </div>
+      )}
       {/* ---- Sidebar: roster + scores ---- */}
       <aside className="glass" style={styles.sidebar}>
         <div style={styles.roomHead}>
@@ -519,6 +557,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
               {isAI(game?.drawerId)
                 ? "🤖 the bot is cooking"
                 : `${playerName(players, game?.drawerId ?? "")} is cooking 👨‍🍳`}
+              <Dots />
             </div>
           )}
         </div>
@@ -918,6 +957,20 @@ const styles: Record<string, React.CSSProperties> = {
   chatFromAI: { color: "#fbbf24" },
   chatText: { color: "var(--text)", wordBreak: "break-word" },
   system: { color: "var(--muted)", fontStyle: "italic", fontSize: 13 },
+  toast: {
+    position: "fixed",
+    top: 18,
+    left: "50%",
+    zIndex: 10000,
+    padding: "12px 22px",
+    borderRadius: 999,
+    fontWeight: 700,
+    fontSize: 15,
+    color: "white",
+    background: "var(--grad)",
+    boxShadow: "0 10px 30px rgba(168,85,247,0.5)",
+    whiteSpace: "nowrap",
+  },
   inputRow: { display: "flex", gap: 8 },
   reactRow: { display: "flex", gap: 6, marginBottom: 8 },
   reactBtn: {
