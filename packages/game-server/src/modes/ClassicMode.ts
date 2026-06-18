@@ -17,12 +17,17 @@ export class ClassicMode implements GameMode {
   // continues correctly across rounds.
   protected rounds: number;
 
+  // Words already used this game — so the 3 rounds don't recycle the same
+  // prompt. Reset each game in configure().
+  private usedWords = new Set<string>();
+
   constructor(rounds = 3) {
     this.rounds = Math.max(1, rounds);
   }
 
   configure(humans: PlayerRef[], _ctx: EngineContext): { totalTurns: number } {
     this.drawOrder = humans.map((h) => h.id);
+    this.usedWords.clear();
     return { totalTurns: this.drawOrder.length * this.rounds };
   }
 
@@ -31,7 +36,18 @@ export class ClassicMode implements GameMode {
   }
 
   pickWord(_ctx: EngineContext): string {
-    return randomWord();
+    // Don't repeat a word within a single game. If the pool is exhausted
+    // (tiny WORDS list, many turns), start fresh so we never dead-end.
+    if (this.usedWords.size >= WORDS.length) this.usedWords.clear();
+    let word = randomWord();
+    // A few random retries, then a linear fallback that guarantees an unused
+    // pick when the pool is nearly full.
+    for (let i = 0; i < 20 && this.usedWords.has(word); i++) word = randomWord();
+    if (this.usedWords.has(word)) {
+      word = WORDS.find((w) => !this.usedWords.has(w)) ?? word;
+    }
+    this.usedWords.add(word);
+    return word;
   }
 
   onTurnStart(turn: TurnContext, ctx: EngineContext): void {
