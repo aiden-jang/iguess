@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGameSocket } from "./useWebSocket";
 import { DrawingCanvas } from "./DrawingCanvas";
 
@@ -30,6 +30,60 @@ function randomName(): string {
   const a = NAME_ADJ[Math.floor(Math.random() * NAME_ADJ.length)];
   const n = NAME_NOUN[Math.floor(Math.random() * NAME_NOUN.length)];
   return `${a}_${n}${Math.floor(Math.random() * 90 + 10)}`;
+}
+
+// ---- Win streak (localStorage) ----
+const STREAK_KEY = "iiad_streak";
+function getStreak(): number {
+  return Number(localStorage.getItem(STREAK_KEY) || 0) || 0;
+}
+function bumpStreak(won: boolean): number {
+  const next = won ? getStreak() + 1 : 0;
+  localStorage.setItem(STREAK_KEY, String(next));
+  return next;
+}
+
+// ---- Sound FX (WebAudio, no assets) ----
+const MUTE_KEY = "iiad_muted";
+let audioCtx: AudioContext | null = null;
+function blip(freqs: number[], muted: boolean) {
+  if (muted) return;
+  try {
+    audioCtx =
+      audioCtx ?? new (window.AudioContext || (window as any).webkitAudioContext)();
+    const ctx = audioCtx;
+    freqs.forEach((f, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = f;
+      const t = ctx.currentTime + i * 0.09;
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.24);
+    });
+  } catch {
+    /* audio not available — no-op */
+  }
+}
+
+// Export the canvas as a downloadable PNG (white background baked in).
+function saveCanvasPng(canvas: HTMLCanvasElement, room: string) {
+  const out = document.createElement("canvas");
+  out.width = canvas.width;
+  out.height = canvas.height;
+  const c = out.getContext("2d");
+  if (!c) return;
+  c.fillStyle = "#ffffff";
+  c.fillRect(0, 0, out.width, out.height);
+  c.drawImage(canvas, 0, 0);
+  const a = document.createElement("a");
+  a.download = `is-it-a-dog-${room}-${Date.now()}.png`;
+  a.href = out.toDataURL("image/png");
+  a.click();
 }
 
 // Open a pre-filled X/Twitter compose window — the actual viral loop.
@@ -181,6 +235,12 @@ export function App() {
             </div>
           </div>
 
+          {getStreak() > 0 && (
+            <div style={styles.streakBadge}>
+              🔥 {getStreak()}-win streak — don't choke
+            </div>
+          )}
+
           {invited && (
             <div style={styles.inviteRibbon}>
               🎉 you got the invite to <strong>#{draftRoom}</strong> — drop a name
@@ -304,6 +364,8 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   const [copied, setCopied] = useState(false);
   const [flexed, setFlexed] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [muted, setMuted] = useState(() => localStorage.getItem(MUTE_KEY) === "1");
+  const canvasElRef = useRef<HTMLCanvasElement | null>(null);
 
   const phase = game?.phase ?? "lobby";
   const isDrawer = !!game && game.drawerId === you?.id;
@@ -326,10 +388,29 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   useEffect(() => {
     if (canDraw) {
       setToast("🎨 you're up — cook!");
+      blip([523, 784], muted); // little "ping!"
       const t = setTimeout(() => setToast(null), 2600);
       return () => clearTimeout(t);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canDraw]);
+
+  // On game end: figure out if you won, update the streak, and play a sting.
+  useEffect(() => {
+    if (phase !== "ended") return;
+    const won = ranked.length > 0 && ranked[0].id === you?.id;
+    const streak = bumpStreak(won);
+    if (won) {
+      blip([523, 659, 784, 1047], muted); // ascending fanfare
+      setToast(streak > 1 ? `🏆 dub! ${streak} in a row 🔥` : "🏆 you ate that up");
+    } else {
+      blip([330, 247], muted); // sad trombone-ish
+      setToast("💀 it's giving L… run it back");
+    }
+    const t = setTimeout(() => setToast(null), 3200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   // Word line: drawer sees the real word; guessers see one tile per letter.
   const wordLetters = isDrawer
@@ -342,6 +423,15 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   );
 
   const modeMeta = MODES.find((m) => m.value === mode);
+
+  const toggleMute = () => {
+    setMuted((m) => {
+      const next = !m;
+      localStorage.setItem(MUTE_KEY, next ? "1" : "0");
+      if (!next) blip([659], false); // little confirmation chirp when unmuting
+      return next;
+    });
+  };
 
   const handleInvite = async () => {
     const ok = await copyText(inviteLink(room, mode));
@@ -415,6 +505,10 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           onClick={handleInvite}
         >
           {copied ? "✅ copied, go spam it" : "🔗 invite the squad"}
+        </button>
+
+        <button className="lift" style={styles.muteButton} onClick={toggleMute}>
+          {muted ? "🔇 sound off" : "🔊 sound on"}
         </button>
 
         <div style={styles.sectionLabel}>Scoreboard</div>
@@ -537,6 +631,14 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           <button
             className="lift"
             style={{ ...styles.ghostButton, marginLeft: "auto" }}
+            onClick={() => canvasElRef.current && saveCanvasPng(canvasElRef.current, room)}
+            title="save the masterpiece"
+          >
+            🖼️ save
+          </button>
+          <button
+            className="lift"
+            style={styles.ghostButton}
             onClick={clearBoard}
             disabled={!canDraw}
           >
@@ -551,6 +653,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
             color={color}
             width={width}
             canDraw={canDraw}
+            onCanvas={(el) => (canvasElRef.current = el)}
           />
           {!canDraw && inGame && (
             <div style={styles.canvasHintBadge}>
@@ -739,6 +842,27 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid var(--good)",
     background: "rgba(34,197,94,0.12)",
     color: "#4ade80",
+  },
+  streakBadge: {
+    margin: "16px 0 0",
+    padding: "8px 12px",
+    borderRadius: 10,
+    fontSize: 13,
+    fontWeight: 600,
+    background: "rgba(251,146,60,0.14)",
+    border: "1px solid rgba(251,146,60,0.5)",
+    color: "#fdba74",
+  },
+  muteButton: {
+    width: "100%",
+    padding: "8px 12px",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+    borderRadius: 10,
+    border: "1px solid var(--line)",
+    background: "var(--panel-2)",
+    color: "var(--text)",
   },
 
   // ---- Layout ----
