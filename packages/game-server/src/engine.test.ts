@@ -151,6 +151,38 @@ test("the drawer rotates and the game ends after one full round", () => {
   assert.ok(st.scores["b"]! > 100, `b=${st.scores["b"]}`);
 });
 
+test("hints start fully masked and reveal letters as the turn progresses", () => {
+  const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
+  engine.startGame(["a", "b"]);
+  const word = wordSentTo(sent, "a");
+
+  // At turn start nothing is revealed: one "_" per letter, same length.
+  const hint0 = latestState(broadcasts).hint;
+  assert.equal(hint0.length, word.length);
+  assert.equal(hint0, "_".repeat(word.length));
+
+  // Fire the reveal timers (all < 60s) but NOT the 60s turn-end timer.
+  flush(55000);
+
+  const st = latestState(broadcasts);
+  assert.equal(st.phase, "playing", "revealing hints must not end the turn");
+  const hint1 = st.hint;
+  assert.equal(hint1.length, word.length);
+
+  // Every revealed character matches the real word at that position; the rest
+  // stay masked. At least one letter, but never the whole word, is revealed.
+  let revealedCount = 0;
+  for (let i = 0; i < word.length; i++) {
+    if (hint1[i] !== "_") {
+      assert.equal(hint1[i], word[i], `revealed char ${i} should match the word`);
+      revealedCount++;
+    }
+  }
+  assert.ok(revealedCount >= 1, "should reveal at least one letter");
+  assert.ok(revealedCount < word.length, "must never reveal the whole word");
+  assert.ok(revealedCount <= Math.ceil(word.length / 3), "reveal cap respected");
+});
+
 test("the drawer's own chat is swallowed, not treated as a guess", () => {
   const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" });
   engine.startGame(["a", "b"]);

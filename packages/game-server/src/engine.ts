@@ -32,6 +32,10 @@ export class GameEngine {
   private scoreboard: Record<string, number> = {};
   private roster = new Map<string, PlayerRef>();
   private timer: ReturnType<typeof setTimeout> | null = null;
+  // Indices of the secret word already revealed to guessers this turn, plus
+  // the timers that reveal them. Both are reset every turn.
+  private revealed = new Set<number>();
+  private revealTimers: ReturnType<typeof setTimeout>[] = [];
 
   constructor(private deps: EngineDeps, private mode: GameMode) {}
 
@@ -122,6 +126,7 @@ export class GameEngine {
     this.word = word;
     this.turnEndsAt = Date.now() + TURN_MS;
     this.guessed.clear();
+    this.scheduleHints(word);
 
     void this.deps.clearCanvas();
     this.deps.broadcast({
@@ -136,12 +141,54 @@ export class GameEngine {
     this.timer = setTimeout(() => this.endTurn(), TURN_MS);
   }
 
+  // Reveal a few letters over the course of the turn to keep guessers in it.
+  // Reveals are spread evenly across the clock and capped so we never give the
+  // whole word away (~a third, max 5). Index choice is random among letters.
+  private scheduleHints(word: string) {
+    this.clearRevealTimers();
+    this.revealed.clear();
+    const letterIdx = [...word]
+      .map((ch, i) => (ch === " " ? -1 : i))
+      .filter((i) => i >= 0);
+    const maxReveals =
+      letterIdx.length <= 1 ? 0 : Math.min(Math.ceil(letterIdx.length / 3), 5);
+    // Fisher–Yates shuffle so revealed positions aren't always left-to-right.
+    for (let i = letterIdx.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [letterIdx[i], letterIdx[j]] = [letterIdx[j]!, letterIdx[i]!];
+    }
+    for (let k = 0; k < maxReveals; k++) {
+      const at = Math.round((TURN_MS * (k + 1)) / (maxReveals + 1));
+      const idx = letterIdx[k]!;
+      this.revealTimers.push(
+        setTimeout(() => {
+          this.revealed.add(idx);
+          this.broadcastState();
+        }, at)
+      );
+    }
+  }
+
+  private clearRevealTimers() {
+    for (const t of this.revealTimers) clearTimeout(t);
+    this.revealTimers = [];
+  }
+
+  // The masked word guessers see: revealed letters in place, "_" elsewhere.
+  private computeHint(): string {
+    if (!this.word) return "";
+    return [...this.word]
+      .map((ch, i) => (ch === " " ? " " : this.revealed.has(i) ? ch : "_"))
+      .join("");
+  }
+
   private endTurn() {
     if (this.phase !== "playing") return; // guard against double-end
     if (this.timer) {
       clearTimeout(this.timer);
       this.timer = null;
     }
+    this.clearRevealTimers();
     const word = this.word ?? "";
     const turn: TurnContext = {
       turnIndex: this.turnIndex,
@@ -181,6 +228,7 @@ export class GameEngine {
       totalTurns: this.totalTurns,
       turnEndsAt: this.turnEndsAt,
       wordLength: this.word?.length ?? 0,
+      hint: this.computeHint(),
       scores: this.scoreboard,
       guessedIds: [...this.guessed],
     };
