@@ -21,6 +21,10 @@ const TAGLINES = [
   "the bot is judging your circles rn",
   "ms paint energy, olympic confidence",
   "draw bad, win anyway. that's the lore.",
+  "it's not deep. it's a doodle. relax.",
+  "9 outta 10 dentists can't draw a molar either",
+  "your hand: shaking. your aura: unmatched.",
+  "the gworls are doodling. casually.",
 ];
 
 // Funny throwaway handles for the dice button.
@@ -134,6 +138,21 @@ function Confetti({ go, count = 48 }: { go: boolean; count?: number }) {
 
 const REACTIONS = ["😂", "🔥", "💀", "👏", "😭", "🐶"];
 
+// Randomized end-of-game stings so the payoff hits different every time.
+const WIN_LINES = [
+  "🏆 you ate that up",
+  "🏆 no crumbs left. devoured.",
+  "🏆 first place, zero notes",
+  "🏆 certified W, frame it",
+];
+const LOSS_LINES = [
+  "💀 it's giving L… run it back",
+  "💀 not the algorithm cooking you",
+  "💀 took an L with full chest, respect",
+  "💀 we move. silently. run it back",
+];
+const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]!;
+
 // Sassy bot commentary, cycled while an AI is in the room.
 const HOT_TAKES = [
   "hmm… is it a dog? 🤔",
@@ -144,6 +163,11 @@ const HOT_TAKES = [
   "calculating… nope still confused",
   "bold of you to call that a circle",
   "I'm an AI and even I can't cope rn",
+  "respectfully… what is the lore here",
+  "this passed the vibe check, not the eye check",
+  "I'd guess but I left my glasses in the cloud",
+  "drawing this hard? in THIS economy?",
+  "404: object not found (it's giving abstract)",
 ];
 
 // Animated "…" — three bouncing dots for live status text.
@@ -467,11 +491,11 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
     if (won) {
       setWinConfetti(Math.min(48 + streak * 16, 160)); // bigger party per streak
       blip([523, 659, 784, 1047], muted); // ascending fanfare
-      setToast(streak > 1 ? `🏆 dub! ${streak} in a row 🔥` : "🏆 you ate that up");
+      setToast(streak > 1 ? `🏆 dub! ${streak} in a row 🔥` : pick(WIN_LINES));
     } else {
       setWinConfetti(48);
       blip([330, 247], muted); // sad trombone-ish
-      setToast("💀 it's giving L… run it back");
+      setToast(pick(LOSS_LINES));
     }
     const t = setTimeout(() => setToast(null), 3200);
     return () => clearTimeout(t);
