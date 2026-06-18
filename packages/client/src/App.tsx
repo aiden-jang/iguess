@@ -5,10 +5,10 @@ import { DrawingCanvas } from "./DrawingCanvas";
 const COLORS = ["#111111", "#e11d48", "#2563eb", "#16a34a", "#f59e0b", "#ffffff"];
 
 const MODES = [
-  { value: "classic", label: "Classic", blurb: "Humans only", icon: "🎨" },
-  { value: "ai", label: "AI Guesser", blurb: "🤖 races to guess", icon: "🔍" },
-  { value: "ai-drawer", label: "AI Drawer", blurb: "🤖 draws, you guess", icon: "🖌️" },
-  { value: "team-battle", label: "Team Battle", blurb: "Humans vs 🤖", icon: "⚔️" },
+  { value: "classic", label: "Classic", blurb: "just vibes, no robots", icon: "🎨" },
+  { value: "ai", label: "AI Guesser", blurb: "🤖 thinks it's smart", icon: "🔍" },
+  { value: "ai-drawer", label: "AI Drawer", blurb: "🤖 draws, good luck", icon: "🖌️" },
+  { value: "team-battle", label: "Team Battle", blurb: "us vs the machine 🤖", icon: "⚔️" },
 ];
 
 const isAI = (id?: string | null) => !!id && id.startsWith("ai-");
@@ -44,13 +44,13 @@ export function App() {
             <span style={styles.brandMark}>🐶</span>
             <div>
               <h1 style={styles.title}>is it a dog?</h1>
-              <p style={styles.subtitle}>real-time multiplayer drawing &amp; guessing</p>
+              <p style={styles.subtitle}>probably not. draw it anyway.</p>
             </div>
           </div>
 
           <label style={styles.fieldLabel}>Your name</label>
           <input
-            placeholder="e.g. Ada"
+            placeholder="whatever you want, really"
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
             style={styles.input}
@@ -86,7 +86,7 @@ export function App() {
             })}
           </div>
           <small style={styles.hint}>
-            Mode is locked in by whoever creates the room first.
+            first one in the room picks the mode. snooze, lose, etc.
           </small>
 
           <button
@@ -104,7 +104,7 @@ export function App() {
               })
             }
           >
-            Join game →
+            let's go →
           </button>
         </div>
       </div>
@@ -186,7 +186,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
             ...(connected ? styles.statusOk : styles.statusBad),
           }}
         >
-          <span style={styles.statusDot} /> {connected ? "Connected" : "Reconnecting…"}
+          <span style={styles.statusDot} /> {connected ? "we're so back" : "hang on…"}
         </div>
 
         <div style={styles.sectionLabel}>Scoreboard</div>
@@ -217,7 +217,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
             );
           })}
           {ranked.length === 0 && (
-            <li style={styles.emptyRoster}>Waiting for players…</li>
+            <li style={styles.emptyRoster}>nobody here but us 🦗</li>
           )}
         </ul>
       </aside>
@@ -228,18 +228,18 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           {phase === "lobby" && (
             <>
               <span style={styles.bannerText}>
-                Lobby · {players.length} player{players.length === 1 ? "" : "s"}
+                just chilling · {players.length} here
               </span>
               <button style={{ ...styles.button, marginLeft: "auto" }} onClick={startGame}>
-                Start game
+                send it
               </button>
             </>
           )}
           {phase === "ended" && (
             <>
-              <span style={styles.bannerText}>🏁 Game over!</span>
+              <span style={styles.bannerText}>🏁 well, that happened</span>
               <button style={{ ...styles.button, marginLeft: "auto" }} onClick={startGame}>
-                Play again
+                run it back
               </button>
             </>
           )}
@@ -249,7 +249,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
                 Turn {(game?.turnIndex ?? 0) + 1}/{game?.totalTurns ?? 0}
               </span>
               <span style={styles.wordZone}>
-                <span style={styles.wordVerb}>{isDrawer ? "Draw" : "Guess"}</span>
+                <span style={styles.wordVerb}>{isDrawer ? "draw this" : "guess?"}</span>
                 <span style={styles.tiles}>
                   {wordLetters.map((ch, i) => (
                     <span key={i} style={styles.tile}>
@@ -312,8 +312,8 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           {!canDraw && inGame && (
             <div style={styles.canvasHintBadge}>
               {isAI(game?.drawerId)
-                ? "🤖 AI is drawing"
-                : `${playerName(players, game?.drawerId ?? "")} is drawing`}
+                ? "🤖 the machine is cooking"
+                : `${playerName(players, game?.drawerId ?? "")} is cooking 👨‍🍳`}
             </div>
           )}
         </div>
@@ -321,7 +321,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
 
       {/* ---- Chat ---- */}
       <main style={styles.main}>
-        <div style={styles.sectionLabel}>Chat &amp; guesses</div>
+        <div style={styles.sectionLabel}>the group chat</div>
         <div style={styles.chatLog}>
           {log.map((line, i) =>
             line.kind === "system" ? (
@@ -343,7 +343,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
               </div>
             )
           )}
-          {log.length === 0 && <div style={styles.system}>No messages yet — say hi 👋</div>}
+          {log.length === 0 && <div style={styles.system}>it's quiet… too quiet 👀</div>}
         </div>
         <form
           style={styles.inputRow}
@@ -359,7 +359,11 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           <input
             style={{ ...styles.input, flex: 1, margin: 0 }}
             placeholder={
-              canDraw ? "You're drawing…" : inGame ? "Type your guess…" : "Type a message…"
+              canDraw
+                ? "eyes on the canvas, picasso ✋"
+                : inGame
+                ? "take a wild guess…"
+                : "say something"
             }
             disabled={canDraw}
             value={text}
