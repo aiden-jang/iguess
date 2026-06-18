@@ -60,6 +60,12 @@ export class TeamBattleMode extends ClassicMode {
       : randomWord();
   }
 
+  // Only the human drawer chooses a word. On AI-draw turns the AI picks its own
+  // (doodle-renderable) word, so return null to skip the choosing phase.
+  override pickWordChoices(ctx: EngineContext): string[] | null {
+    return this.aiDrawsThisTurn ? null : super.pickWordChoices(ctx);
+  }
+
   override canDraw(playerId: string, ctx: EngineContext): boolean {
     // Only a human drawer draws by hand; the AI draws via the draw loop.
     return !this.aiDrawsThisTurn && playerId === ctx.currentDrawerId();

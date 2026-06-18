@@ -81,6 +81,13 @@ export interface GameMode {
   // The prompt/word for the turn.
   pickWord(ctx: EngineContext): string;
 
+  // Optional: offer the drawer a few words to choose from. Return 2+ options to
+  // trigger a "choosing" phase (the engine sends them to the drawer and waits
+  // for a pick, auto-selecting on timeout). Return null/[] to skip choosing and
+  // use pickWord directly — e.g. when an AI is the drawer. Defaults to no
+  // choosing when the method is absent.
+  pickWordChoices?(ctx: EngineContext): string[] | null;
+
   // Turn just began (drawer/word set, canvas cleared). Typically the mode
   // delivers the secret word to whoever is allowed to know it.
   onTurnStart(turn: TurnContext, ctx: EngineContext): void;

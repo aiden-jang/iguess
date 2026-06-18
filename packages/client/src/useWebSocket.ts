@@ -31,6 +31,9 @@ export function useGameSocket(room: string, name: string, mode: string) {
   const [game, setGame] = useState<PublicGameState | null>(null);
   // The secret word, set only when WE are the drawer; cleared each turn end.
   const [myWord, setMyWord] = useState<string | null>(null);
+  // Word options offered to US during the "choosing" phase; cleared once the
+  // turn begins (or any non-choosing state arrives).
+  const [wordChoices, setWordChoices] = useState<string[] | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const drawListeners = useRef<Set<DrawListener>>(new Set());
 
@@ -111,9 +114,15 @@ export function useGameSocket(room: string, name: string, mode: string) {
           setGame(msg.state);
           // If we're no longer the drawer, forget any word we held.
           setMyWord((w) => (msg.state.phase === "playing" ? w : null));
+          // Choices are only relevant during our own "choosing" phase.
+          if (msg.state.phase !== "choosing") setWordChoices(null);
+          break;
+        case "word_choices":
+          setWordChoices(msg.words);
           break;
         case "your_word":
           setMyWord(msg.word);
+          setWordChoices(null); // we picked → drop the options
           break;
         case "turn_end":
           setMyWord(null);
@@ -163,6 +172,13 @@ export function useGameSocket(room: string, name: string, mode: string) {
     emitDraw({ kind: "reset" });
   }, [sendDraw]);
 
+  const chooseWord = useCallback((word: string) => {
+    const ws = wsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "choose_word", word } satisfies ClientMessage));
+    }
+  }, []);
+
   const startGame = useCallback(() => {
     const ws = wsRef.current;
     if (ws?.readyState === WebSocket.OPEN) {
@@ -177,7 +193,9 @@ export function useGameSocket(room: string, name: string, mode: string) {
     log,
     game,
     myWord,
+    wordChoices,
     sendChat,
+    chooseWord,
     sendDraw,
     subscribeDraw,
     clearBoard,

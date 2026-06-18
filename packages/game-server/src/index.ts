@@ -260,6 +260,10 @@ wss.on("connection", async (ws, req) => {
       broadcastExcept(roomId, conn, { type: "draw", op: msg.op });
     } else if (msg.type === "start_game") {
       game.startGame(connsInRoom(roomId).map((c) => c.player.id));
+    } else if (msg.type === "choose_word") {
+      // Only honored while this player is the drawer in the "choosing" phase;
+      // the engine validates the pick is one of the offered options.
+      game.handleChooseWord(player.id, msg.word);
     }
   });
 

@@ -37,6 +37,12 @@ export class AIDrawerMode extends ClassicMode {
     return DOODLE_WORDS[Math.floor(Math.random() * DOODLE_WORDS.length)];
   }
 
+  // The AI drawer picks its own word — no human "choosing" phase. Returning
+  // null keeps the engine on the direct pickWord path.
+  override pickWordChoices(): string[] | null {
+    return null;
+  }
+
   override canDraw(): boolean {
     return false; // no human draws; AI strokes arrive via ctx.draw, not sockets
   }

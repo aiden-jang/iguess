@@ -3,6 +3,8 @@ import type { GameMode, EngineContext, PlayerRef, TurnContext } from "./modes/Ga
 
 const TURN_MS = 60_000;
 const INTERMISSION_MS = 5_000;
+// How long the drawer has to pick a word before the engine auto-picks for them.
+const CHOOSE_MS = 15_000;
 
 // Transport-facing dependencies, injected by the WS layer. The engine never
 // imports ws or redis — it only knows these verbs.
@@ -39,6 +41,10 @@ export class GameEngine {
   // the timers that reveal them. Both are reset every turn.
   private revealed = new Set<number>();
   private revealTimers: ReturnType<typeof setTimeout>[] = [];
+  // While in the "choosing" phase: the words offered to the drawer and the
+  // timer that auto-picks one if they dawdle. Cleared when the turn begins.
+  private pendingChoices: string[] | null = null;
+  private chooseTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private deps: EngineDeps, private mode: GameMode) {}
 
@@ -124,7 +130,56 @@ export class GameEngine {
 
   private startTurn() {
     const drawerId = this.mode.pickDrawer(this.turnIndex, this.ctx);
-    const word = this.mode.pickWord(this.ctx);
+
+    // Offer the drawer a few words to choose from, if the mode opts in. Two or
+    // more options trigger a "choosing" phase; anything less skips straight to
+    // the turn with a mode-picked word (e.g. when an AI is drawing).
+    const choices = this.mode.pickWordChoices?.(this.ctx) ?? null;
+    if (choices && choices.length >= 2) {
+      this.startChoosing(drawerId, choices);
+      return;
+    }
+
+    this.beginTurn(drawerId, this.mode.pickWord(this.ctx));
+  }
+
+  // Enter the "choosing" phase: the drawer is known and the canvas is cleared,
+  // but no word is live yet. Only the drawer sees the options; everyone else
+  // sees a "choosing…" state. Auto-picks on timeout so a turn can't stall.
+  private startChoosing(drawerId: string, choices: string[]) {
+    this.phase = "choosing";
+    this.drawerId = drawerId;
+    this.word = null;
+    this.turnEndsAt = null;
+    this.guessed.clear();
+    this.pendingChoices = choices;
+
+    void this.deps.clearCanvas();
+    this.deps.sendToPlayer(drawerId, { type: "word_choices", words: choices });
+    this.broadcastState();
+
+    this.chooseTimer = setTimeout(() => {
+      // Drawer didn't pick in time — choose at random for them.
+      const pick = choices[Math.floor(Math.random() * choices.length)]!;
+      this.beginTurn(drawerId, pick);
+    }, CHOOSE_MS);
+  }
+
+  // The drawer picked a word (or the choose-timeout fired). Validates the pick
+  // came from the right player and is one of the offered options.
+  handleChooseWord(playerId: string, word: string) {
+    if (this.phase !== "choosing") return;
+    if (playerId !== this.drawerId) return;
+    if (!this.pendingChoices?.includes(word)) return;
+    this.beginTurn(this.drawerId, word);
+  }
+
+  private beginTurn(drawerId: string, word: string) {
+    if (this.chooseTimer) {
+      clearTimeout(this.chooseTimer);
+      this.chooseTimer = null;
+    }
+    this.pendingChoices = null;
 
     this.phase = "playing";
     this.drawerId = drawerId;
