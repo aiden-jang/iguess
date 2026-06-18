@@ -502,10 +502,14 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  // Word line: drawer sees the real word; guessers see one tile per letter.
+  // Word line: the drawer sees the real word; guessers see one tile per
+  // letter, with letters filling in as the server reveals hints over the turn
+  // ("_" → blank tile). Falls back to wordLength tiles before any hint lands.
   const wordLetters = isDrawer
     ? (myWord ?? "").split("")
-    : Array.from({ length: game?.wordLength ?? 0 }, () => "");
+    : game?.hint
+      ? game.hint.split("").map((ch) => (ch === "_" ? "" : ch))
+      : Array.from({ length: game?.wordLength ?? 0 }, () => "");
 
   // Players sorted by score for the scoreboard.
   const ranked = [...players].sort(

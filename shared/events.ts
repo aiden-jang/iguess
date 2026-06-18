@@ -40,6 +40,10 @@ export interface PublicGameState {
   totalTurns: number;
   turnEndsAt: number | null; // epoch ms; clients derive their own countdown
   wordLength: number;
+  // Masked word for guessers: one char per letter — the actual letter once
+  // revealed, otherwise "_" (spaces stay spaces). Letters reveal progressively
+  // as the turn's clock drains. The drawer ignores this (they have `your_word`).
+  hint: string;
   scores: Record<string, number>; // playerId -> points
   guessedIds: string[]; // who has guessed correctly this turn
 }
