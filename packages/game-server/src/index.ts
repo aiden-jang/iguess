@@ -288,3 +288,33 @@ wss.on("connection", async (ws, req) => {
     }
   });
 });
+
+// Graceful shutdown: presence lives in Redis (so the roster survives across
+// instances and reconnects), but that means a process that dies without
+// running its `ws.close` handlers leaves orphaned player rows behind — ghosts
+// that inflate the scoreboard and desync the "enough players to start" check
+// against the live sockets. On a clean SIGINT/SIGTERM (Ctrl-C, `tsx watch`
+// reload, container stop) we own these rows, so remove only *this* instance's
+// players before exiting. (SIGKILL/crash can still orphan rows; surviving that
+// would need per-player TTL heartbeats, which is more than this demo needs.)
+let shuttingDown = false;
+async function shutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[ws] ${signal} received, cleaning up presence…`);
+  try {
+    await Promise.all(
+      [...rooms.entries()].map(async ([roomId, conns]) => {
+        const ids = [...conns].map((c) => c.player.id);
+        if (ids.length) await redis.hdel(redisRoomKey(roomId), ...ids);
+      })
+    );
+  } catch (e) {
+    console.error("[ws] shutdown cleanup failed:", (e as Error).message);
+  } finally {
+    redis.disconnect();
+    process.exit(0);
+  }
+}
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
