@@ -25,10 +25,16 @@ export class ClassicMode implements GameMode {
     this.rounds = Math.max(1, rounds);
   }
 
-  configure(humans: PlayerRef[], _ctx: EngineContext): { totalTurns: number } {
+  configure(
+    humans: PlayerRef[],
+    _ctx: EngineContext
+  ): { totalTurns: number; turnsPerRound?: number } {
     this.drawOrder = humans.map((h) => h.id);
     this.usedWords.clear();
-    return { totalTurns: this.drawOrder.length * this.rounds };
+    return {
+      totalTurns: this.drawOrder.length * this.rounds,
+      turnsPerRound: this.drawOrder.length,
+    };
   }
 
   pickDrawer(turnIndex: number, _ctx: EngineContext): string {

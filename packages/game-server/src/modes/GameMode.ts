@@ -67,8 +67,13 @@ export interface GameMode {
   readonly id: string;
 
   // Called once at game start with the human players. Mode may add virtual
-  // participants (AI) via ctx here. Returns how many turns the game runs.
-  configure(humans: PlayerRef[], ctx: EngineContext): { totalTurns: number };
+  // participants (AI) via ctx here. Returns how many turns the game runs, and
+  // optionally how many turns make up one round (every drawer drawing once) so
+  // the engine can surface round progress. Defaults to one round when omitted.
+  configure(
+    humans: PlayerRef[],
+    ctx: EngineContext
+  ): { totalTurns: number; turnsPerRound?: number };
 
   // Who draws on a given turn.
   pickDrawer(turnIndex: number, ctx: EngineContext): string;

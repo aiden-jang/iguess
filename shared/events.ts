@@ -38,6 +38,8 @@ export interface PublicGameState {
   drawerId: string | null;
   turnIndex: number; // 0-based index of the current turn
   totalTurns: number;
+  round: number; // 1-based current round (a round = every drawer drawing once)
+  totalRounds: number;
   turnEndsAt: number | null; // epoch ms; clients derive their own countdown
   wordLength: number;
   // Masked word for guessers: one char per letter — the actual letter once

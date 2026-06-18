@@ -19,10 +19,16 @@ export class AIGuesserMode extends ClassicMode {
     super();
   }
 
-  override configure(humans: PlayerRef[], ctx: EngineContext): { totalTurns: number } {
+  override configure(
+    humans: PlayerRef[],
+    ctx: EngineContext
+  ): { totalTurns: number; turnsPerRound?: number } {
     this.drawOrder = humans.map((h) => h.id); // only humans draw
     ctx.addParticipant({ id: AI_ID, name: AI_NAME, isAI: true });
-    return { totalTurns: this.drawOrder.length * this.rounds };
+    return {
+      totalTurns: this.drawOrder.length * this.rounds,
+      turnsPerRound: this.drawOrder.length,
+    };
   }
 
   override onTurnStart(turn: TurnContext, ctx: EngineContext): void {

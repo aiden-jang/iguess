@@ -229,17 +229,22 @@ test("multiple rounds: each player draws once per round and rotation wraps", () 
   const { engine, broadcasts, sent } = makeHarness({ a: "alice", b: "bob" }, 3);
   engine.startGame(["a", "b"]);
   assert.equal(latestState(broadcasts).totalTurns, 6);
+  assert.equal(latestState(broadcasts).totalRounds, 3);
 
   const drawers: string[] = [];
+  const rounds: number[] = [];
   for (let i = 0; i < 6; i++) {
     const st = latestState(broadcasts);
     drawers.push(st.drawerId!);
+    rounds.push(st.round);
     const drawer = st.drawerId!;
     const guesser = drawer === "a" ? "b" : "a";
     engine.handleChat(guesser, wordSentTo(sent, drawer));
     flush(5000); // intermission → next turn (or end after the last)
   }
   assert.deepEqual(drawers, ["a", "b", "a", "b", "a", "b"]);
+  // Two turns per round → rounds advance 1,1,2,2,3,3.
+  assert.deepEqual(rounds, [1, 1, 2, 2, 3, 3]);
   assert.equal(latestState(broadcasts).phase, "ended");
 });
 

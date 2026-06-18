@@ -703,7 +703,9 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           {inGame && (
             <>
               <span style={styles.turnPill}>
-                Turn {(game?.turnIndex ?? 0) + 1}/{game?.totalTurns ?? 0}
+                {(game?.totalRounds ?? 1) > 1
+                  ? `Round ${game?.round ?? 1}/${game?.totalRounds ?? 1} · Turn ${(game?.turnIndex ?? 0) + 1}/${game?.totalTurns ?? 0}`
+                  : `Turn ${(game?.turnIndex ?? 0) + 1}/${game?.totalTurns ?? 0}`}
               </span>
               <span style={styles.wordZone}>
                 <span style={styles.wordVerb}>{isDrawer ? "cook this" : "guess fr"}</span>
