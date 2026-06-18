@@ -239,6 +239,15 @@ export function App() {
     return () => clearInterval(t);
   }, [joined]);
 
+  const doJoin = () => {
+    const name = draftName.trim();
+    if (!name) return;
+    const room = draftRoom.trim() || "lobby";
+    localStorage.setItem("iiad_name", name);
+    localStorage.setItem("iiad_room", room);
+    setJoined({ name, room, mode: draftMode });
+  };
+
   if (!joined) {
     return (
       <div style={styles.gate}>
@@ -272,6 +281,7 @@ export function App() {
               placeholder="whatever you want, really"
               value={draftName}
               onChange={(e) => setDraftName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && doJoin()}
               style={{ ...styles.input, flex: 1 }}
               autoFocus
             />
@@ -291,6 +301,7 @@ export function App() {
             placeholder="lobby"
             value={draftRoom}
             onChange={(e) => setDraftRoom(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && doJoin()}
             style={styles.input}
           />
 
@@ -327,13 +338,7 @@ export function App() {
               ...(draftName.trim() ? null : styles.buttonDisabled),
             }}
             disabled={!draftName.trim()}
-            onClick={() => {
-              const name = draftName.trim();
-              const room = draftRoom.trim() || "lobby";
-              localStorage.setItem("iiad_name", name);
-              localStorage.setItem("iiad_room", room);
-              setJoined({ name, room, mode: draftMode });
-            }}
+            onClick={doJoin}
           >
 pull up →
           </button>
