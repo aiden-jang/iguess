@@ -5,10 +5,10 @@ import { DrawingCanvas } from "./DrawingCanvas";
 const COLORS = ["#111111", "#e11d48", "#2563eb", "#16a34a", "#f59e0b", "#ffffff"];
 
 const MODES = [
-  { value: "classic", label: "Classic", blurb: "just vibes, no robots", icon: "🎨" },
-  { value: "ai", label: "AI Guesser", blurb: "🤖 thinks it's smart", icon: "🔍" },
-  { value: "ai-drawer", label: "AI Drawer", blurb: "🤖 draws, good luck", icon: "🖌️" },
-  { value: "team-battle", label: "Team Battle", blurb: "us vs the machine 🤖", icon: "⚔️" },
+  { value: "classic", label: "Classic", blurb: "just vibes, no bots", icon: "🎨" },
+  { value: "ai", label: "AI Guesser", blurb: "bot thinks it ate", icon: "🔍" },
+  { value: "ai-drawer", label: "AI Drawer", blurb: "bot draws, it's giving???", icon: "🖌️" },
+  { value: "team-battle", label: "Team Battle", blurb: "humans vs the bots fr", icon: "⚔️" },
 ];
 
 const isAI = (id?: string | null) => !!id && id.startsWith("ai-");
@@ -90,14 +90,14 @@ export function App() {
             <span style={styles.brandMark}>🐶</span>
             <div>
               <h1 style={styles.title}>is it a dog?</h1>
-              <p style={styles.subtitle}>probably not. draw it anyway.</p>
+              <p style={styles.subtitle}>probably not. draw it anyway, no cap.</p>
             </div>
           </div>
 
           {invited && (
             <div style={styles.inviteRibbon}>
-              🎉 you got summoned to <strong>#{draftRoom}</strong> — just drop a
-              name
+              🎉 you got the invite to <strong>#{draftRoom}</strong> — drop a name
+              and pull up
             </div>
           )}
 
@@ -157,7 +157,7 @@ export function App() {
               })
             }
           >
-            let's go →
+pull up →
           </button>
         </div>
       </div>
@@ -242,9 +242,9 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
         Math.max(...ranked.filter((p) => isAI(p.id)).map((p) => game?.scores[p.id] ?? 0));
     const lines = [
       `is it a dog? 🐶 — ${modeMeta?.label ?? mode}`,
-      `${medal} finished #${place || "?"}/${ranked.length} with ${myScore} pts`,
-      beatAI ? "and yes, I beat the robot 🤖💥" : "",
-      `play: ${inviteLink(room, mode)}`,
+      `${medal} #${place || "?"}/${ranked.length} · ${myScore} pts and that's on periodt`,
+      beatAI ? "cooked the bot too 🤖💥 no cap" : "",
+      `pull up: ${inviteLink(room, mode)}`,
     ].filter(Boolean);
     const ok = await copyText(lines.join("\n"));
     if (ok) {
@@ -280,7 +280,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           style={{ ...styles.inviteButton, ...(copied ? styles.inviteButtonOk : null) }}
           onClick={handleInvite}
         >
-          {copied ? "✅ link copied!" : "🔗 drag your friends in"}
+          {copied ? "✅ copied, go spam it" : "🔗 invite the squad"}
         </button>
 
         <div style={styles.sectionLabel}>Scoreboard</div>
@@ -322,7 +322,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           {phase === "lobby" && (
             <>
               <span style={styles.bannerText}>
-                just chilling · {players.length} here
+                lowkey waiting · {players.length} pulled up
               </span>
               <button style={{ ...styles.button, marginLeft: "auto" }} onClick={startGame}>
                 send it
@@ -331,12 +331,12 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           )}
           {phase === "ended" && (
             <>
-              <span style={styles.bannerText}>🏁 well, that happened</span>
+              <span style={styles.bannerText}>🏁 and that's on periodt</span>
               <button
                 style={{ ...styles.ghostButton, marginLeft: "auto" }}
                 onClick={handleFlex}
               >
-                {flexed ? "✅ copied — go brag" : "📋 flex your score"}
+                {flexed ? "✅ copied, go flex" : "📋 post your dub"}
               </button>
               <button style={styles.button} onClick={startGame}>
                 run it back
@@ -349,7 +349,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
                 Turn {(game?.turnIndex ?? 0) + 1}/{game?.totalTurns ?? 0}
               </span>
               <span style={styles.wordZone}>
-                <span style={styles.wordVerb}>{isDrawer ? "draw this" : "guess?"}</span>
+                <span style={styles.wordVerb}>{isDrawer ? "cook this" : "guess fr"}</span>
                 <span style={styles.tiles}>
                   {wordLetters.map((ch, i) => (
                     <span key={i} style={styles.tile}>
@@ -412,7 +412,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           {!canDraw && inGame && (
             <div style={styles.canvasHintBadge}>
               {isAI(game?.drawerId)
-                ? "🤖 the machine is cooking"
+                ? "🤖 the bot is cooking"
                 : `${playerName(players, game?.drawerId ?? "")} is cooking 👨‍🍳`}
             </div>
           )}
@@ -443,7 +443,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
               </div>
             )
           )}
-          {log.length === 0 && <div style={styles.system}>it's quiet… too quiet 👀</div>}
+          {log.length === 0 && <div style={styles.system}>crickets… break the ice bestie 👀</div>}
         </div>
         <form
           style={styles.inputRow}
@@ -462,8 +462,8 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
               canDraw
                 ? "eyes on the canvas, picasso ✋"
                 : inGame
-                ? "take a wild guess…"
-                : "say something"
+                ? "guess it bestie…"
+                : "say something fr"
             }
             disabled={canDraw}
             value={text}
@@ -502,16 +502,21 @@ const styles: Record<string, React.CSSProperties> = {
   },
   brand: { display: "flex", alignItems: "center", gap: 14, marginBottom: 22 },
   brandMark: {
-    fontSize: 40,
+    fontSize: 42,
     lineHeight: 1,
-    filter: "drop-shadow(0 4px 10px rgba(99,102,241,0.5))",
+    filter: "drop-shadow(0 4px 14px rgba(168,85,247,0.6))",
+    animation: "floaty 3.5s ease-in-out infinite",
   },
   title: {
     margin: 0,
     fontFamily: "'Fredoka', sans-serif",
-    fontSize: 30,
+    fontSize: 32,
     fontWeight: 700,
-    letterSpacing: "-0.01em",
+    letterSpacing: "-0.02em",
+    background: "var(--grad)",
+    WebkitBackgroundClip: "text",
+    backgroundClip: "text",
+    WebkitTextFillColor: "transparent",
   },
   subtitle: { margin: "2px 0 0", color: "var(--muted)", fontSize: 13 },
   fieldLabel: {
@@ -603,6 +608,10 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
+    background: "var(--grad)",
+    WebkitBackgroundClip: "text",
+    backgroundClip: "text",
+    WebkitTextFillColor: "transparent",
   },
   roomMode: { fontSize: 12, color: "var(--muted)" },
   statusPill: {
@@ -810,12 +819,13 @@ const styles: Record<string, React.CSSProperties> = {
   button: {
     padding: "10px 16px",
     fontSize: 14,
-    fontWeight: 600,
+    fontWeight: 700,
     cursor: "pointer",
     border: "none",
     borderRadius: 10,
-    background: "var(--accent)",
+    background: "var(--grad)",
     color: "white",
+    boxShadow: "0 6px 18px rgba(168,85,247,0.35)",
   },
   buttonBig: { width: "100%", marginTop: 18, padding: "13px 16px", fontSize: 15 },
   buttonDisabled: { opacity: 0.45, cursor: "not-allowed" },
