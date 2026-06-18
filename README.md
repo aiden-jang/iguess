@@ -1,5 +1,7 @@
 # is-it-a-dog
 
+[![CI](https://github.com/aiden-jang/is-it-a-dog/actions/workflows/ci.yml/badge.svg)](https://github.com/aiden-jang/is-it-a-dog/actions/workflows/ci.yml)
+
 A multiplayer drawing-and-guessing game in the skribbl.io vein, with one twist:
 an AI vision model plays as one of the guessers. It looks at the live canvas and
 types answers into chat along with everyone else. (It guesses "dog" a lot.)
