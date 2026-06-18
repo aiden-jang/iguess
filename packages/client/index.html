@@ -78,6 +78,24 @@
       .lift:active:not(:disabled) { transform: translateY(0) scale(0.98); }
       .pulse-cta { animation: glowPulse 2.4s ease-in-out infinite; }
       .pop-in { animation: pop .28s ease-out both; }
+      @keyframes confettiFall {
+        0% { transform: translateY(-12vh) rotate(0deg); opacity: 1; }
+        100% { transform: translateY(110vh) rotate(720deg); opacity: 1; }
+      }
+      .confetti-piece {
+        position: fixed;
+        top: 0;
+        font-size: 22px;
+        pointer-events: none;
+        z-index: 9999;
+        will-change: transform;
+      }
+      @keyframes wiggle {
+        0%, 100% { transform: rotate(0deg); }
+        25% { transform: rotate(-18deg); }
+        75% { transform: rotate(18deg); }
+      }
+      .wiggle:hover { animation: wiggle .4s ease-in-out; }
     </style>
   </head>
   <body>
