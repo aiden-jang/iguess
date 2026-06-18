@@ -4,12 +4,32 @@ A real-time, multiplayer drawing-and-guessing game (skribbl.io style) where an
 **AI vision model competes as one of the guessers** — looking at the live canvas
 and shouting out answers alongside the humans. (Spoiler: it guesses "dog" a lot.)
 
+`TypeScript` · `Node` · `raw ws (WebSockets)` · `Redis` · `React` · `Vite` · `Canvas`
+
 The interesting part isn't the game; it's the architecture. The core game engine
 knows nothing about AI. Game **modes** are pluggable strategies layered on top, so
 "AI as guesser", "AI as drawer", or "Humans vs AI" are additions, not rewrites.
 
 > 📐 For the design rationale, trade-offs, and how I'd scale it, see
 > **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
+
+---
+
+## Demo
+
+![is-it-a-dog demo — two players and an AI guessing in real time](docs/demo.gif)
+
+*Two browser windows in one room: strokes sync live, and 🤖 AI races the human
+guesser off the same canvas. The drawer first picks one of three offered words.*
+
+<!--
+  To record this GIF (the most compelling 15–20s loop):
+    1. Run locally (see "Running locally"); open two windows side by side in one room.
+    2. Start a game, pick a word, draw — show strokes appearing in the other window.
+    3. Let the 🤖 AI drop a guess, then land a human guess so the scoreboard moves.
+    4. Capture with QuickTime / Kap (https://getkap.co) and export to docs/demo.gif.
+    5. Save it as docs/demo.gif (keep it < ~10 MB so it loads on GitHub).
+-->
 
 ---
 
