@@ -141,12 +141,15 @@
       /* Responsive: stack the 3-column layout on narrow screens. */
       @media (max-width: 880px) {
         .app-layout {
-          grid-template-columns: 1fr !important;
-          grid-template-rows: auto 56vh auto !important;
+          display: flex !important;
+          flex-direction: column;
           height: auto !important;
           min-height: 100vh;
         }
-        .app-layout .pane-canvas { order: -1; }
+        .app-layout > * { width: 100%; }
+        .app-layout .pane-canvas { order: 1; min-height: 60vh; }
+        .app-layout > aside { order: 2; }
+        .app-layout > main { order: 3; min-height: 50vh; }
       }
     </style>
   </head>

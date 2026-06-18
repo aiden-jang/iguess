@@ -1134,6 +1134,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "8px 12px",
     border: "1px solid var(--line)",
     borderRadius: 12,
+    flexWrap: "wrap",
   },
   swatch: { width: 26, height: 26, borderRadius: "50%", padding: 0 },
   toolDivider: { width: 1, height: 22, background: "var(--line)" },
