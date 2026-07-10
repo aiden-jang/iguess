@@ -1,17 +1,27 @@
 {
-  "name": "drawing-game",
+  "name": "is-it-a-dog",
+  "version": "0.0.0",
   "private": true,
-  "version": "0.1.0",
-  "workspaces": [
-    "shared",
-    "packages/*"
-  ],
+  "description": "Multiplayer draw-and-guess vs an AI player.",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev:server": "npm run dev --workspace=game-server",
-    "dev:client": "npm run dev --workspace=client",
-    "redis": "docker compose up redis",
-    "test": "npm test --workspace=game-server",
-    "typecheck": "tsc -p packages/game-server/tsconfig.json --noEmit && tsc -p packages/ai-worker/tsconfig.json --noEmit && tsc -p packages/client/tsconfig.json --noEmit",
-    "build": "npm run build --workspace=client"
+    "dev:server": "pnpm --filter @is-it-a-dog/game-server dev",
+    "dev:ai": "pnpm --filter @is-it-a-dog/ai-worker dev",
+    "dev:client": "pnpm --filter @is-it-a-dog/client dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^8.57.1",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2"
   }
 }

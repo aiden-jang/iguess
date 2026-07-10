@@ -53,8 +53,10 @@ let audioCtx: AudioContext | null = null;
 function blip(freqs: number[], muted: boolean) {
   if (muted) return;
   try {
-    audioCtx =
-      audioCtx ?? new (window.AudioContext || (window as any).webkitAudioContext)();
+    const Ctor =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    audioCtx = audioCtx ?? new Ctor();
     const ctx = audioCtx;
     freqs.forEach((f, i) => {
       const osc = ctx.createOscillator();
@@ -367,6 +369,10 @@ export function App() {
 pull up →
           </button>
         </div>
+        <p style={styles.privacyNote}>
+          no account, no sign-in. we only hold the live game room while you play, and analytics are
+          cookieless, so there's nothing personal to collect.
+        </p>
       </div>
     );
   }
@@ -462,7 +468,6 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
       const t = setTimeout(() => setToast(null), 2600);
       return () => clearTimeout(t);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canDraw]);
 
   // Celebrate correct guesses: a tick for anyone, a full burst + sting + toast
@@ -482,7 +487,6 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
     } else {
       blip([880], muted); // someone else got it
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game?.guessedIds]);
 
   // On game end: figure out if you won, update the streak, and play a sting.
@@ -501,7 +505,6 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
     }
     const t = setTimeout(() => setToast(null), 3200);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
   // Word line: the drawer sees the real word; guessers see one tile per
@@ -912,9 +915,19 @@ const styles: Record<string, React.CSSProperties> = {
   gate: {
     minHeight: "100%",
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
+    gap: 16,
     padding: 24,
+  },
+  privacyNote: {
+    maxWidth: 440,
+    margin: 0,
+    textAlign: "center",
+    fontSize: 12,
+    lineHeight: 1.5,
+    color: "var(--muted)",
   },
   card: {
     width: "100%",

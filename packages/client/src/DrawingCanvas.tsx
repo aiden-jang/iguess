@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { DrawOp, Point } from "shared";
+import type { DrawOp, Point } from "@is-it-a-dog/shared";
 
 interface Props {
   sendDraw: (op: DrawOp) => void;
@@ -93,7 +93,6 @@ export function DrawingCanvas({
       unsub();
       onCanvas?.(null);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subscribeDraw]);
 
   // ----- Local drawing -----
