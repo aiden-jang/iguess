@@ -11,13 +11,13 @@
     "gen:og": "node scripts/gen-og.mjs"
   },
   "dependencies": {
-    "react": "^18.3.1",
+    "react": "^19.2.7",
     "react-dom": "^18.3.1",
     "@iguess/shared": "workspace:*"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
-    "@types/react": "^18.3.12",
+    "@types/react": "^19.2.17",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
     "typescript": "^5.6.3",
