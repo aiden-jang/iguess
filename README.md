@@ -224,3 +224,11 @@ Adding a mode means writing a class, not editing the engine.
 The `pickWordChoices` hook drives the word-choice step: return 2+ words and the
 drawer gets to choose one; return `null` to skip it (the AI drawer just picks its
 own word).
+
+## Observability
+
+- **Errors + requests:** Workers Logs is enabled (`[observability]` in both workers'
+  `wrangler.toml`), so uncaught throws are captured for the game-server and the ai-worker. Tail live
+  with `pnpm --filter @iguess/game-server exec wrangler tail` (or `@iguess/ai-worker`).
+- **Uptime:** each worker exposes `GET /health`, ready for a free external monitor (e.g.
+  UptimeRobot).
