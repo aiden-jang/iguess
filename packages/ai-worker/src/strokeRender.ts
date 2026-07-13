@@ -1,7 +1,7 @@
 import { initWasm, Resvg } from '@resvg/resvg-wasm';
 // wrangler bundles the .wasm as a WebAssembly.Module we hand to initWasm() once.
 import resvgWasm from '@resvg/resvg-wasm/index_bg.wasm';
-import type { DrawOp } from '@is-it-a-dog/shared';
+import type { DrawOp } from '@iguess/shared';
 import { opsToSvg, WIDTH } from './strokeSvg.ts';
 
 let wasmReady: Promise<void> | null = null;

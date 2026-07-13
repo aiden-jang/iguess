@@ -1,4 +1,4 @@
-import type { DrawOp } from '@is-it-a-dog/shared';
+import type { DrawOp } from '@iguess/shared';
 import type { Env } from './env.ts';
 import { selectProvider } from './visionProviders.ts';
 import { opsToPngBase64 } from './strokeRender.ts';

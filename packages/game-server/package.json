@@ -1,15 +1,15 @@
 {
-  "name": "@is-it-a-dog/game-server",
+  "name": "@iguess/game-server",
   "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "pnpm --filter @is-it-a-dog/client build && wrangler deploy",
+    "deploy": "pnpm --filter @iguess/client build && wrangler deploy",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
-    "@is-it-a-dog/shared": "workspace:*"
+    "@iguess/shared": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241230.0",

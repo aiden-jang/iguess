@@ -1,4 +1,4 @@
-import type { DrawOp } from '@is-it-a-dog/shared';
+import type { DrawOp } from '@iguess/shared';
 
 const TIMEOUT_MS = 8_000;
 

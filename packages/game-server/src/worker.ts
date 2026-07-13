@@ -8,7 +8,7 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === '/health') {
-      return new Response(JSON.stringify({ status: 'ok', service: 'is-it-a-dog' }), {
+      return new Response(JSON.stringify({ status: 'ok', service: 'iguess' }), {
         headers: { 'content-type': 'application/json' },
       });
     }

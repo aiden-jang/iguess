@@ -1,4 +1,4 @@
-import type { ClientMessage, ServerMessage, PlayerInfo, DrawOp } from '@is-it-a-dog/shared';
+import type { ClientMessage, ServerMessage, PlayerInfo, DrawOp } from '@iguess/shared';
 import { GameEngine } from './engine.ts';
 import { ClassicMode } from './modes/ClassicMode.ts';
 import { AIGuesserMode } from './modes/AIGuesserMode.ts';

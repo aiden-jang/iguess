@@ -1,6 +1,6 @@
 {
-  "name": "is it a dog?",
-  "short_name": "is it a dog?",
+  "name": "iguess",
+  "short_name": "iguess",
   "description": "Real-time multiplayer drawing & guessing. Draw bad, win anyway. Race the bot.",
   "start_url": "/",
   "scope": "/",

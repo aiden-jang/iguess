@@ -1,10 +1,10 @@
-# is-it-a-dog
+# iguess
 
 A multiplayer drawing-and-guessing game in the skribbl.io vein, with one twist:
 an AI vision model plays as one of the guessers. It looks at the live canvas and
 types answers into chat along with everyone else. (It guesses "dog" a lot.)
 
-**Live:** [is-it-a-dog.aidenjang.com](https://is-it-a-dog.aidenjang.com)
+**Live:** [iguess.aidenjang.com](https://iguess.aidenjang.com)
 
 `TypeScript` · `Cloudflare Workers` · `Durable Objects` · `raw WebSockets` · `React` · `Vite` · `Canvas`
 
@@ -161,13 +161,13 @@ pnpm install
 
 # terminal 1 — game-server on :33300 + GameRoom Durable Object. For AI modes, point it at the
 # local ai-worker (terminal 2); classic mode works without this override.
-pnpm --filter @is-it-a-dog/game-server dev -- --var AI_WORKER_URL:http://localhost:33400
+pnpm --filter @iguess/game-server dev -- --var AI_WORKER_URL:http://localhost:33400
 
 # terminal 2 — ai-worker (vision) on :33400
-pnpm --filter @is-it-a-dog/ai-worker dev
+pnpm --filter @iguess/ai-worker dev
 
 # terminal 3 — client (http://localhost:33100, proxies /rooms to the game server)
-pnpm --filter @is-it-a-dog/client dev
+pnpm --filter @iguess/client dev
 ```
 
 Open two browser tabs, join the same room, and pick the **AI** mode from the
@@ -194,8 +194,8 @@ or "Team battle" (humans vs AI). Same engine, different mode.
 ### Tests
 
 ```bash
-pnpm --filter @is-it-a-dog/game-server test    # engine + modes + helpers
-pnpm --filter @is-it-a-dog/ai-worker test      # stroke→SVG + vision providers
+pnpm --filter @iguess/game-server test    # engine + modes + helpers
+pnpm --filter @iguess/ai-worker test      # stroke→SVG + vision providers
 ```
 
 The engine tests run whole games through the `GameEngine` with in-memory deps

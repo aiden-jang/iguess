@@ -26,7 +26,7 @@ importers:
 
   packages/ai-worker:
     dependencies:
-      '@is-it-a-dog/shared':
+      '@iguess/shared':
         specifier: workspace:*
         version: link:../../shared
       '@resvg/resvg-wasm':
@@ -48,7 +48,7 @@ importers:
 
   packages/client:
     dependencies:
-      '@is-it-a-dog/shared':
+      '@iguess/shared':
         specifier: workspace:*
         version: link:../../shared
       react:
@@ -79,7 +79,7 @@ importers:
 
   packages/game-server:
     dependencies:
-      '@is-it-a-dog/shared':
+      '@iguess/shared':
         specifier: workspace:*
         version: link:../../shared
     devDependencies:
