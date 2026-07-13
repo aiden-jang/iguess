@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { DrawOp, Point } from "@is-it-a-dog/shared";
+import type { DrawOp, Point } from "@iguess/shared";
 
 interface Props {
   sendDraw: (op: DrawOp) => void;

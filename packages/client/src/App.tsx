@@ -87,7 +87,7 @@ function saveCanvasPng(canvas: HTMLCanvasElement, room: string) {
   c.fillRect(0, 0, out.width, out.height);
   c.drawImage(canvas, 0, 0);
   const a = document.createElement("a");
-  a.download = `is-it-a-dog-${room}-${Date.now()}.png`;
+  a.download = `iguess-${room}-${Date.now()}.png`;
   a.href = out.toDataURL("image/png");
   a.click();
 }
@@ -281,7 +281,7 @@ export function App() {
           <div style={styles.brand}>
             <span style={styles.brandMark}>🐶</span>
             <div>
-              <h1 className="grad-anim" style={styles.title}>is it a dog?</h1>
+              <h1 className="grad-anim" style={styles.title}>iguess</h1>
               <p key={tagIdx} className="pop-in" style={styles.subtitle}>
                 {TAGLINES[tagIdx]}
               </p>
@@ -451,12 +451,12 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   // Live tab title — nudges people back to the tab when it's their turn.
   useEffect(() => {
     document.title = canDraw
-      ? "✏️ YOUR TURN — is it a dog?"
+      ? "✏️ YOUR TURN · iguess"
       : inGame
-      ? "🎨 playing · is it a dog?"
-      : "is it a dog? 🐶";
+      ? "🎨 playing · iguess"
+      : "iguess 🐶";
     return () => {
-      document.title = "is it a dog? 🐶";
+      document.title = "iguess 🐶";
     };
   }, [canDraw, inGame]);
 
@@ -577,7 +577,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
     ].filter(Boolean);
 
     return [
-      `is it a dog? 🐶 · ${modeMeta?.label ?? mode}`,
+      `iguess 🐶 · ${modeMeta?.label ?? mode}`,
       `i came #${place || "?"}/${ranked.length} and that's on periodt`,
       "",
       ...rows,

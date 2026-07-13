@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { DrawOp } from '@is-it-a-dog/shared';
+import type { DrawOp } from '@iguess/shared';
 import { opsToSvg } from './strokeSvg.ts';
 
 test('renders a white background and no strokes for an empty log', () => {

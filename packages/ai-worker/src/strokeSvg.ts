@@ -1,4 +1,4 @@
-import type { DrawOp, Point } from '@is-it-a-dog/shared';
+import type { DrawOp, Point } from '@iguess/shared';
 
 // Pure stroke-log → SVG (no WASM/canvas), so it runs and unit-tests anywhere. The rasterizer
 // (strokeRender.ts) imports this and turns the SVG into a PNG for the vision providers.

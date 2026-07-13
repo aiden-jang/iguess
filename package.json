@@ -1,5 +1,5 @@
 {
-  "name": "is-it-a-dog",
+  "name": "iguess",
   "version": "0.0.0",
   "private": true,
   "description": "Multiplayer draw-and-guess vs an AI player.",
@@ -8,9 +8,9 @@
   },
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev:server": "pnpm --filter @is-it-a-dog/game-server dev",
-    "dev:ai": "pnpm --filter @is-it-a-dog/ai-worker dev",
-    "dev:client": "pnpm --filter @is-it-a-dog/client dev",
+    "dev:server": "pnpm --filter @iguess/game-server dev",
+    "dev:ai": "pnpm --filter @iguess/ai-worker dev",
+    "dev:client": "pnpm --filter @iguess/client dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",

@@ -1,5 +1,5 @@
 {
-  "name": "@is-it-a-dog/ai-worker",
+  "name": "@iguess/ai-worker",
   "version": "0.1.0",
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
-    "@is-it-a-dog/shared": "workspace:*",
+    "@iguess/shared": "workspace:*",
     "@resvg/resvg-wasm": "^2.6.2"
   },
   "devDependencies": {

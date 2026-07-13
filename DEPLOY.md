@@ -1,10 +1,10 @@
-# Deploying is-it-a-dog → is-it-a-dog.aidenjang.com
+# Deploying iguess → iguess.aidenjang.com
 
-**Status: live** at [is-it-a-dog.aidenjang.com](https://is-it-a-dog.aidenjang.com). Run the steps below to ship a new version. Two Cloudflare Workers:
+**Status: live** at [iguess.aidenjang.com](https://iguess.aidenjang.com). Run the steps below to ship a new version. Two Cloudflare Workers:
 
-- **`is-it-a-dog-ai`** — the vision worker (`/guess`). Internal: only the game server calls it,
+- **`iguess-ai`** — the vision worker (`/guess`). Internal: only the game server calls it,
   server-side. Stays on its `*.workers.dev` URL (no custom domain). Mock provider by default.
-- **`is-it-a-dog-game`** — the game server: the `GameRoom` Durable Object (one per room) + serves
+- **`iguess-game`** — the game server: the `GameRoom` Durable Object (one per room) + serves
   the client SPA (`[assets]`) + the `/rooms/:id/ws` WebSocket. Custom domain, free tier.
 
 The room DO is SQLite-backed and created automatically by the `new_sqlite_classes` migration on
@@ -14,7 +14,7 @@ first deploy — no separate command (unlike D1).
 
 ```bash
 cd packages/ai-worker
-pnpm exec wrangler deploy        # → note the URL, e.g. https://is-it-a-dog-ai.aidenjang.workers.dev
+pnpm exec wrangler deploy        # → note the URL, e.g. https://iguess-ai.aidenjang.workers.dev
 ```
 
 Optional real vision (else mock): `echo "<key>" | pnpm exec wrangler secret put ANTHROPIC_API_KEY`
@@ -26,7 +26,7 @@ In `packages/game-server/wrangler.toml`, set the ai-worker URL from step 1:
 
 ```toml
 [vars]
-AI_WORKER_URL = "https://is-it-a-dog-ai.aidenjang.workers.dev"
+AI_WORKER_URL = "https://iguess-ai.aidenjang.workers.dev"
 ```
 
 (Leave it `""` to ship without AI — classic mode is unaffected; AI modes just won't guess.)
@@ -47,10 +47,10 @@ First-time-only (before the domain exists) it's a two-step: comment out the `[[r
 ## Smoke test + two-player playthrough
 
 ```bash
-curl https://is-it-a-dog.aidenjang.com/health   # {"status":"ok","service":"is-it-a-dog"}
+curl https://iguess.aidenjang.com/health   # {"status":"ok","service":"iguess"}
 ```
 
-Then open `https://is-it-a-dog.aidenjang.com` in **two browser windows** (or two devices):
+Then open `https://iguess.aidenjang.com` in **two browser windows** (or two devices):
 
 1. Window A: enter a name, create/join a room (note the room in the URL hash), pick a mode.
 2. Window B: open the same invite link → both should appear in the roster (presence).

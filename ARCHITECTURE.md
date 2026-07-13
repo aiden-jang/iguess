@@ -1,6 +1,6 @@
 # Architecture
 
-A deep-dive into how *is-it-a-dog* is built, why it's structured this way, and
+A deep-dive into how *iguess* is built, why it's structured this way, and
 what I'd change to take it to production. Written to be read top-to-bottom; each
 section ends with the trade-off I actually made.
 
@@ -254,7 +254,7 @@ Honest list:
   that game rather than rehydrating it. That's the cheap, obvious next step now
   that the object owns the state.
 - **Unit-tested core; integration coverage is the gap.** The engine, modes, and
-  pure helpers have a committed suite (`pnpm --filter @is-it-a-dog/game-server
+  pure helpers have a committed suite (`pnpm --filter @iguess/game-server
   test`) that drives the engine through whole games against in-memory
   `EngineDeps` — rounds, scoring, hints, forgiving-guess matching, and the
   word-choice phase. *Remaining:* no end-to-end test exercising the real
