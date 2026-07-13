@@ -5,10 +5,10 @@ import { DrawingCanvas } from "./DrawingCanvas";
 const COLORS = ["#111111", "#e11d48", "#2563eb", "#16a34a", "#f59e0b", "#ffffff"];
 
 const MODES = [
-  { value: "classic", label: "Classic", blurb: "just vibes, no bots", icon: "🎨" },
-  { value: "ai", label: "AI Guesser", blurb: "bot thinks it ate", icon: "🔍" },
-  { value: "ai-drawer", label: "AI Drawer", blurb: "bot draws, it's giving???", icon: "🖌️" },
-  { value: "team-battle", label: "Team Battle", blurb: "humans vs the bots fr", icon: "⚔️" },
+  { value: "classic", label: "Classic", blurb: "you draw, humans guess", icon: "🎨" },
+  { value: "ai", label: "AI Guesser", blurb: "you draw, an AI races to guess it", icon: "🔍" },
+  { value: "ai-drawer", label: "AI Drawer", blurb: "the AI draws, you guess", icon: "🖌️" },
+  { value: "team-battle", label: "Team Battle", blurb: "humans vs AI, first guess wins", icon: "⚔️" },
 ];
 
 const isAI = (id?: string | null) => !!id && id.startsWith("ai-");
@@ -339,6 +339,15 @@ export function App() {
             first one in the room picks the mode. snooze, lose, etc.
           </small>
 
+          <div style={styles.howto}>
+            <span style={styles.howtoTitle}>how it works</span>
+            <ol style={styles.howtoList}>
+              <li>one person draws a secret word</li>
+              <li>everyone else (and the AI) races to guess it in chat</li>
+              <li>the faster you guess, the more points — most points wins</li>
+            </ol>
+          </div>
+
           <button
             className={draftName.trim() ? "lift pulse-cta" : undefined}
             style={{
@@ -401,6 +410,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   const {
     connected,
     you,
+    serverMode,
     players,
     log,
     game,
@@ -413,6 +423,9 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
     wordChoices,
     chooseWord,
   } = useGameSocket(room, name, mode);
+  // Show the room's real mode once the server confirms it; the requested mode is just the
+  // placeholder shown for the split second before `welcome` arrives.
+  const effectiveMode = serverMode ?? mode;
 
   // Track whether we've ever connected, so a mid-game drop shows a banner but the initial
   // handshake doesn't flash one. The sidebar pill can be off-screen on mobile; this is always visible.
@@ -514,9 +527,11 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
     (a, b) => (game?.scores[b.id] ?? 0) - (game?.scores[a.id] ?? 0)
   );
 
-  const modeMeta = MODES.find((m) => m.value === mode);
+  const modeMeta = MODES.find((m) => m.value === effectiveMode);
   const hasAI = players.some((p) => isAI(p.id));
   const aiGuessedRight = hasAI && (game?.guessedIds ?? []).some((id) => isAI(id));
+  // Nobody to guess: it's just you, no AI in the room. Nudge toward inviting or an AI mode.
+  const soloWaiting = !hasAI && players.filter((p) => !isAI(p.id)).length <= 1;
 
   // Surface the bot's REAL guesses in the canvas bubble (the whole hook) — briefly, then fall back
   // to a "thinking" state — instead of random canned lines that ignore what's on the canvas.
@@ -539,7 +554,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   };
 
   const handleInvite = async () => {
-    const ok = await copyText(inviteLink(room, mode));
+    const ok = await copyText(inviteLink(room, effectiveMode));
     if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
@@ -575,13 +590,13 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
     ].filter(Boolean);
 
     return [
-      `iguess 🐶 · ${modeMeta?.label ?? mode}`,
+      `iguess 🐶 · ${modeMeta?.label ?? effectiveMode}`,
       `i came #${place || "?"}/${ranked.length} and that's on periodt`,
       "",
       ...rows,
       ...(brags.length ? ["", ...brags] : []),
       "",
-      `pull up: ${inviteLink(room, mode)}`,
+      `pull up: ${inviteLink(room, effectiveMode)}`,
     ].join("\n");
   };
 
@@ -614,7 +629,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           <div style={{ minWidth: 0 }}>
             <div className="grad-anim" style={styles.roomName}>#{room}</div>
             <div style={styles.roomMode}>
-              {modeMeta?.icon} {modeMeta?.label ?? mode}
+              {modeMeta?.icon} {modeMeta?.label ?? effectiveMode}
             </div>
           </div>
         </div>
@@ -679,7 +694,9 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           {phase === "lobby" && (
             <>
               <span style={styles.bannerText}>
-                lowkey waiting · {players.length} pulled up
+                {soloWaiting
+                  ? "just you so far. hit 🔗 invite the squad so someone's here to guess (or send it solo to warm up)."
+                  : `lowkey waiting · ${players.length} pulled up`}
               </span>
               <button className="lift pulse-cta" style={{ ...styles.button, marginLeft: "auto" }} onClick={startGame}>
                 send it
@@ -1028,6 +1045,31 @@ const styles: Record<string, React.CSSProperties> = {
   modeLabel: { fontWeight: 600, fontSize: 14 },
   modeBlurb: { fontSize: 11, color: "var(--muted)" },
   hint: { display: "block", color: "var(--muted)", fontSize: 12, margin: "12px 0 4px" },
+  howto: {
+    margin: "16px 0 4px",
+    padding: "12px 14px",
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.03)",
+    border: "1px solid rgba(255,255,255,0.08)",
+  },
+  howtoTitle: {
+    display: "block",
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "var(--muted)",
+    marginBottom: 6,
+  },
+  howtoList: {
+    margin: 0,
+    paddingLeft: 18,
+    display: "grid",
+    gap: 4,
+    fontSize: 13,
+    color: "var(--text)",
+    lineHeight: 1.4,
+  },
   inviteRibbon: {
     margin: "16px 0 4px",
     padding: "10px 12px",

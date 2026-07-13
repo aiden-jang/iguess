@@ -1,4 +1,4 @@
-import type { ClientMessage, ServerMessage, PlayerInfo, DrawOp } from '@iguess/shared';
+import type { ClientMessage, ServerMessage, PlayerInfo, DrawOp, GameModeName } from '@iguess/shared';
 import { GameEngine } from './engine.ts';
 import { ClassicMode } from './modes/ClassicMode.ts';
 import { AIGuesserMode } from './modes/AIGuesserMode.ts';
@@ -15,6 +15,13 @@ import type { Env } from './env.ts';
 
 const MSG_LIMIT_PER_SEC = 200; // coarse per-connection flood guard
 
+// Map the client-asserted mode query param to a known mode (defaulting to classic). Keeping this
+// beside the DO ensures the label sent in `welcome` and the engine built in `makeMode` never diverge.
+function normalizeMode(name: string | null): GameModeName {
+  if (name === 'ai' || name === 'ai-drawer' || name === 'team-battle') return name;
+  return 'classic';
+}
+
 interface Conn {
   ws: WebSocket;
   player: PlayerInfo;
@@ -27,6 +34,9 @@ export class GameRoom {
   private virtualPlayers = new Map<string, PlayerInfo>();
   private strokes: DrawOp[] = [];
   private roomId = 'lobby';
+  // The room's canonical mode, fixed by the first joiner (who creates the engine). Late joiners
+  // are told this in `welcome`, not their own requested mode, so their UI label is correct.
+  private mode: GameModeName = 'classic';
 
   constructor(
     private ctx: DurableObjectState,
@@ -54,7 +64,7 @@ export class GameRoom {
     this.conns.add(conn);
 
     const game = this.gameFor(modeName);
-    this.send(server, { type: 'welcome', you: player, roomId: this.roomId });
+    this.send(server, { type: 'welcome', you: player, roomId: this.roomId, mode: this.mode });
     this.send(server, { type: 'canvas_sync', ops: this.strokes });
     game.sendStateTo(player.id); // catch the joiner up (re-delivers word if they're the drawer)
     this.broadcastPresence();
@@ -127,6 +137,7 @@ export class GameRoom {
 
   private gameFor(modeName: string | null): GameEngine {
     if (!this.engine) {
+      this.mode = normalizeMode(modeName); // latch the room's mode at creation time
       this.engine = new GameEngine(
         {
           broadcast: (msg) => this.broadcast(msg),
@@ -152,13 +163,13 @@ export class GameRoom {
             this.broadcastPresence();
           },
         },
-        this.makeMode(modeName),
+        this.makeMode(this.mode),
       );
     }
     return this.engine;
   }
 
-  private makeMode(name: string | null): GameMode {
+  private makeMode(name: GameModeName): GameMode {
     const aiGuess = (): Promise<string> => requestAIGuess(this.env.AI_WORKER_URL, this.strokes);
     if (name === 'ai') return new AIGuesserMode(aiGuess);
     if (name === 'ai-drawer') return new AIDrawerMode();

@@ -47,6 +47,9 @@ export interface GuessLoopOpts {
   requestGuess?: () => Promise<string>;
   // Invoked once when the AI guesses correctly.
   onCorrect: () => void;
+  // Invoked at most once per turn if the vision worker is unreachable, so the
+  // mode can tell players the AI is down instead of leaving it silently mute.
+  onUnavailable?: () => void;
 }
 
 // Start the interval guessing loop for an AI participant. Returns a stop fn
@@ -57,6 +60,7 @@ export function startGuessLoop(
   opts: GuessLoopOpts
 ): () => void {
   let attempts = 0;
+  let notifiedDown = false; // fire onUnavailable at most once per turn (this loop's lifetime)
   let firstTimer: ReturnType<typeof setTimeout> | null = null;
   let interval: ReturnType<typeof setInterval> | null = null;
 
@@ -67,7 +71,13 @@ export function startGuessLoop(
 
   const getGuess = async (): Promise<string> => {
     if (opts.requestGuess) {
-      try { return await opts.requestGuess(); } catch { return ""; }
+      try {
+        return await opts.requestGuess();
+      } catch {
+        // Worker unreachable/timed out — flag it once, then keep quietly retrying.
+        if (!notifiedDown) { notifiedDown = true; opts.onUnavailable?.(); }
+        return "";
+      }
     }
     if (Math.random() < 0.5) return turn.word;
     const wrong = WORDS.filter((w) => w !== turn.word);
