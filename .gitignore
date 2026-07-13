@@ -3,3 +3,7 @@ dist/
 .DS_Store
 *.log
 .env
+# Wrangler local dev state (Durable Object / D1 SQLite, cache). Never commit.
+.wrangler/
+# Local secrets for `wrangler dev` (the .example is committed, the real file is not).
+.dev.vars
