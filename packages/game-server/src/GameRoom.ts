@@ -91,6 +91,12 @@ export class GameRoom {
       if (!consumed) this.broadcast({ type: 'chat', from: player, text });
     } else if (msg.type === 'draw') {
       if (!game.canDraw(player.id)) return; // authoritative: only the drawer draws
+      if (msg.op.kind === 'undo') {
+        this.undoLastStroke();
+        // Rebuild everyone's canvas from the trimmed log (simplest correct sync for an undo).
+        this.broadcast({ type: 'canvas_sync', ops: this.strokes });
+        return;
+      }
       this.persist(msg.op);
       this.broadcastExcept(conn, { type: 'draw', op: msg.op });
     } else if (msg.type === 'start_game') {
@@ -165,6 +171,18 @@ export class GameRoom {
   private persist(op: DrawOp): void {
     if (op.kind === 'clear') this.strokes = [];
     else this.strokes.push(op);
+  }
+
+  // Drop the last stroke's ops (its trailing start...move...end). A single drawer draws
+  // sequentially, so the last stroke is the suffix from the final "start".
+  private undoLastStroke(): void {
+    for (let i = this.strokes.length - 1; i >= 0; i--) {
+      if (this.strokes[i]!.kind === 'start') {
+        this.strokes.length = i;
+        return;
+      }
+    }
+    this.strokes = [];
   }
 
   private send(ws: WebSocket, msg: ServerMessage): void {

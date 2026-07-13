@@ -30,19 +30,24 @@ export function DrawingCanvas({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const strokes = useRef<Map<string, StrokeState>>(new Map());
+  // CSS-pixel size (the drawing context is transformed by devicePixelRatio, so all coordinate math
+  // stays in logical pixels regardless of screen density).
+  const dims = useRef({ w: 0, h: 0 });
+  // Every op this round, so we can re-render after a resize (resizing a canvas clears its buffer).
+  // Cleared on clear/reset. Bounded by a single round's drawing.
+  const opLog = useRef<DrawOp[]>([]);
 
   // Latest brush settings, read at pointer-down time without re-subscribing.
   const brush = useRef({ color, width });
   brush.current = { color, width };
 
-  // Apply one op to the canvas. Shared by local drawing and remote replay,
-  // so the drawer and watchers run identical rendering logic.
-  function applyOp(op: DrawOp | { kind: "reset" }) {
+  // Paint one op. Pure rendering — no recording — so it's reused for live draws, remote replay,
+  // and re-rendering the whole log after a resize.
+  function render(op: DrawOp | { kind: "reset" }) {
     const ctx = ctxRef.current;
-    const canvas = canvasRef.current;
-    if (!ctx || !canvas) return;
-    const W = canvas.width;
-    const H = canvas.height;
+    if (!ctx) return;
+    const W = dims.current.w;
+    const H = dims.current.h;
 
     switch (op.kind) {
       case "reset":
@@ -79,17 +84,43 @@ export function DrawingCanvas({
     }
   }
 
+  // Record then render, so the op-log can rebuild the canvas after a resize.
+  function applyOp(op: DrawOp | { kind: "reset" }) {
+    if (op.kind === "reset" || op.kind === "clear") opLog.current = [];
+    else opLog.current.push(op);
+    render(op);
+  }
+
+  // Size the backing store to the displayed size × devicePixelRatio (crisp on retina/phones),
+  // transform to logical pixels so coord math is unchanged, then re-render the round's op-log
+  // (a canvas resize wipes its buffer). Runs on mount and on every layout/rotation change.
+  function resizeCanvas() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    dims.current = { w: rect.width, h: rect.height };
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in logical pixels
+    ctxRef.current = ctx;
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    for (const op of opLog.current) render(op);
+  }
+
   useEffect(() => {
     const canvas = canvasRef.current!;
-    // Match the drawing buffer to the displayed size so coords are 1:1.
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-    ctxRef.current = canvas.getContext("2d");
+    resizeCanvas();
     onCanvas?.(canvas);
 
+    const ro = new ResizeObserver(() => resizeCanvas());
+    ro.observe(canvas);
     const unsub = subscribeDraw(applyOp);
     return () => {
+      ro.disconnect();
       unsub();
       onCanvas?.(null);
     };
