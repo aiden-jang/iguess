@@ -37,7 +37,7 @@ function randomName(): string {
 }
 
 // ---- Win streak (localStorage) ----
-const STREAK_KEY = "iiad_streak";
+const STREAK_KEY = "iguess_streak";
 function getStreak(): number {
   return Number(localStorage.getItem(STREAK_KEY) || 0) || 0;
 }
@@ -48,7 +48,7 @@ function bumpStreak(won: boolean): number {
 }
 
 // ---- Sound FX (WebAudio, no assets) ----
-const MUTE_KEY = "iiad_muted";
+const MUTE_KEY = "iguess_muted";
 let audioCtx: AudioContext | null = null;
 function blip(freqs: number[], muted: boolean) {
   if (muted) return;
@@ -245,10 +245,10 @@ export function App() {
   const invited = !!invite.room;
   // Returning players skip the typing: remember the last name/room locally.
   const [draftName, setDraftName] = useState(
-    invite.name ?? localStorage.getItem("iiad_name") ?? ""
+    invite.name ?? localStorage.getItem("iguess_name") ?? ""
   );
   const [draftRoom, setDraftRoom] = useState(
-    invite.room ?? localStorage.getItem("iiad_room") ?? "lobby"
+    invite.room ?? localStorage.getItem("iguess_room") ?? "lobby"
   );
   const [draftMode, setDraftMode] = useState(invite.mode ?? "classic");
   const [joined, setJoined] = useState<{
@@ -269,8 +269,8 @@ export function App() {
     const name = draftName.trim();
     if (!name) return;
     const room = draftRoom.trim() || "lobby";
-    localStorage.setItem("iiad_name", name);
-    localStorage.setItem("iiad_room", room);
+    localStorage.setItem("iguess_name", name);
+    localStorage.setItem("iguess_room", room);
     setJoined({ name, room, mode: draftMode });
   };
 
@@ -430,6 +430,13 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
     wordChoices,
     chooseWord,
   } = useGameSocket(room, name, mode);
+
+  // Track whether we've ever connected, so a mid-game drop shows a banner but the initial
+  // handshake doesn't flash one. The sidebar pill can be off-screen on mobile; this is always visible.
+  const [everConnected, setEverConnected] = useState(false);
+  useEffect(() => {
+    if (connected) setEverConnected(true);
+  }, [connected]);
   const [text, setText] = useState("");
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(4);
@@ -602,6 +609,11 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
       {toast && (
         <div className="toast-in" role="status" aria-live="polite" style={styles.toast}>
           {toast}
+        </div>
+      )}
+      {everConnected && !connected && (
+        <div role="alert" style={styles.reconnectBanner}>
+          ⚠ connection dropped. reconnecting<Dots />
         </div>
       )}
       {/* ---- Sidebar: roster + scores ---- */}
@@ -791,7 +803,29 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           <span style={widthDot(width, color, canDraw)} />
           <button
             className="lift"
+            style={{
+              ...styles.ghostButton,
+              ...(color === "#ffffff" ? { boxShadow: "0 0 0 2px var(--accent)" } : {}),
+            }}
+            onClick={() => setColor("#ffffff")}
+            disabled={!canDraw}
+            aria-pressed={color === "#ffffff"}
+            title="eraser (paints white)"
+          >
+            ⌫ erase
+          </button>
+          <button
+            className="lift"
             style={{ ...styles.ghostButton, marginLeft: "auto" }}
+            onClick={() => sendDraw({ kind: "undo" })}
+            disabled={!canDraw}
+            title="undo the last stroke"
+          >
+            ↶ undo
+          </button>
+          <button
+            className="lift"
+            style={styles.ghostButton}
             onClick={() => canvasElRef.current && saveCanvasPng(canvasElRef.current, room)}
             title="save the masterpiece"
           >
@@ -835,7 +869,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
       {/* ---- Chat ---- */}
       <main className="glass" style={styles.main}>
         <div style={styles.sectionLabel}>the group chat</div>
-        <div style={styles.chatLog}>
+        <div style={styles.chatLog} role="log" aria-live="polite" aria-label="game chat and guesses">
           {log.map((line, i) =>
             line.kind === "system" ? (
               <div key={i} style={styles.system}>
@@ -1307,6 +1341,20 @@ const styles: Record<string, React.CSSProperties> = {
     background: "var(--grad)",
     boxShadow: "0 10px 30px rgba(168,85,247,0.5)",
     whiteSpace: "nowrap",
+  },
+  reconnectBanner: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10001,
+    padding: "10px 16px",
+    textAlign: "center",
+    fontWeight: 700,
+    fontSize: 14,
+    color: "#111",
+    background: "#fbbf24",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
   },
   inputRow: { display: "flex", gap: 8 },
   reactRow: { display: "flex", gap: 6, marginBottom: 8 },
