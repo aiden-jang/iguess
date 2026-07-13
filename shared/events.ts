@@ -35,6 +35,11 @@ export type DrawOp =
 // a few options; nobody can draw or guess yet. Followed by "playing".
 export type GamePhase = "lobby" | "choosing" | "playing" | "intermission" | "ended";
 
+// The room's game mode. A room's mode is fixed by whoever creates it, so a
+// late joiner who requested a different mode still plays (and must be SHOWN)
+// the room's actual mode — hence the server echoes it back in `welcome`.
+export type GameModeName = "classic" | "ai" | "ai-drawer" | "team-battle";
+
 // The view of game state that is safe for EVERY client to see. Note it
 // carries only `wordLength`, never the word itself — the secret word is
 // delivered separately and only to the drawer (see `your_word`).
@@ -84,10 +89,12 @@ export type ClientMessage =
 
 export type ServerMessage =
   | {
-      // Sent right after a successful connection: who you are.
+      // Sent right after a successful connection: who you are, and the room's
+      // actual game mode (which may differ from what this client requested).
       type: "welcome";
       you: PlayerInfo;
       roomId: string;
+      mode: GameModeName;
     }
   | {
       // Current roster of the room. Re-sent whenever it changes.

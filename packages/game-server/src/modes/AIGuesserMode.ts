@@ -39,6 +39,11 @@ export class AIGuesserMode extends ClassicMode {
       aiName: AI_NAME,
       requestGuess: this.requestGuess,
       onCorrect: () => this.acceptGuess(AI_ID, ctx),
+      onUnavailable: () =>
+        ctx.broadcast({
+          type: "system",
+          text: "🤖 the AI can't see the canvas right now. carry on without it.",
+        }),
     });
   }
 

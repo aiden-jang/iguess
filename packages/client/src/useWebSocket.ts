@@ -5,6 +5,7 @@ import type {
   PlayerInfo,
   DrawOp,
   PublicGameState,
+  GameModeName,
 } from "@iguess/shared";
 
 // Draw ops bypass React state on purpose: re-rendering a component on every
@@ -32,6 +33,9 @@ export interface ChatLine {
 export function useGameSocket(room: string, name: string, mode: string) {
   const [connected, setConnected] = useState(false);
   const [you, setYou] = useState<PlayerInfo | null>(null);
+  // The room's ACTUAL mode, echoed by the server. May differ from the mode this
+  // client requested if it joined a room someone else already created.
+  const [serverMode, setServerMode] = useState<GameModeName | null>(null);
   const [players, setPlayers] = useState<PlayerInfo[]>([]);
   const [log, setLog] = useState<ChatLine[]>([]);
   const [game, setGame] = useState<PublicGameState | null>(null);
@@ -95,6 +99,7 @@ export function useGameSocket(room: string, name: string, mode: string) {
       switch (msg.type) {
         case "welcome":
           setYou(msg.you);
+          setServerMode(msg.mode);
           break;
         case "presence":
           setPlayers(msg.players);
@@ -191,6 +196,7 @@ export function useGameSocket(room: string, name: string, mode: string) {
   return {
     connected,
     you,
+    serverMode,
     players,
     log,
     game,

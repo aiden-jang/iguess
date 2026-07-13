@@ -94,6 +94,11 @@ export class TeamBattleMode extends ClassicMode {
         aiName: AI_NAME,
         requestGuess: this.requestGuess,
         onCorrect: () => this.winRound("ai", AI_ID, ctx),
+        onUnavailable: () =>
+          ctx.broadcast({
+            type: "system",
+            text: "🤖 Team AI can't see the canvas right now. this round's on the house, Team Human.",
+          }),
       });
     }
   }
