@@ -12,13 +12,13 @@
   },
   "dependencies": {
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react-dom": "^19.2.7",
     "@iguess/shared": "workspace:*"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
     "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.3",
     "typescript": "^5.6.3",
     "vite": "^5.4.10"
