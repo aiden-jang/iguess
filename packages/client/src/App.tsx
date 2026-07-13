@@ -155,23 +155,6 @@ const LOSS_LINES = [
 ];
 const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]!;
 
-// Sassy bot commentary, cycled while an AI is in the room.
-const HOT_TAKES = [
-  "hmm… is it a dog? 🤔",
-  "my circuits say goose. final answer.",
-  "bestie what IS that 💀",
-  "I've seen better strokes in my training data",
-  "is that art or a ransom note?",
-  "calculating… nope still confused",
-  "bold of you to call that a circle",
-  "I'm an AI and even I can't cope rn",
-  "respectfully… what is the lore here",
-  "this passed the vibe check, not the eye check",
-  "I'd guess but I left my glasses in the cloud",
-  "drawing this hard? in THIS economy?",
-  "404: object not found (it's giving abstract)",
-];
-
 // Animated "…" — three bouncing dots for live status text.
 function Dots() {
   return (
@@ -445,7 +428,10 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   const [toast, setToast] = useState<string | null>(null);
   const [muted, setMuted] = useState(() => localStorage.getItem(MUTE_KEY) === "1");
   const [burstKey, setBurstKey] = useState(0);
-  const [takeIdx, setTakeIdx] = useState(0);
+  // The bot's most recent REAL guess, shown briefly in the canvas bubble then cleared to a
+  // "thinking" state. Driven by actual AI chat, not a canned-line timer.
+  const [botGuess, setBotGuess] = useState<string | null>(null);
+  const aiMsgCount = useRef(0);
   const [winConfetti, setWinConfetti] = useState(48);
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const prevGuessed = useRef<string[]>([]);
@@ -530,13 +516,18 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
 
   const modeMeta = MODES.find((m) => m.value === mode);
   const hasAI = players.some((p) => isAI(p.id));
+  const aiGuessedRight = hasAI && (game?.guessedIds ?? []).some((id) => isAI(id));
 
-  // Cycle the bot's hot-takes while a game with an AI is in progress.
+  // Surface the bot's REAL guesses in the canvas bubble (the whole hook) — briefly, then fall back
+  // to a "thinking" state — instead of random canned lines that ignore what's on the canvas.
   useEffect(() => {
-    if (!hasAI || !inGame) return;
-    const t = setInterval(() => setTakeIdx((i) => (i + 1) % HOT_TAKES.length), 4200);
-    return () => clearInterval(t);
-  }, [hasAI, inGame]);
+    const aiMsgs = log.filter((l) => isAI(l.from?.id));
+    if (aiMsgs.length <= aiMsgCount.current) return;
+    aiMsgCount.current = aiMsgs.length;
+    setBotGuess(aiMsgs[aiMsgs.length - 1]?.text ?? null);
+    const t = setTimeout(() => setBotGuess(null), 4200);
+    return () => clearTimeout(t);
+  }, [log]);
 
   const toggleMute = () => {
     setMuted((m) => {
@@ -858,9 +849,19 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
               <Dots />
             </div>
           )}
-          {hasAI && inGame && (
-            <div key={takeIdx} className="pop-in" style={styles.hotTake}>
-              🤖 {HOT_TAKES[takeIdx]}
+          {hasAI && inGame && !isAI(game?.drawerId) && (
+            <div
+              key={aiGuessedRight ? "win" : (botGuess ?? "thinking")}
+              className="pop-in"
+              style={styles.hotTake}
+            >
+              {aiGuessedRight ? (
+                "🤖 nailed it! 🎉"
+              ) : botGuess ? (
+                <>🤖 "{botGuess}"</>
+              ) : (
+                <>🤖 thinking<Dots /></>
+              )}
             </div>
           )}
         </div>
