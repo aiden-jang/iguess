@@ -436,6 +436,12 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   useEffect(() => {
     if (connected) setEverConnected(true);
   }, [connected]);
+  // On mobile the layout stacks (canvas, chat, sidebar), and the gate's autofocused name input can
+  // leave the page scrolled. Land at the top on entry so the banner and its "send it" button are
+  // the first thing you see, not a blank canvas. No-op on desktop (the grid is a fixed 100vh).
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   const [text, setText] = useState("");
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(4);
