@@ -26,7 +26,7 @@ canvas. Here, "GUITAR":
 ![Drawer's view: the word GUITAR, a sketch on the canvas, and the AI guessing in chat](docs/gameplay.png)
 
 The same canvas in a guesser's window. They only see masked letters, not the
-word — proof the strokes sync live and the word stays secret:
+word. Proof the strokes sync live and the word stays secret:
 
 ![Guesser's view: masked word tiles and the same live canvas](docs/gameplay-guesser.png)
 
@@ -49,7 +49,7 @@ word — proof the strokes sync live and the word stays secret:
   feel instant, but the server holds the real state, saves every stroke, and
   relays them to everyone else. Clients can't fake game state.
 - The secret word is only ever sent to the drawer (`your_word`), and never to the
-  AI worker. So there's nothing to cheat with — the word just isn't in the data a
+  AI worker. So there's nothing to cheat with: the word just isn't in the data a
   client or the AI receives.
 - The engine and the modes are separate. `engine.ts` runs the turn timeline and
   scoring and doesn't know any game rules. A `GameMode` decides who draws, what
@@ -112,7 +112,7 @@ A few of the choices and why:
 | Decision | Choice | Why |
 |---|---|---|
 | State authority | Authoritative server | One source of truth, and clients can't cheat. The drawer renders locally to hide latency. |
-| Room runtime | One Durable Object per room | A room is single-threaded per its id, so roster + stroke log live in the object's memory — no external store, no lock, no cross-instance race. An idle room costs nothing. |
+| Room runtime | One Durable Object per room | A room is single-threaded per its id, so roster + stroke log live in the object's memory: no external store, no lock, no cross-instance race. An idle room costs nothing. |
 | Dropped Redis | In-memory in the DO | The old Node build used Redis for presence + strokes across instances. A Durable Object *is* the single instance for a room, so that entire dependency (and its ops cost) went away in the port. |
 | WebSocket style | Pinned (`server.accept()`), not hibernation | The turn timeline runs on `setTimeout`/`setInterval`; hibernation evicts timers, so a room stays pinned while a game is live. |
 | Transport | Raw `ws`, not Socket.IO | I wanted to see the actual protocol instead of relying on hidden reconnection/room behavior. |
@@ -152,21 +152,21 @@ packages/client/                 React + Vite + Canvas UI
 
 ## Running locally
 
-Requires **Node 22** (repo `.nvmrc`) and pnpm. No Redis, no Docker — the game
+Requires **Node 22** (repo `.nvmrc`) and pnpm. No Redis, no Docker. The game
 server, the Durable Object, and the AI worker all run under `wrangler dev`
 (Miniflare), and the client runs under Vite.
 
 ```bash
 pnpm install
 
-# terminal 1 — game-server on :33300 + GameRoom Durable Object. For AI modes, point it at the
+# terminal 1: game-server on :33300 + GameRoom Durable Object. For AI modes, point it at the
 # local ai-worker (terminal 2); classic mode works without this override.
 pnpm --filter @iguess/game-server dev -- --var AI_WORKER_URL:http://localhost:33400
 
-# terminal 2 — ai-worker (vision) on :33400
+# terminal 2: ai-worker (vision) on :33400
 pnpm --filter @iguess/ai-worker dev
 
-# terminal 3 — client (http://localhost:33100, proxies /rooms to the game server)
+# terminal 3: client (http://localhost:33100, proxies /rooms to the game server)
 pnpm --filter @iguess/client dev
 ```
 
@@ -212,13 +212,13 @@ calls the mode at set points (`configure`, `pickDrawer`, `pickWord`,
 `pickWordChoices`, `onTurnStart`, `onChat`, `canDraw`, `onTurnEnd`, `onGameEnd`).
 Adding a mode means writing a class, not editing the engine.
 
-- **ClassicMode** — humans take turns drawing, everyone else guesses in chat.
+- **ClassicMode.** Humans take turns drawing, everyone else guesses in chat.
   The other three build on this one.
-- **AIGuesserMode** — adds an AI player that guesses off the live canvas on a
+- **AIGuesserMode.** Adds an AI player that guesses off the live canvas on a
   timer.
-- **AIDrawerMode** — the AI does all the drawing (its strokes go through the
+- **AIDrawerMode.** The AI does all the drawing (its strokes go through the
   engine via `ctx.draw`) and humans guess.
-- **TeamBattleMode** — humans vs AI. Rounds alternate who draws, and the first
+- **TeamBattleMode.** Humans vs AI. Rounds alternate who draws, and the first
   correct guess wins the round for that side.
 
 The `pickWordChoices` hook drives the word-choice step: return 2+ words and the
