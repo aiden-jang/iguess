@@ -649,7 +649,8 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
             ...(connected ? styles.statusOk : styles.statusBad),
           }}
         >
-          <span style={styles.statusDot} /> {connected ? "we're so back" : "hang on…"}
+          <span style={styles.statusDot} />{" "}
+          {connected ? "we're so back" : everConnected ? "hang on…" : "connecting…"}
         </div>
 
         <button
