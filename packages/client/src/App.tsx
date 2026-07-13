@@ -273,13 +273,13 @@ export function App() {
 
           {getStreak() > 0 && (
             <div style={styles.streakBadge}>
-              🔥 {getStreak()}-win streak — don't choke
+              🔥 {getStreak()}-win streak, don't choke
             </div>
           )}
 
           {invited && (
             <div style={styles.inviteRibbon}>
-              🎉 you got the invite to <strong>#{draftRoom}</strong> — drop a name
+              🎉 you got the invite to <strong>#{draftRoom}</strong>, drop a name
               and pull up
             </div>
           )}
@@ -344,7 +344,7 @@ export function App() {
             <ol style={styles.howtoList}>
               <li>one person draws a secret word</li>
               <li>everyone else (and the AI) races to guess it in chat</li>
-              <li>the faster you guess, the more points — most points wins</li>
+              <li>the faster you guess, the more points. most points wins</li>
             </ol>
           </div>
 
@@ -469,7 +469,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   // Pop a transient toast the moment it becomes your turn to draw.
   useEffect(() => {
     if (canDraw) {
-      setToast("🎨 you're up — cook!");
+      setToast("🎨 you're up, cook!");
       blip([523, 784], muted); // little "ping!"
       const t = setTimeout(() => setToast(null), 2600);
       return () => clearTimeout(t);
