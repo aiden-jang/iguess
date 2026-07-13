@@ -1,6 +1,6 @@
 # Deploying is-it-a-dog → is-it-a-dog.aidenjang.com
 
-**Status: not yet deployed** (step 4.6). Two Cloudflare Workers:
+**Status: live** at [is-it-a-dog.aidenjang.com](https://is-it-a-dog.aidenjang.com). Run the steps below to ship a new version. Two Cloudflare Workers:
 
 - **`is-it-a-dog-ai`** — the vision worker (`/guess`). Internal: only the game server calls it,
   server-side. Stays on its `*.workers.dev` URL (no custom domain). Mock provider by default.
@@ -13,7 +13,7 @@ first deploy — no separate command (unlike D1).
 ## 1. Deploy the ai-worker
 
 ```bash
-cd apps/is-it-a-dog/packages/ai-worker
+cd packages/ai-worker
 pnpm exec wrangler deploy        # → note the URL, e.g. https://is-it-a-dog-ai.aidenjang.workers.dev
 ```
 
@@ -22,7 +22,7 @@ Optional real vision (else mock): `echo "<key>" | pnpm exec wrangler secret put 
 
 ## 2. Point the game server at it
 
-In `apps/is-it-a-dog/packages/game-server/wrangler.toml`, set the ai-worker URL from step 1:
+In `packages/game-server/wrangler.toml`, set the ai-worker URL from step 1:
 
 ```toml
 [vars]
@@ -31,16 +31,17 @@ AI_WORKER_URL = "https://is-it-a-dog-ai.aidenjang.workers.dev"
 
 (Leave it `""` to ship without AI — classic mode is unaffected; AI modes just won't guess.)
 
-## 3. Deploy the game server (custom-domain two-step)
+## 3. Deploy the game server
+
+Since the custom domain is already attached, a redeploy is one command:
 
 ```bash
-cd apps/is-it-a-dog/packages/game-server
-# - Comment out the [[routes]] block in wrangler.toml first.
-pnpm run deploy                  # builds the client, then wrangler deploy (creates the DO + first deployment)
-# - Uncomment [[routes]], then:
-pnpm run deploy                  # redeploy to attach is-it-a-dog.aidenjang.com
+cd packages/game-server
+pnpm run deploy                  # builds the client, then wrangler deploy
 ```
 
+First-time-only (before the domain exists) it's a two-step: comment out the `[[routes]]` block,
+`pnpm run deploy`, then uncomment it and `pnpm run deploy` again to attach the domain.
 `workers_dev = false` keeps it custom-domain-only. The account already has a workers.dev subdomain.
 
 ## Smoke test + two-player playthrough
@@ -63,7 +64,7 @@ Then open `https://is-it-a-dog.aidenjang.com` in **two browser windows** (or two
 
 ```bash
 # ai-worker (:33400) + game server (:33300, serves client dist + WS) + client dev (:33100)
-cd apps/is-it-a-dog/packages/ai-worker   && pnpm exec wrangler dev --port 33400 --inspector-port 9233 --local
-cd apps/is-it-a-dog/packages/game-server && pnpm exec wrangler dev --port 33300 --inspector-port 9232 --local --var AI_WORKER_URL:http://localhost:33400
-cd apps/is-it-a-dog/packages/client      && pnpm dev   # http://localhost:33100, proxies /rooms → :33300
+cd packages/ai-worker   && pnpm exec wrangler dev --port 33400 --inspector-port 9233 --local
+cd packages/game-server && pnpm exec wrangler dev --port 33300 --inspector-port 9232 --local --var AI_WORKER_URL:http://localhost:33400
+cd packages/client      && pnpm dev   # http://localhost:33100, proxies /rooms → :33300
 ```
