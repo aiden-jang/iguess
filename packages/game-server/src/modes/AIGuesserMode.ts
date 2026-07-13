@@ -11,6 +11,9 @@ const AI_NAME = "🤖 AI";
 export class AIGuesserMode extends ClassicMode {
   override readonly id = "ai-guesser";
 
+  // The AI is the other player, so one human is enough to start (you vs the AI).
+  override readonly minHumans = 1;
+
   private stop: (() => void) | null = null;
 
   // requestGuess renders the canvas and asks the vision model. Injected so

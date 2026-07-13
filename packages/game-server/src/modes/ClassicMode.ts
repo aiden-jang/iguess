@@ -10,6 +10,9 @@ export { WORDS }; // re-export so AIGuesserMode's fallback can reuse it
 export class ClassicMode implements GameMode {
   readonly id: string = "classic";
 
+  // Classic has no AI, so it needs at least two humans: one draws, the rest guess.
+  readonly minHumans: number = 2;
+
   // Ordered list of player ids eligible to draw. Captured at configure.
   protected drawOrder: string[] = [];
 

@@ -426,6 +426,9 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   // Show the room's real mode once the server confirms it; the requested mode is just the
   // placeholder shown for the split second before `welcome` arrives.
   const effectiveMode = serverMode ?? mode;
+  // AI modes have a built-in opponent, so a lone player can start right away.
+  const isAIMode =
+    effectiveMode === "ai" || effectiveMode === "ai-drawer" || effectiveMode === "team-battle";
 
   // Track whether we've ever connected, so a mid-game drop shows a banner but the initial
   // handshake doesn't flash one. The sidebar pill can be off-screen on mobile; this is always visible.
@@ -694,9 +697,11 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           {phase === "lobby" && (
             <>
               <span style={styles.bannerText}>
-                {soloWaiting
-                  ? "just you so far. hit 🔗 invite the squad so someone's here to guess (or send it solo to warm up)."
-                  : `lowkey waiting · ${players.length} pulled up`}
+                {!soloWaiting
+                  ? `lowkey waiting · ${players.length} pulled up`
+                  : isAIMode
+                    ? "it's you vs the 🤖 AI. hit send it whenever you're ready."
+                    : "just you so far. classic needs someone to guess, so hit 🔗 invite the squad."}
               </span>
               <button className="lift pulse-cta" style={{ ...styles.button, marginLeft: "auto" }} onClick={startGame}>
                 send it
