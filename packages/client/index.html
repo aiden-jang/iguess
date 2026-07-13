@@ -156,9 +156,11 @@
         .app-layout .pane-canvas { order: 1; }
         /* Drive canvas height explicitly so the pane hugs its content
            (no dead space) and the surface stays usefully large. */
-        .app-layout .canvas-wrap { flex: none; height: 56vh; }
-        .app-layout > aside { order: 2; }
-        .app-layout > main { order: 3; min-height: 50vh; }
+        .app-layout .canvas-wrap { flex: none; height: 52vh; }
+        /* Chat sits directly under the canvas so a guesser isn't scrolling past the
+           whole scoreboard/sidebar to reach the input. Sidebar goes last. */
+        .app-layout > main { order: 2; min-height: 44vh; }
+        .app-layout > aside { order: 3; }
       }
     </style>
   </head>
