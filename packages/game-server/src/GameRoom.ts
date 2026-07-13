@@ -14,6 +14,9 @@ import type { Env } from './env.ts';
 // roster + stroke history live in this object's memory (evicted only once the room fully empties).
 
 const MSG_LIMIT_PER_SEC = 200; // coarse per-connection flood guard
+// A dropped socket has this long to reconnect (same pid) before we announce a leave and remove the
+// player from the game. Absorbs network blips so a reconnect is silent and keeps score/turn.
+const RECONNECT_GRACE_MS = 8000;
 
 // Map the client-asserted mode query param to a known mode (defaulting to classic). Keeping this
 // beside the DO ensures the label sent in `welcome` and the engine built in `makeMode` never diverge.
@@ -33,6 +36,9 @@ export class GameRoom {
   private engine: GameEngine | null = null;
   private virtualPlayers = new Map<string, PlayerInfo>();
   private strokes: DrawOp[] = [];
+  // pid -> pending "leave" timer. A dropped player sits here during the grace window; a reconnect
+  // clears it (silent), the timer firing turns into an actual leave.
+  private pendingLeaves = new Map<string, ReturnType<typeof setTimeout>>();
   private roomId = 'lobby';
   // The room's canonical mode, fixed by the first joiner (who creates the engine). Late joiners
   // are told this in `welcome`, not their own requested mode, so their UI label is correct.
@@ -56,6 +62,16 @@ export class GameRoom {
     const id = pid ? pid.slice(0, 12) : crypto.randomUUID().slice(0, 8);
     const player: PlayerInfo = { id, name };
 
+    // A reconnect is either an overlap (old socket still open) or a return within the grace window
+    // (a pending leave for this pid). Either way it's silent: no "joined" line, and we cancel the
+    // pending leave so their game slot is never dropped.
+    const isReconnect = !!this.findConn(id) || this.pendingLeaves.has(id);
+    const pendingLeave = this.pendingLeaves.get(id);
+    if (pendingLeave) {
+      clearTimeout(pendingLeave);
+      this.pendingLeaves.delete(id);
+    }
+
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
@@ -68,7 +84,7 @@ export class GameRoom {
     this.send(server, { type: 'canvas_sync', ops: this.strokes });
     game.sendStateTo(player.id); // catch the joiner up (re-delivers word if they're the drawer)
     this.broadcastPresence();
-    this.broadcast({ type: 'system', text: `${name} joined` });
+    if (!isReconnect) this.broadcast({ type: 'system', text: `${name} joined` });
 
     server.addEventListener('message', (event) => {
       if (!this.allow(conn)) return; // drop floods silently
@@ -121,16 +137,34 @@ export class GameRoom {
     this.conns.delete(conn);
     // Reconnect overlap: another live socket already holds this id → the player didn't leave.
     if (this.findConn(conn.player.id)) return;
-    this.engine?.onPlayerLeave(conn.player.id);
+
     if (this.conns.size === 0) {
       // Room emptied — reset so a future session starts clean (and free memory before eviction).
+      // Nothing to preserve for, and the isolate will evict once nobody's connected.
+      for (const t of this.pendingLeaves.values()) clearTimeout(t);
+      this.pendingLeaves.clear();
+      this.engine?.onPlayerLeave(conn.player.id);
       this.engine = null;
       this.strokes = [];
       this.virtualPlayers.clear();
       return;
     }
-    this.broadcastPresence();
-    this.broadcast({ type: 'system', text: `${conn.player.name} left` });
+
+    // Others are still here: give this player a grace window to reconnect (a blip) before we drop
+    // them from the game and announce it. A reconnect within the window cancels this (see fetch).
+    const { id, name } = conn.player;
+    const existing = this.pendingLeaves.get(id);
+    if (existing) clearTimeout(existing);
+    this.pendingLeaves.set(
+      id,
+      setTimeout(() => {
+        this.pendingLeaves.delete(id);
+        if (this.findConn(id)) return; // reconnected during the grace window
+        this.engine?.onPlayerLeave(id);
+        this.broadcastPresence();
+        this.broadcast({ type: 'system', text: `${name} left` });
+      }, RECONNECT_GRACE_MS),
+    );
   }
 
   // --- engine wiring -------------------------------------------------------
