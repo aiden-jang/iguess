@@ -66,6 +66,11 @@ export interface EngineContext {
 export interface GameMode {
   readonly id: string;
 
+  // The fewest human players this mode needs to start. Classic needs 2 (someone
+  // has to guess), but the AI modes need only 1: the AI is the other player, so
+  // a lone visitor can play "you vs the AI" immediately.
+  readonly minHumans: number;
+
   // Called once at game start with the human players. Mode may add virtual
   // participants (AI) via ctx here. Returns how many turns the game runs, and
   // optionally how many turns make up one round (every drawer drawing once) so

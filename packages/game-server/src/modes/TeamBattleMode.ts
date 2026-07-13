@@ -21,6 +21,9 @@ type Team = "human" | "ai";
 export class TeamBattleMode extends ClassicMode {
   override readonly id = "team-battle";
 
+  // Humans vs AI: a single human can take on the AI, so one is enough to start.
+  override readonly minHumans = 1;
+
   private humans: string[] = [];
   private aiDrawsThisTurn = false;
   private roundDecided = false;

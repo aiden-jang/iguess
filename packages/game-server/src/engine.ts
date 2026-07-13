@@ -78,10 +78,10 @@ export class GameEngine {
 
   startGame(humanIds: string[]) {
     if (this.phase === "playing" || this.phase === "intermission") return;
-    if (humanIds.length < 2) {
+    if (humanIds.length < this.mode.minHumans) {
       this.deps.broadcast({
         type: "system",
-        text: "Need at least 2 players to start.",
+        text: `Need at least ${this.mode.minHumans} player${this.mode.minHumans > 1 ? "s" : ""} to start.`,
       });
       return;
     }

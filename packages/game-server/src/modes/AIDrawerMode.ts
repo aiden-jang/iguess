@@ -14,6 +14,9 @@ const TOTAL_ROUNDS = 3;
 export class AIDrawerMode extends ClassicMode {
   override readonly id = "ai-drawer";
 
+  // The AI draws, so one human (the guesser) is enough to start.
+  override readonly minHumans = 1;
+
   private stop: (() => void) | null = null;
 
   // Optional injected generator (a future model). Falls back to the doodle
