@@ -82,14 +82,14 @@ export class TeamBattleMode extends ClassicMode {
       // 🤖 draws; only humans can win this round (the AI knows its own word).
       ctx.broadcast({
         type: "system",
-        text: `Round ${turn.turnIndex + 1}: 🤖 Team AI is drawing — Team Human, guess!`,
+        text: `Round ${turn.turnIndex + 1}: 🤖 Team AI is drawing. Team Human, guess!`,
       });
       this.stopLoop = startDrawLoop(turn, ctx, { requestDrawing: this.requestDrawing });
     } else {
       // A human draws; the AI races the human team to guess the same canvas.
       ctx.broadcast({
         type: "system",
-        text: `Round ${turn.turnIndex + 1}: Team Human is drawing — 🤖 AI is racing you to guess!`,
+        text: `Round ${turn.turnIndex + 1}: Team Human is drawing. 🤖 AI is racing you to guess!`,
       });
       super.onTurnStart(turn, ctx); // deliver the secret word to the human drawer
       this.stopLoop = startGuessLoop(turn, ctx, {
@@ -135,7 +135,7 @@ export class TeamBattleMode extends ClassicMode {
     const label = team === "ai" ? "🤖 Team AI" : "Team Human";
     ctx.broadcast({
       type: "system",
-      text: `${label} wins the round! (${ctx.getName(byId)} got "${word}") — Humans ${this.wins.human} : ${this.wins.ai} AI`,
+      text: `${label} wins the round! (${ctx.getName(byId)} got "${word}"). Humans ${this.wins.human} : ${this.wins.ai} AI`,
     });
     ctx.syncState();
     ctx.endTurn();
@@ -150,7 +150,7 @@ export class TeamBattleMode extends ClassicMode {
     if (!this.roundDecided) {
       ctx.broadcast({
         type: "system",
-        text: `Time! Nobody guessed it. — Humans ${this.wins.human} : ${this.wins.ai} AI`,
+        text: `Time! Nobody guessed it. Humans ${this.wins.human} : ${this.wins.ai} AI`,
       });
     }
   }
@@ -159,10 +159,10 @@ export class TeamBattleMode extends ClassicMode {
   onGameEnd(ctx: EngineContext): void {
     const { human, ai } = this.wins;
     const verdict =
-      human === ai ? "It's a tie! 🤝" : human > ai ? "🏆 Team Human wins!" : "🏆 Team AI wins!";
+      human === ai ? "it's a tie! 🤝" : human > ai ? "🏆 Team Human wins!" : "🏆 Team AI wins!";
     ctx.broadcast({
       type: "system",
-      text: `Game over — Humans ${human} : ${ai} AI. ${verdict}`,
+      text: `game over. Humans ${human} : ${ai} AI. ${verdict}`,
     });
   }
 }

@@ -118,7 +118,7 @@ export class ClassicMode implements GameMode {
     // A whiff: the turn ran out with no correct guesses. The word is already
     // revealed in the turn_end message, so naming it here leaks nothing.
     if (ctx.guessedIds().length === 0) {
-      ctx.broadcast({ type: "system", text: `oof — nobody got "${turn.word}" 💀` });
+      ctx.broadcast({ type: "system", text: `oof, nobody got "${turn.word}" 💀` });
     }
   }
 
@@ -164,7 +164,7 @@ export function winnerLine(ctx: EngineContext): string {
   const ids = ctx.participants().map((p) => p.id);
   if (ids.length === 0) return "🏁 game over!";
   const top = Math.max(...ids.map((id) => scores[id] ?? 0));
-  if (top <= 0) return "🏁 game over — nobody scored. brutal.";
+  if (top <= 0) return "🏁 game over, nobody scored. brutal.";
   const winners = ids.filter((id) => (scores[id] ?? 0) === top);
   const names = winners.map((id) => ctx.getName(id));
   if (names.length === 1) return `🏆 ${names[0]} wins with ${top} points!`;
