@@ -45,6 +45,11 @@ export class ClassicMode implements GameMode {
     return this.drawOrder[turnIndex % this.drawOrder.length];
   }
 
+  onPlayerLeave(playerId: string, _ctx: EngineContext): void {
+    // Drop them from the rotation so pickDrawer never selects an absent player (a blank dead turn).
+    this.drawOrder = this.drawOrder.filter((id) => id !== playerId);
+  }
+
   pickWord(_ctx: EngineContext): string {
     const word = this.freshWord();
     this.usedWords.add(word);

@@ -1,6 +1,6 @@
 // Rasterize public/icon.svg into the PNG sizes iOS, Android, and PWA installs
 // expect. Output PNGs are committed; re-run with
-// `pnpm --filter @is-it-a-dog/client gen:icons` after editing the SVG.
+// `pnpm --filter @iguess/client gen:icons` after editing the SVG.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Resvg } from '@resvg/resvg-js';

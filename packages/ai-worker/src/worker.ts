@@ -15,6 +15,11 @@ export default {
     }
 
     if (url.pathname === '/guess' && request.method === 'POST') {
+      // When a shared secret is configured, require it — otherwise this paid vision endpoint is
+      // open to anyone who learns the URL and can burn tokens directly.
+      if (env.AI_SHARED_SECRET && request.headers.get('Authorization') !== `Bearer ${env.AI_SHARED_SECRET}`) {
+        return Response.json({ guess: '', error: 'unauthorized' }, { status: 401 });
+      }
       const body = (await request.json().catch(() => null)) as { ops?: DrawOp[] } | null;
       const ops = Array.isArray(body?.ops) ? body.ops : [];
       if (ops.length === 0) return Response.json({ guess: '', provider: provider.name });

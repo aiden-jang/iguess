@@ -74,10 +74,18 @@ export class GameEngine {
     ) {
       this.deps.sendToPlayer(playerId, { type: "your_word", word: this.word });
     }
+    // If the drawer reconnects/refreshes mid-"choosing", re-send the options — otherwise their
+    // client lost them and they're stuck on "someone is picking…" (about themselves) until auto-pick.
+    if (this.phase === "choosing" && playerId === this.drawerId && this.pendingChoices) {
+      this.deps.sendToPlayer(playerId, { type: "word_choices", words: this.pendingChoices });
+    }
   }
 
   startGame(humanIds: string[]) {
-    if (this.phase === "playing" || this.phase === "intermission") return;
+    // Only start from a settled state. Without blocking "choosing" too, a double-click (the start
+    // button has no in-flight lock) fires two start_games: the first enters choosing, the second
+    // re-runs startGame and leaks the first choose-timer (which later fires a stray turn).
+    if (this.phase !== "lobby" && this.phase !== "ended") return;
     if (humanIds.length < this.mode.minHumans) {
       this.deps.broadcast({
         type: "system",
@@ -116,13 +124,26 @@ export class GameEngine {
   }
 
   onPlayerLeave(playerId: string) {
-    if (this.phase !== "playing") return;
-    if (playerId === this.drawerId) {
-      this.deps.broadcast({
-        type: "system",
-        text: "The drawer left — ending the turn.",
-      });
+    const wasDrawer = playerId === this.drawerId;
+    // Drop them from the roster (so guess thresholds + presence reflect who's actually here) and
+    // from the mode's draw rotation (so a future turn never picks an absent player).
+    this.roster.delete(playerId);
+    this.mode.onPlayerLeave?.(playerId, this.ctx);
+
+    // Nobody left to play — let the room teardown handle it; don't pick a phantom drawer.
+    if (this.roster.size === 0 || !wasDrawer) return;
+
+    if (this.phase === "playing") {
+      this.deps.broadcast({ type: "system", text: "the drawer left, ending the turn." });
       this.endTurn();
+    } else if (this.phase === "choosing") {
+      // They never picked a word — cancel the auto-pick and re-deal this turn to a present player.
+      if (this.chooseTimer) {
+        clearTimeout(this.chooseTimer);
+        this.chooseTimer = null;
+      }
+      this.deps.broadcast({ type: "system", text: "the drawer left before picking, re-dealing the turn." });
+      this.startTurn();
     }
   }
 
@@ -158,6 +179,7 @@ export class GameEngine {
     this.deps.sendToPlayer(drawerId, { type: "word_choices", words: choices });
     this.broadcastState();
 
+    if (this.chooseTimer) clearTimeout(this.chooseTimer); // never leak a prior choose-timer
     this.chooseTimer = setTimeout(() => {
       // Drawer didn't pick in time — choose at random for them.
       const pick = choices[Math.floor(Math.random() * choices.length)]!;

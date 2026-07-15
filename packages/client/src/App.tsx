@@ -262,7 +262,7 @@ export function App() {
       <div style={styles.gate}>
         <div className="glass pop-in" style={styles.card}>
           <div style={styles.brand}>
-            <span style={styles.brandMark}>🐶</span>
+            <span style={styles.brandMark}>✏️</span>
             <div>
               <h1 className="grad-anim" style={styles.title}>iguess</h1>
               <p key={tagIdx} className="pop-in" style={styles.subtitle}>
@@ -469,9 +469,9 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
       ? "✏️ YOUR TURN · iguess"
       : inGame
       ? "🎨 playing · iguess"
-      : "iguess 🐶";
+      : "iguess ✏️";
     return () => {
-      document.title = "iguess 🐶";
+      document.title = "iguess ✏️";
     };
   }, [canDraw, inGame]);
 
@@ -599,7 +599,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
     ].filter(Boolean);
 
     return [
-      `iguess 🐶 · ${modeMeta?.label ?? effectiveMode}`,
+      `iguess ✏️ · ${modeMeta?.label ?? effectiveMode}`,
       `i came #${place || "?"}/${ranked.length} and that's on periodt`,
       "",
       ...rows,
@@ -634,7 +634,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
       {/* ---- Sidebar: roster + scores ---- */}
       <aside className="glass" style={styles.sidebar}>
         <div style={styles.roomHead}>
-          <span style={styles.roomMark}>🐶</span>
+          <span style={styles.roomMark}>✏️</span>
           <div style={{ minWidth: 0 }}>
             <div className="grad-anim" style={styles.roomName}>#{room}</div>
             <div style={styles.roomMode}>

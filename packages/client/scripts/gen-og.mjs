@@ -1,6 +1,6 @@
 // Rasterize public/og.svg into public/og.png. Social platforms (iMessage, Slack, X, WhatsApp)
 // don't render an SVG og:image, so the shipped share card must be a PNG. Output is committed;
-// re-run with `pnpm --filter @is-it-a-dog/client gen:og` after editing og.svg.
+// re-run with `pnpm --filter @iguess/client gen:og` after editing og.svg.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Resvg } from '@resvg/resvg-js';
