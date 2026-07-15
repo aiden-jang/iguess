@@ -299,6 +299,7 @@ export function App() {
               className="lift wiggle"
               style={styles.diceButton}
               title="gimme a random name"
+              aria-label="random name"
               onClick={() => setDraftName(randomName())}
             >
               🎲
@@ -817,6 +818,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
             max={32}
             value={width}
             disabled={!canDraw}
+            aria-label="brush size"
             onChange={(e) => setWidth(Number(e.target.value))}
             style={{ accentColor: "var(--accent)" }}
           />
@@ -1385,7 +1387,7 @@ const styles: Record<string, React.CSSProperties> = {
   system: { color: "var(--muted)", fontStyle: "italic", fontSize: 13 },
   toast: {
     position: "fixed",
-    top: 18,
+    top: "calc(18px + env(safe-area-inset-top))",
     left: "50%",
     zIndex: 10000,
     padding: "12px 22px",
@@ -1403,7 +1405,8 @@ const styles: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     zIndex: 10001,
-    padding: "10px 16px",
+    // Full-bleed yellow to the top edge (covers the notch), but pad the text below the safe area.
+    padding: "calc(10px + env(safe-area-inset-top)) 16px 10px",
     textAlign: "center",
     fontWeight: 700,
     fontSize: 14,
