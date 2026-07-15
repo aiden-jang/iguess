@@ -202,7 +202,9 @@ export function DrawingCanvas({
         height: "100%",
         border: "1px solid #ccc",
         borderRadius: 4,
-        touchAction: "none",
+        // Only capture touch while it's your turn to draw; otherwise let a guesser scroll the page
+        // past the canvas instead of trapping their finger on a dead surface.
+        touchAction: canDraw ? "none" : "auto",
         cursor: canDraw ? "crosshair" : "not-allowed",
         background: "white",
       }}
