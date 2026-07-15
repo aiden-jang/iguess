@@ -18,6 +18,10 @@ const MSG_LIMIT_PER_SEC = 200; // coarse per-connection flood guard
 // player from the game. Absorbs network blips so a reconnect is silent and keeps score/turn.
 const RECONNECT_GRACE_MS = 8000;
 
+// Hard ceiling on paid AI vision calls per room (its whole DO lifetime), so restarts can't run up
+// an unbounded bill. ~4 guesses/turn, so this covers dozens of turns before the AI goes quiet.
+const MAX_AI_CALLS_PER_ROOM = 240;
+
 // Map the client-asserted mode query param to a known mode (defaulting to classic). Keeping this
 // beside the DO ensures the label sent in `welcome` and the engine built in `makeMode` never diverge.
 function normalizeMode(name: string | null): GameModeName {
@@ -39,6 +43,7 @@ export class GameRoom {
   // pid -> pending "leave" timer. A dropped player sits here during the grace window; a reconnect
   // clears it (silent), the timer firing turns into an actual leave.
   private pendingLeaves = new Map<string, ReturnType<typeof setTimeout>>();
+  private aiCallCount = 0;
   private roomId = 'lobby';
   // The room's canonical mode, fixed by the first joiner (who creates the engine). Late joiners
   // are told this in `welcome`, not their own requested mode, so their UI label is correct.
@@ -138,20 +143,9 @@ export class GameRoom {
     // Reconnect overlap: another live socket already holds this id → the player didn't leave.
     if (this.findConn(conn.player.id)) return;
 
-    if (this.conns.size === 0) {
-      // Room emptied — reset so a future session starts clean (and free memory before eviction).
-      // Nothing to preserve for, and the isolate will evict once nobody's connected.
-      for (const t of this.pendingLeaves.values()) clearTimeout(t);
-      this.pendingLeaves.clear();
-      this.engine?.onPlayerLeave(conn.player.id);
-      this.engine = null;
-      this.strokes = [];
-      this.virtualPlayers.clear();
-      return;
-    }
-
-    // Others are still here: give this player a grace window to reconnect (a blip) before we drop
-    // them from the game and announce it. A reconnect within the window cancels this (see fetch).
+    // Give every leaver a grace window to reconnect before dropping them from the game — including a
+    // sole player (the common case in solo AI modes), whose blip previously tore the whole game down
+    // instantly and reset them to lobby. A reconnect within the window cancels this (see fetch).
     const { id, name } = conn.player;
     const existing = this.pendingLeaves.get(id);
     if (existing) clearTimeout(existing);
@@ -163,6 +157,12 @@ export class GameRoom {
         this.engine?.onPlayerLeave(id);
         this.broadcastPresence();
         this.broadcast({ type: 'system', text: `${name} left` });
+        // Room truly empty now (no live sockets, nobody else mid-grace): free it.
+        if (this.conns.size === 0 && this.pendingLeaves.size === 0) {
+          this.engine = null;
+          this.strokes = [];
+          this.virtualPlayers.clear();
+        }
       }, RECONNECT_GRACE_MS),
     );
   }
@@ -204,7 +204,13 @@ export class GameRoom {
   }
 
   private makeMode(name: GameModeName): GameMode {
-    const aiGuess = (): Promise<string> => requestAIGuess(this.env.AI_WORKER_URL, this.strokes);
+    // Hard per-room budget on paid AI calls so a single room (via "run it back" restarts) can't
+    // burn unbounded vision requests. Beyond it, the AI simply stops guessing.
+    const aiGuess = (): Promise<string> => {
+      if (this.aiCallCount >= MAX_AI_CALLS_PER_ROOM) return Promise.resolve('');
+      this.aiCallCount += 1;
+      return requestAIGuess(this.env.AI_WORKER_URL, this.env.AI_SHARED_SECRET, this.strokes);
+    };
     if (name === 'ai') return new AIGuesserMode(aiGuess);
     if (name === 'ai-drawer') return new AIDrawerMode();
     if (name === 'team-battle') return new TeamBattleMode(aiGuess);

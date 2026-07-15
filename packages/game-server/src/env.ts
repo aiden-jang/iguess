@@ -6,4 +6,6 @@ export interface Env {
   ASSETS: Fetcher;
   // Base URL of the ai-worker (guess/draw). Unset = AI features are skipped gracefully.
   AI_WORKER_URL?: string;
+  // Shared secret presented to the ai-worker so its paid /guess endpoint can reject direct hits.
+  AI_SHARED_SECRET?: string;
 }

@@ -109,4 +109,8 @@ export interface GameMode {
 
   // Optional: game fully over.
   onGameEnd?(ctx: EngineContext): void;
+
+  // Optional: a player left mid-game. The mode should drop them from any rotation/order it holds
+  // (e.g. the draw order), so a later turn never picks an absent player and runs a blank turn.
+  onPlayerLeave?(playerId: string, ctx: EngineContext): void;
 }
