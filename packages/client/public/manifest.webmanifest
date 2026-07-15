@@ -1,7 +1,7 @@
 {
   "name": "iguess",
   "short_name": "iguess",
-  "description": "Real-time multiplayer drawing & guessing. Draw bad, win anyway. Race the bot.",
+  "description": "Real-time multiplayer drawing & guessing. Draw bad, win anyway. Race the AI.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

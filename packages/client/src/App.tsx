@@ -18,7 +18,7 @@ const TAGLINES = [
   "probably not. draw it anyway, no cap.",
   "your art skills? questionable. your vibes? immaculate.",
   "warning: contains 100% organic chaos 🧪",
-  "the bot is judging your circles rn",
+  "the AI is judging your circles rn",
   "ms paint energy, olympic confidence",
   "draw bad, win anyway. that's the lore.",
   "it's not deep. it's a doodle. relax.",
@@ -595,7 +595,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
     });
 
     const brags = [
-      beatAI ? "cooked the bot too 🤖💥 no cap" : null,
+      beatAI ? "cooked the AI too 🤖💥 no cap" : null,
       streak > 1 ? `🔥 ${streak}-win streak` : null,
     ].filter(Boolean);
 
@@ -875,7 +875,7 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
           {!canDraw && inGame && (
             <div style={styles.canvasHintBadge}>
               {isAI(game?.drawerId)
-                ? "🤖 the bot is cooking"
+                ? "🤖 the AI is cooking"
                 : `${playerName(players, game?.drawerId ?? "")} is cooking 👨‍🍳`}
               <Dots />
             </div>
