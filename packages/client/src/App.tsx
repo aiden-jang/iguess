@@ -366,6 +366,12 @@ pull up →
           no account, no sign-in. we only hold the live game room while you play, and analytics are
           cookieless, so there's nothing personal to collect.
         </p>
+        <p style={styles.credit}>
+          made by{" "}
+          <a href="https://aidenjang.com" target="_blank" rel="noopener" style={styles.creditLink}>
+            aiden jang
+          </a>
+        </p>
       </div>
     );
   }
@@ -994,6 +1000,17 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     lineHeight: 1.5,
     color: "var(--muted)",
+  },
+  credit: {
+    margin: "10px 0 0",
+    textAlign: "center",
+    fontSize: 12,
+    color: "var(--muted)",
+  },
+  creditLink: {
+    color: "var(--text)",
+    textDecoration: "underline",
+    textUnderlineOffset: "2px",
   },
   card: {
     width: "100%",
