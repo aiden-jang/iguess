@@ -27,7 +27,8 @@ export default {
         // Only rasterize (and touch the WASM) when a real vision model needs the image.
         const png = provider.name === 'mock' ? '' : await opsToPngBase64(ops);
         return Response.json({ guess: await provider.guess(png), provider: provider.name });
-      } catch {
+      } catch (err) {
+        console.error('vision_failed:', err instanceof Error ? err.stack ?? err.message : err);
         return Response.json({ guess: '', error: 'vision_failed' }, { status: 502 });
       }
     }

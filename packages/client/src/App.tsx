@@ -257,6 +257,15 @@ export function App() {
     setJoined({ name, room, mode: draftMode });
   };
 
+  // Leave the room back to the join screen. Also strip any invite hash so a refresh doesn't drop
+  // you straight back in (setJoined(null) tears down the WebSocket via the effect that owns it).
+  const leaveRoom = () => {
+    setJoined(null);
+    if (window.location.hash) {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+  };
+
   if (!joined) {
     return (
       <div style={styles.gate}>
@@ -376,7 +385,7 @@ pull up →
     );
   }
 
-  return <Room name={joined.name} room={joined.room} mode={joined.mode} />;
+  return <Room name={joined.name} room={joined.room} mode={joined.mode} onLeave={leaveRoom} />;
 }
 
 // Server turn length — mirrors TURN_MS in engine.ts. Only used to size the
@@ -413,7 +422,7 @@ function Countdown({ endsAt }: { endsAt: number | null }) {
   );
 }
 
-function Room({ name, room, mode }: { name: string; room: string; mode: string }) {
+function Room({ name, room, mode, onLeave }: { name: string; room: string; mode: string; onLeave: () => void }) {
   const {
     connected,
     you,
@@ -469,6 +478,21 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
   const isDrawer = !!game && game.drawerId === you?.id;
   const canDraw = phase === "playing" && isDrawer;
   const inGame = phase === "playing" || phase === "intermission";
+
+  // Why the canvas is inert right now, so a disabled board never just reads as "broken".
+  const drawDisabledReason: string | null = canDraw
+    ? null
+    : phase === "lobby"
+      ? "hit “send it” to start a round"
+      : phase === "ended"
+        ? "round over — run it back"
+        : phase === "choosing"
+          ? isDrawer
+            ? "pick a word to start drawing ☝️"
+            : `${playerName(players, game?.drawerId ?? "")} is picking a word`
+          : isAI(game?.drawerId)
+            ? "🤖 the AI is cooking"
+            : `${playerName(players, game?.drawerId ?? "")} is cooking 👨‍🍳`;
 
   // Live tab title — nudges people back to the tab when it's their turn.
   useEffect(() => {
@@ -670,6 +694,10 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
 
         <button className="lift" style={styles.muteButton} onClick={toggleMute}>
           {muted ? "🔇 sound off" : "🔊 sound on"}
+        </button>
+
+        <button className="lift" style={styles.leaveButton} onClick={onLeave}>
+          ← leave room
         </button>
 
         <div style={styles.sectionLabel}>Scoreboard</div>
@@ -878,12 +906,10 @@ function Room({ name, room, mode }: { name: string; room: string; mode: string }
             canDraw={canDraw}
             onCanvas={(el) => (canvasElRef.current = el)}
           />
-          {!canDraw && inGame && (
+          {drawDisabledReason && (
             <div style={styles.canvasHintBadge}>
-              {isAI(game?.drawerId)
-                ? "🤖 the AI is cooking"
-                : `${playerName(players, game?.drawerId ?? "")} is cooking 👨‍🍳`}
-              <Dots />
+              {drawDisabledReason}
+              {inGame && <Dots />}
             </div>
           )}
           {hasAI && inGame && !isAI(game?.drawerId) && (
@@ -1147,6 +1173,17 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid var(--line)",
     background: "var(--panel-2)",
     color: "var(--text)",
+  },
+  leaveButton: {
+    width: "100%",
+    padding: "8px 12px",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+    borderRadius: 10,
+    border: "1px solid var(--line)",
+    background: "transparent",
+    color: "var(--muted)",
   },
 
   // ---- Layout ----
