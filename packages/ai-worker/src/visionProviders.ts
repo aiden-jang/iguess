@@ -1,4 +1,4 @@
-import type { Env } from './env.ts';
+import type { AiBinding, Env } from './env.ts';
 
 // A pluggable vision backend. Swap providers without touching the worker's HTTP layer or the
 // game server. Keys/config come from the Worker env (not process.env — this runs on Workers).
@@ -22,7 +22,12 @@ interface ChatLike {
 }
 
 function normalize(s: string): string {
-  return s.trim().toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/)[0] ?? '';
+  const words = s.trim().toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(Boolean);
+  // Smaller vision models often reply "a cat" / "the dog" instead of one bare word; drop a leading
+  // article so the guess is the actual noun, not "a".
+  const first = words[0];
+  if ((first === 'a' || first === 'an' || first === 'the') && words[1]) return words[1];
+  return first ?? '';
 }
 
 // No key configured ⇒ the whole stack still runs end-to-end. It can't be "correct" (it never
@@ -98,17 +103,53 @@ export class AnthropicProvider implements VisionProvider {
   }
 }
 
-// Pick a provider: explicit override, else first available key, else mock.
+function base64ToBytes(b64: string): number[] {
+  const bin = atob(b64);
+  const bytes = new Array<number>(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+// Free, real vision via Cloudflare Workers AI (LLaVA image-to-text). Runs on the same platform as
+// this Worker, so there's no API key — just the [ai] binding — and it has a standing free daily
+// allowance. Quality is below GPT-4o/Claude on crude doodles, but it actually looks at the drawing.
+const DEFAULT_WORKERS_AI_MODEL = '@cf/llava-hf/llava-1.5-7b-hf';
+
+export class WorkersAIProvider implements VisionProvider {
+  readonly name = 'workers-ai';
+  constructor(
+    private ai: AiBinding,
+    private model: string,
+  ) {}
+  async guess(pngBase64: string): Promise<string> {
+    const res = await this.ai.run(this.model, {
+      image: base64ToBytes(pngBase64),
+      prompt: PROMPT,
+      max_tokens: 12,
+    });
+    return normalize(res.description ?? '');
+  }
+}
+
+// Pick a provider: explicit override wins; otherwise a configured paid key, else free Workers AI
+// (when the [ai] binding is present), else the mock. So the default is real-and-free, not mock.
 export function selectProvider(env: Env): VisionProvider {
   const pick = env.VISION_PROVIDER?.toLowerCase();
   const openai = env.OPENAI_API_KEY;
   const anthropic = env.ANTHROPIC_API_KEY;
+  const workersModel = env.WORKERS_AI_MODEL ?? DEFAULT_WORKERS_AI_MODEL;
+
   if (pick === 'mock') return new MockProvider();
   if (pick === 'openai' && openai) return new OpenAIProvider(openai, env.OPENAI_MODEL ?? 'gpt-4o-mini');
   if (pick === 'anthropic' && anthropic) {
     return new AnthropicProvider(anthropic, env.ANTHROPIC_MODEL ?? 'claude-3-5-haiku-latest');
   }
+  if ((pick === 'workers' || pick === 'workers-ai' || pick === 'cf') && env.AI) {
+    return new WorkersAIProvider(env.AI, workersModel);
+  }
+
   if (openai) return new OpenAIProvider(openai, env.OPENAI_MODEL ?? 'gpt-4o-mini');
   if (anthropic) return new AnthropicProvider(anthropic, env.ANTHROPIC_MODEL ?? 'claude-3-5-haiku-latest');
+  if (env.AI) return new WorkersAIProvider(env.AI, workersModel);
   return new MockProvider();
 }

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { selectProvider, MockProvider } from './visionProviders.ts';
+import { selectProvider, MockProvider, WorkersAIProvider } from './visionProviders.ts';
+import type { AiBinding } from './env.ts';
 
 test('defaults to mock when no keys are configured', () => {
   assert.equal(selectProvider({}).name, 'mock');
@@ -27,4 +28,23 @@ test('an explicit provider without its key falls through to mock', () => {
 test('the mock guess is one of the common words', async () => {
   const guess = await new MockProvider().guess('');
   assert.match(guess, /^[a-z]+$/);
+});
+
+const fakeAI: AiBinding = { run: async () => ({ description: 'a cat' }) };
+
+test('uses free Workers AI by default when the [ai] binding is present and no paid key', () => {
+  assert.equal(selectProvider({ AI: fakeAI }).name, 'workers-ai');
+});
+
+test('a paid key still wins over the Workers AI binding', () => {
+  assert.equal(selectProvider({ AI: fakeAI, OPENAI_API_KEY: 'k' }).name, 'openai');
+});
+
+test('VISION_PROVIDER=workers forces Workers AI when bound', () => {
+  assert.equal(selectProvider({ VISION_PROVIDER: 'workers', AI: fakeAI }).name, 'workers-ai');
+});
+
+test('WorkersAIProvider strips a leading article from the model output', async () => {
+  const guess = await new WorkersAIProvider(fakeAI, '@cf/llava').guess('QUJD'); // "a cat" -> "cat"
+  assert.equal(guess, 'cat');
 });
