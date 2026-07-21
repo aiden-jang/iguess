@@ -579,7 +579,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
       blip([330, 247], muted); // sad trombone-ish
       setToast(pick(LOSS_LINES));
     }
-    const t = setTimeout(() => setToast(null), 3200);
+    const t = setTimeout(() => setToast(null), 2000);
     return () => clearTimeout(t);
   }, [phase]);
 
@@ -683,7 +683,14 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
       <Confetti go={phase === "ended"} count={winConfetti} />
       {burstKey > 0 && <Confetti key={burstKey} go count={28} />}
       {toast && (
-        <div className="toast-in" role="status" aria-live="polite" style={styles.toast}>
+        <div
+          className="toast-in"
+          role="status"
+          aria-live="polite"
+          style={styles.toast}
+          onClick={() => setToast(null)}
+          title="tap to dismiss"
+        >
           {toast}
         </div>
       )}
@@ -1523,14 +1530,18 @@ const styles: Record<string, React.CSSProperties> = {
     top: "calc(18px + env(safe-area-inset-top))",
     left: "50%",
     zIndex: 10000,
-    padding: "12px 22px",
-    borderRadius: 999,
+    padding: "10px 18px",
+    borderRadius: 20,
     fontWeight: 700,
-    fontSize: 15,
+    fontSize: 14,
     color: "white",
     background: "var(--grad)",
     boxShadow: "0 10px 30px rgba(168,85,247,0.5)",
-    whiteSpace: "nowrap",
+    // Compact pill that wraps instead of stretching a long line across the whole top of the screen;
+    // tappable to dismiss early (see onClick) so it never sits in the way.
+    maxWidth: "min(80vw, 340px)",
+    textAlign: "center",
+    cursor: "pointer",
   },
   reconnectBanner: {
     position: "fixed",
