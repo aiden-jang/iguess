@@ -1,7 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { selectProvider, selectProviders, MockProvider, WorkersAIProvider } from './visionProviders.ts';
+import {
+  selectProvider,
+  selectProviders,
+  guessWithFallback,
+  MockProvider,
+  WorkersAIProvider,
+  type VisionProvider,
+} from './visionProviders.ts';
 import type { AiBinding } from './env.ts';
+
+const throwing = (name: string): VisionProvider => ({
+  name,
+  guess: async () => {
+    throw new Error(`${name} boom`);
+  },
+});
+const fixed = (name: string, word: string): VisionProvider => ({ name, guess: async () => word });
 
 test('defaults to mock when no keys are configured', () => {
   assert.equal(selectProvider({}).name, 'mock');
@@ -66,4 +81,20 @@ test('VISION_PROVIDER forces the primary but keeps the rest as fallbacks', () =>
     'openai',
     'mock',
   ]);
+});
+
+test('guessWithFallback falls through a throwing provider to the next (429 key → free AI)', async () => {
+  const res = await guessWithFallback([throwing('openai'), fixed('workers-ai', 'house'), new MockProvider()], 'PNG');
+  assert.deepEqual(res, { guess: 'house', provider: 'workers-ai' });
+});
+
+test('guessWithFallback lands on the mock when every vision provider throws', async () => {
+  const res = await guessWithFallback([throwing('openai'), throwing('workers-ai'), new MockProvider()], 'PNG');
+  assert.equal(res?.provider, 'mock');
+  assert.match(res?.guess ?? '', /^[a-z]+$/);
+});
+
+test('guessWithFallback skips vision providers when there is no image, using the mock', async () => {
+  const res = await guessWithFallback([fixed('workers-ai', 'house'), new MockProvider()], '');
+  assert.equal(res?.provider, 'mock'); // workers-ai skipped (no image); mock needs none
 });
