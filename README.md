@@ -10,8 +10,8 @@ types answers into chat along with everyone else. (It guesses "dog" a lot.)
 
 The game itself is straightforward; I built it mostly to work on the structure.
 The game engine has no idea AI exists. Everything AI-related lives in game
-*modes*, which plug into the engine, so "AI guesser", "AI drawer", and "humans vs
-AI" are separate modes rather than changes to the core.
+*modes*, which plug into the engine, so "AI guesser", "AI drawer", "humans vs
+AI", and "you vs AI" are separate modes rather than changes to the core.
 
 > Part of a [platform of apps](https://github.com/aiden-jang/platform/blob/main/PLATFORM.md) that share one sign-in. For the design decisions and
 > how I'd scale it, see **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
@@ -95,7 +95,8 @@ word. Proof the strokes sync live and the word stays secret:
         ║   ├─ ClassicMode   (humans only)       ║
         ║   ├─ AIGuesserMode (adds virtual AI)   ║
         ║   ├─ AIDrawerMode  (AI draws)          ║
-        ║   └─ TeamBattleMode(humans vs AI)      ║
+        ║   ├─ TeamBattleMode(humans vs AI)      ║
+        ║   └─ DuelMode      (you vs AI)         ║
         ║              │                         ║
         ╚══════════════┼════════════════════════ ╝
                        │ HTTP POST /guess { ops }
@@ -136,6 +137,7 @@ packages/game-server/            game Worker: routing + Durable Object + engine 
   src/modes/AIGuesserMode.ts     extends ClassicMode, adds AI guesser
   src/modes/AIDrawerMode.ts      AI is the sole drawer
   src/modes/TeamBattleMode.ts    Humans vs AI, round-win race
+  src/modes/DuelMode.ts          You vs AI, alternating drawer, cumulative points
   src/ai/{aiGuessLoop,aiDrawLoop}.ts  composable AI cadence helpers
   src/text.ts                    guess normalization + close-match
   src/services/aiWorkerClient.ts resilient HTTP client to ai-worker
@@ -188,8 +190,9 @@ browser windows side by side.
 4. After ~8s the AI starts guessing in the same chat as the human. Land a guess
    and the scoreboard updates.
 
-For the other modes, start a fresh room as "AI drawer" (the AI draws, you guess)
-or "Team battle" (humans vs AI). Same engine, different mode.
+For the other modes, start a fresh room as "AI drawer" (the AI draws, you guess),
+"Team battle" (humans vs AI), or "You vs AI" (trade turns with the machine).
+Same engine, different mode.
 
 ### Tests
 
@@ -213,13 +216,17 @@ calls the mode at set points (`configure`, `pickDrawer`, `pickWord`,
 Adding a mode means writing a class, not editing the engine.
 
 - **ClassicMode.** Humans take turns drawing, everyone else guesses in chat.
-  The other three build on this one.
+  The other four build on this one.
 - **AIGuesserMode.** Adds an AI player that guesses off the live canvas on a
   timer.
 - **AIDrawerMode.** The AI does all the drawing (its strokes go through the
   engine via `ctx.draw`) and humans guess.
 - **TeamBattleMode.** Humans vs AI. Rounds alternate who draws, and the first
   correct guess wins the round for that side.
+- **DuelMode.** You vs the AI, head-to-head. You trade the drawer role each turn
+  (you draw and the AI reads your canvas; then the AI draws and you guess), and
+  both sides bank cumulative points — so unlike TeamBattle's round-win race, the
+  AI earns points both as guesser and as drawer. Most points beats the machine.
 
 The `pickWordChoices` hook drives the word-choice step: return 2+ words and the
 drawer gets to choose one; return `null` to skip it (the AI drawer just picks its

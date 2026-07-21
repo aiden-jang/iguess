@@ -44,12 +44,13 @@ transport (worker.ts → GameRoom Durable Object)
    ├─ ClassicMode      (humans only)
    ├─ AIGuesserMode    (+ AI guesser)
    ├─ AIDrawerMode     (AI draws)
-   └─ TeamBattleMode   (Humans vs AI)
+   ├─ TeamBattleMode   (Humans vs AI)
+   └─ DuelMode         (You vs AI)
 ```
 
-**Why this holds up:** three of the four modes were added *after* the engine
+**Why this holds up:** four of the five modes were added *after* the engine
 froze, and none required an engine change. `ClassicMode` is a concrete base;
-the three AI modes extend or compose it. The only engine evolution the whole
+the four AI modes extend or compose it. The only engine evolution the whole
 project needed was a single new verb — see §6.
 
 **Where shared *behavior* lives (and why not in the engine):** the AI's
@@ -57,9 +58,9 @@ interval guess loop and progressive draw-reveal loop are shared by multiple
 modes, but they're **mode policy** (cadence, cost caps, reveal speed), not
 timeline. So they live in composable helpers (`ai/aiGuessLoop.ts`,
 `ai/aiDrawLoop.ts`) that modes *compose*, rather than in the engine or in a mode
-base class. `TeamBattleMode` needs *both* loops and can't extend two mode
-classes — that pressure is exactly what proved the helpers belong outside the
-inheritance tree.
+base class. `TeamBattleMode` and `DuelMode` each need *both* loops and can't
+extend two mode classes — that pressure is exactly what proved the helpers
+belong outside the inheritance tree.
 
 > **Decision — strategy + dependency injection over `if (mode === …)` branches
 > or a deep inheritance chain.** Conditionals would have scattered each mode's
@@ -210,12 +211,13 @@ So:
 | Team scoring | System messages + scoreboard | New `PublicGameState` fields | Team scoring is mode-specific; adding it to the shared contract is the wrong coupling |
 | Room runtime | Durable Object per room | Node + Redis / stateless + pub-sub | Single-writer-per-room by construction; roster + strokes in-memory, no external store (§4) |
 | WebSocket style | Pinned (`server.accept()`) | Hibernation API | The turn timer must survive; hibernation evicts pending timers |
+| Abuse limits | Per-IP + per-room + per-connection caps | Accounts / auth | Bound the blast radius (spammed rooms, overfull rooms, message floods) without bolting a login onto a share-a-link party game |
 
 ---
 
 ## 6. The one place the engine had to evolve (and why that's a good story)
 
-For the first three modes, strokes only ever originated from a human socket, so
+Until a mode let the AI draw, strokes only ever originated from a human socket, so
 the engine never needed a "draw" verb — human draw ops were persisted and
 broadcast entirely in the transport layer. **AI-as-drawer broke that
 assumption:** the AI must emit strokes *through the engine*, and they must be
@@ -235,18 +237,27 @@ up front — is the design discipline I'm most happy with here.
 Honest list:
 
 - **Reconnect now preserves identity** via a client-held `pid` on the connect
-  URL: a dropped client rejoins as the same player (keeps score, draw order,
-  drawer role), the drawer's secret word is re-delivered on reconnect, and an
-  overlap reconnect no longer ends the turn or duplicates the roster entry.
-  *Remaining:* the `pid` is client-asserted (a signed session token would stop
-  one client claiming another's id), and a drawer dropping for longer than the
-  reconnect gap still ends their turn (no grace period).
+  URL: a dropped client (including a sole player) gets an ~8s grace window to
+  rejoin as the same player (keeps score, draw order, drawer role) before it's
+  removed from the game, the drawer's secret word is re-delivered on reconnect,
+  and an overlap reconnect no longer ends the turn or duplicates the roster
+  entry. *Remaining:* the `pid` is client-asserted — a signed session token would
+  stop one client claiming another's id.
 - **Error handling hardened:** the connect/close handlers are wrapped, the
   client guards malformed frames, and process-level `unhandledRejection` /
   `uncaughtException` handlers keep one bad async path from killing every room.
-- **Basic flood protection:** a coarse per-connection token bucket (200 msg/s)
-  drops pathological floods without throttling normal play. *Remaining:* no
-  auth — anyone can join any room and `start_game`.
+- **Abuse limits, server-enforced at three layers.** (1) A per-IP cap on new
+  connections via Cloudflare's rate-limit binding, checked at the Worker edge
+  *before* a room's Durable Object is created — so one client can't spin up
+  unbounded rooms/objects. (2) A per-room player cap (8) that turns away extra
+  joiners with a terminal close code the client renders as a "room's full"
+  notice, while always readmitting reconnects (they reclaim an existing slot).
+  (3) A coarse per-connection token bucket (200 msg/s) that drops pathological
+  message floods without throttling normal play. Paid AI vision is separately
+  capped per room (a whole-lifetime budget) so a "run it back" loop can't run up
+  a bill. The pure policy (`atCapacity`) is unit-tested; the per-IP layer
+  degrades open when the binding is absent (local dev). *Remaining:* no auth —
+  anyone can still join any room and `start_game`.
 - **Horizontal scale is now the runtime, not a plan.** §4's design is
   implemented: one Durable Object per room gives single-writer-per-room by
   construction. What's *not* done is persisting engine state to the DO's SQLite
@@ -261,8 +272,9 @@ Honest list:
   WebSocket transport through the Durable Object; those paths are validated by
   hand (a two-browser playthrough).
 - **No auth, by design.** Anyone can join any room and `start_game` — that's the
-  intended "type a name, share a link" flow for a party game. A coarse
-  per-connection token bucket (200 msg/s) drops pathological floods.
+  intended "type a name, share a link" flow for a party game. The abuse surface
+  is bounded by the per-IP, per-room, and per-connection limits above rather than
+  by accounts.
 - **The AI drawer is canned, not generative.** It draws from a small doodle
   library. A model-based generator (LLM emitting stroke ops, or image→trace) can
   slot behind the existing injected `requestDrawing` callback without touching
@@ -270,5 +282,4 @@ Honest list:
 
 **Next three things, in order:** (1) persist engine state to the DO's SQLite so a
 room survives eviction; (2) an end-to-end test across the real WebSocket +
-Durable Object; (3) signed session tokens + a reconnect grace period for the
-drawer.
+Durable Object; (3) signed session tokens so a `pid` can't be spoofed.
