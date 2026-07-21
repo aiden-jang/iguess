@@ -191,20 +191,21 @@
         .app-layout .draw-toolbar > button { margin-left: 0 !important; }
         .app-layout .draw-toolbar input[type="range"] { width: 92px !important; }
 
-        /* Chat directly under the canvas so a guesser reaches the input fast. */
+        /* Chat directly under the canvas so a guesser reaches the input fast. Given a taller share
+           (~5-6 visible lines) since 24dvh left barely two lines after the label/reactions/input. */
         .app-layout > main {
           order: 2;
-          flex: 0 0 24dvh !important;
+          flex: 0 0 32dvh !important;
           min-height: 0;
           padding: 10px 12px !important;
-          gap: 8px !important;
+          gap: 6px !important;
         }
 
         /* Scoreboard/controls last, compact; scrolls internally rather than clipping. */
         .app-layout > aside {
           order: 3;
           flex: 0 0 auto;
-          max-height: 18dvh;
+          max-height: 15dvh;
           overflow-y: auto !important;
           padding: 10px 12px !important;
           gap: 8px !important;

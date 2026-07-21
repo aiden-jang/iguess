@@ -110,9 +110,13 @@ function base64ToBytes(b64: string): number[] {
   return bytes;
 }
 
-// Free, real vision via Cloudflare Workers AI (LLaVA image-to-text). Runs on the same platform as
-// this Worker, so there's no API key — just the [ai] binding — and it has a standing free daily
-// allowance. Quality is below GPT-4o/Claude on crude doodles, but it actually looks at the drawing.
+// Free, real vision via Cloudflare Workers AI. Runs on the same platform as this Worker, so there's
+// no API key — just the [ai] binding — and it has a standing free daily allowance.
+//
+// Default is LLaVA: works with zero setup. It's weak on crude doodles, but real. For sharper guesses
+// set WORKERS_AI_MODEL to '@cf/meta/llama-3.2-11b-vision-instruct' — BUT that model is license-gated
+// (Cloudflare returns error 5016 until you accept its Community License once for your account), and
+// it answers on `response` rather than `description` (both are handled below).
 const DEFAULT_WORKERS_AI_MODEL = '@cf/llava-hf/llava-1.5-7b-hf';
 
 export class WorkersAIProvider implements VisionProvider {
@@ -122,12 +126,18 @@ export class WorkersAIProvider implements VisionProvider {
     private model: string,
   ) {}
   async guess(pngBase64: string): Promise<string> {
-    const res = await this.ai.run(this.model, {
-      image: base64ToBytes(pngBase64),
-      prompt: PROMPT,
-      max_tokens: 12,
-    });
-    return normalize(res.description ?? '');
+    const inputs = { image: base64ToBytes(pngBase64), prompt: PROMPT, max_tokens: 12 };
+    try {
+      const res = await this.ai.run(this.model, inputs);
+      // LLaVA answers on `description`, the llama vision-instruct models on `response`.
+      return normalize(res.description ?? res.response ?? '');
+    } catch {
+      // First call after a cold start (model/WASM warmup) occasionally fails; one quick retry keeps
+      // more first-guesses "real" before the worker falls through to the next provider.
+      await new Promise((r) => setTimeout(r, 200));
+      const res = await this.ai.run(this.model, inputs);
+      return normalize(res.description ?? res.response ?? '');
+    }
   }
 }
 
@@ -146,7 +156,7 @@ export function selectProviders(env: Env): VisionProvider[] {
   const make: Record<string, () => VisionProvider | null> = {
     openai: () => (openai ? new OpenAIProvider(openai, env.OPENAI_MODEL ?? 'gpt-4o-mini') : null),
     anthropic: () =>
-      anthropic ? new AnthropicProvider(anthropic, env.ANTHROPIC_MODEL ?? 'claude-3-5-haiku-latest') : null,
+      anthropic ? new AnthropicProvider(anthropic, env.ANTHROPIC_MODEL ?? 'claude-haiku-4-5') : null,
     workers: () => (env.AI ? new WorkersAIProvider(env.AI, workersModel) : null),
   };
 
@@ -171,4 +181,23 @@ export function selectProviders(env: Env): VisionProvider[] {
 // The primary provider (what /health reports). Guessing uses the full fallback list above.
 export function selectProvider(env: Env): VisionProvider {
   return selectProviders(env)[0]!;
+}
+
+// Try providers best-first; return the first non-throwing guess. Vision providers are skipped when
+// there's no image (png === ''); MockProvider needs none and never throws, so — as long as the list
+// ends in a mock (selectProviders guarantees this) — there is always a guess. Returns null only if
+// handed a list with no viable provider.
+export async function guessWithFallback(
+  providers: VisionProvider[],
+  png: string,
+): Promise<{ guess: string; provider: string } | null> {
+  for (const p of providers) {
+    if (p.name !== 'mock' && !png) continue; // no image to send a vision model
+    try {
+      return { guess: await p.guess(png), provider: p.name };
+    } catch (err) {
+      console.error(`vision provider ${p.name} failed:`, err instanceof Error ? err.message : err);
+    }
+  }
+  return null;
 }

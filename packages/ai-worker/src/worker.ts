@@ -1,6 +1,6 @@
 import type { DrawOp } from '@iguess/shared';
 import type { Env } from './env.ts';
-import { selectProviders } from './visionProviders.ts';
+import { selectProviders, guessWithFallback } from './visionProviders.ts';
 import { opsToPngBase64 } from './strokeRender.ts';
 
 // The worker only ever sees the pixels (a rasterized PNG of the strokes), never the secret word —
@@ -36,14 +36,8 @@ export default {
 
       // Try each provider in turn; the first non-throwing guess wins. A rate-limited/broken paid
       // key (e.g. OpenAI 429) thus falls through to free Workers AI, then the mock — never a dead AI.
-      for (const p of providers) {
-        if (p.name !== 'mock' && !png) continue; // no image to send — skip vision models
-        try {
-          return Response.json({ guess: await p.guess(png), provider: p.name });
-        } catch (err) {
-          console.error(`vision provider ${p.name} failed:`, err instanceof Error ? err.message : err);
-        }
-      }
+      const result = await guessWithFallback(providers, png);
+      if (result) return Response.json(result);
       return Response.json({ guess: '', error: 'vision_failed' }, { status: 502 });
     }
 

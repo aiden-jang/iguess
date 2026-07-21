@@ -1,9 +1,10 @@
-/** Minimal shape of the Cloudflare Workers AI binding we use (image-to-text). */
+/** Minimal shape of the Cloudflare Workers AI binding we use (image-to-text / vision-chat).
+ *  LLaVA returns { description }; the llama vision-instruct models return { response }. */
 export interface AiBinding {
   run(
     model: string,
     inputs: { image: number[]; prompt: string; max_tokens?: number },
-  ): Promise<{ description?: string }>;
+  ): Promise<{ description?: string; response?: string }>;
 }
 
 /** Bindings/secrets surfaced to the ai-worker. All optional — unset ⇒ Workers AI if bound, else mock. */
