@@ -9,6 +9,7 @@ const MODES = [
   { value: "ai", label: "AI Guesser", blurb: "you draw, an AI races to guess it", icon: "🔍" },
   { value: "ai-drawer", label: "AI Drawer", blurb: "the AI draws, you guess", icon: "🖌️" },
   { value: "team-battle", label: "Team Battle", blurb: "humans vs AI, first guess wins", icon: "⚔️" },
+  { value: "duel", label: "You vs AI", blurb: "trade turns drawing, most points beats the machine", icon: "🤖" },
 ];
 
 const isAI = (id?: string | null) => !!id && id.startsWith("ai-");
@@ -429,6 +430,7 @@ function Countdown({ endsAt }: { endsAt: number | null }) {
 function Room({ name, room, mode, onLeave }: { name: string; room: string; mode: string; onLeave: () => void }) {
   const {
     connected,
+    fatal,
     you,
     serverMode,
     players,
@@ -446,9 +448,8 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
   // Show the room's real mode once the server confirms it; the requested mode is just the
   // placeholder shown for the split second before `welcome` arrives.
   const effectiveMode = serverMode ?? mode;
-  // AI modes have a built-in opponent, so a lone player can start right away.
-  const isAIMode =
-    effectiveMode === "ai" || effectiveMode === "ai-drawer" || effectiveMode === "team-battle";
+  // Every non-classic mode has a built-in AI opponent, so a lone player can start right away.
+  const isAIMode = effectiveMode !== "classic";
 
   // Track whether we've ever connected, so a mid-game drop shows a banner but the initial
   // handshake doesn't flash one. The sidebar pill can be off-screen on mobile; this is always visible.
@@ -677,6 +678,25 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
       setTimeout(() => setFlexed(false), 1800);
     }
   };
+
+  // A terminal rejection (e.g. the room is full): dead-end card, not the game. The socket won't
+  // reconnect, so there's nothing to render but the reason and a way back to the gate.
+  if (fatal) {
+    return (
+      <div style={styles.gate}>
+        <div className="glass pop-in" style={styles.card}>
+          <div style={styles.brand}>
+            <span style={{ fontSize: 40 }}>🚪</span>
+            <div style={{ fontWeight: 800, fontSize: 24 }}>room's packed</div>
+          </div>
+          <p style={{ color: "#c9cde0", lineHeight: 1.5, margin: "0 0 20px" }}>{fatal}</p>
+          <button className="lift" style={{ ...styles.button, ...styles.buttonBig }} onClick={onLeave}>
+            back to the lobby
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-layout" style={styles.layout}>
@@ -1142,7 +1162,11 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 2,
     padding: "12px 14px",
     borderRadius: 12,
-    border: "1px solid var(--line)",
+    // Longhand (not the `border` shorthand) so modeCardActive can override borderColor alone without
+    // React warning about mixing shorthand + longhand for the same property across re-renders.
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: "var(--line)",
     background: "var(--panel-2)",
     color: "var(--text)",
     cursor: "pointer",

@@ -27,11 +27,18 @@ export interface ChatLine {
   text: string;
 }
 
+// Server WS close code for a full room (see game-server/src/limits.ts). Terminal: reconnecting
+// won't un-fill the room, so the client stops retrying and surfaces the reason instead.
+const CLOSE_ROOM_FULL = 4009;
+
 // Owns the single persistent WebSocket connection and the derived view
 // state (who you are, the roster, the message log). The component just
 // renders this and calls `sendChat`.
 export function useGameSocket(room: string, name: string, mode: string) {
   const [connected, setConnected] = useState(false);
+  // A terminal rejection from the server (e.g. the room is full). Non-null → stop reconnecting and
+  // show this instead of the game; the room screen renders it as a dead-end notice.
+  const [fatal, setFatal] = useState<string | null>(null);
   const [you, setYou] = useState<PlayerInfo | null>(null);
   // The room's ACTUAL mode, echoed by the server. May differ from the mode this
   // client requested if it joined a room someone else already created.
@@ -77,9 +84,15 @@ export function useGameSocket(room: string, name: string, mode: string) {
         attempt = 0;
         setConnected(true);
       };
-      ws.onclose = () => {
+      ws.onclose = (e) => {
         setConnected(false);
         if (!alive) return;
+        // A terminal rejection (full room): don't reconnect — it would just get closed again.
+        if (e.code === CLOSE_ROOM_FULL) {
+          alive = false;
+          setFatal(e.reason || "this room is full. try another room name.");
+          return;
+        }
         attempt += 1;
         const delay = Math.min(5000, 500 * attempt); // 0.5s → 5s cap
         reconnectTimer = setTimeout(connect, delay);
@@ -195,6 +208,7 @@ export function useGameSocket(room: string, name: string, mode: string) {
 
   return {
     connected,
+    fatal,
     you,
     serverMode,
     players,

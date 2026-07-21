@@ -8,4 +8,13 @@ export interface Env {
   AI_WORKER_URL?: string;
   // Shared secret presented to the ai-worker so its paid /guess endpoint can reject direct hits.
   AI_SHARED_SECRET?: string;
+  // Cloudflare native rate-limiting binding, keyed by client IP to cap new-connection spam at the
+  // edge (see wrangler.toml [[ratelimits]]). Optional so local dev / tests run without it (the
+  // Worker degrades open when it's absent).
+  RATE_LIMITER?: RateLimiter;
+}
+
+// Minimal shape of the Workers rate-limiting binding (avoids a hard dep on the ambient type).
+export interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
 }
