@@ -1,17 +1,17 @@
 import type { DrawOp } from '@iguess/shared';
 import type { Env } from './env.ts';
-import { selectProvider } from './visionProviders.ts';
+import { selectProviders } from './visionProviders.ts';
 import { opsToPngBase64 } from './strokeRender.ts';
 
 // The worker only ever sees the pixels (a rasterized PNG of the strokes), never the secret word —
-// so it can't cheat. Default provider is the mock (no key, no image needed).
+// so it can't cheat. Providers are tried best-first with fallbacks (see selectProviders).
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    const provider = selectProvider(env);
+    const providers = selectProviders(env);
 
     if (url.pathname === '/health') {
-      return Response.json({ ok: true, provider: provider.name });
+      return Response.json({ ok: true, provider: providers[0]?.name ?? 'mock' });
     }
 
     if (url.pathname === '/guess' && request.method === 'POST') {
@@ -22,15 +22,29 @@ export default {
       }
       const body = (await request.json().catch(() => null)) as { ops?: DrawOp[] } | null;
       const ops = Array.isArray(body?.ops) ? body.ops : [];
-      if (ops.length === 0) return Response.json({ guess: '', provider: provider.name });
-      try {
-        // Only rasterize (and touch the WASM) when a real vision model needs the image.
-        const png = provider.name === 'mock' ? '' : await opsToPngBase64(ops);
-        return Response.json({ guess: await provider.guess(png), provider: provider.name });
-      } catch (err) {
-        console.error('vision_failed:', err instanceof Error ? err.stack ?? err.message : err);
-        return Response.json({ guess: '', error: 'vision_failed' }, { status: 502 });
+      if (ops.length === 0) return Response.json({ guess: '', provider: providers[0]?.name });
+
+      // Rasterize once, only if a real vision model will use it (mock needs no image).
+      let png = '';
+      if (providers.some((p) => p.name !== 'mock')) {
+        try {
+          png = await opsToPngBase64(ops);
+        } catch (err) {
+          console.error('rasterize failed:', err instanceof Error ? err.message : err);
+        }
       }
+
+      // Try each provider in turn; the first non-throwing guess wins. A rate-limited/broken paid
+      // key (e.g. OpenAI 429) thus falls through to free Workers AI, then the mock — never a dead AI.
+      for (const p of providers) {
+        if (p.name !== 'mock' && !png) continue; // no image to send — skip vision models
+        try {
+          return Response.json({ guess: await p.guess(png), provider: p.name });
+        } catch (err) {
+          console.error(`vision provider ${p.name} failed:`, err instanceof Error ? err.message : err);
+        }
+      }
+      return Response.json({ guess: '', error: 'vision_failed' }, { status: 502 });
     }
 
     return new Response('Not found', { status: 404 });

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { selectProvider, MockProvider, WorkersAIProvider } from './visionProviders.ts';
+import { selectProvider, selectProviders, MockProvider, WorkersAIProvider } from './visionProviders.ts';
 import type { AiBinding } from './env.ts';
 
 test('defaults to mock when no keys are configured', () => {
@@ -47,4 +47,23 @@ test('VISION_PROVIDER=workers forces Workers AI when bound', () => {
 test('WorkersAIProvider strips a leading article from the model output', async () => {
   const guess = await new WorkersAIProvider(fakeAI, '@cf/llava').guess('QUJD'); // "a cat" -> "cat"
   assert.equal(guess, 'cat');
+});
+
+const names = (env: Parameters<typeof selectProviders>[0]) => selectProviders(env).map((p) => p.name);
+
+test('a paid key falls back to Workers AI then mock (so a 429 key never kills the AI)', () => {
+  assert.deepEqual(names({ AI: fakeAI, OPENAI_API_KEY: 'k' }), ['openai', 'workers-ai', 'mock']);
+});
+
+test('mock is always the last-resort backstop', () => {
+  assert.deepEqual(names({}), ['mock']);
+  assert.deepEqual(names({ AI: fakeAI }), ['workers-ai', 'mock']);
+});
+
+test('VISION_PROVIDER forces the primary but keeps the rest as fallbacks', () => {
+  assert.deepEqual(names({ VISION_PROVIDER: 'workers', AI: fakeAI, OPENAI_API_KEY: 'k' }), [
+    'workers-ai',
+    'openai',
+    'mock',
+  ]);
 });

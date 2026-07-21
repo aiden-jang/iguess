@@ -44,12 +44,19 @@
       }
       * { box-sizing: border-box; }
       html, body, #root { height: 100%; }
+      /* Base color on the root canvas so any scroll-overflow area (e.g. the tall home screen,
+         whose content exceeds the 100%-height body box) is still covered — otherwise the body
+         background stops at the viewport height and leaves a seam/line below it. */
+      html { background: var(--bg); }
       body {
         margin: 0;
         font-family: "Inter", system-ui, sans-serif;
         background:
           radial-gradient(1100px 560px at 82% -12%, rgba(168,85,247,0.20) 0%, transparent 60%),
           var(--bg);
+        /* Glue the gradient to the viewport so it covers the visible area at any scroll position
+           instead of ending at the body box. */
+        background-attachment: fixed;
         color: var(--text);
       }
       input, button, select { font-family: inherit; }

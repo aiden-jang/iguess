@@ -254,6 +254,10 @@ export function App() {
     const room = draftRoom.trim() || "lobby";
     localStorage.setItem("iguess_name", name);
     localStorage.setItem("iguess_room", room);
+    // Reflect the room in the URL so the address bar (and a copy-paste) points at THIS room, not the
+    // bare origin. Matches the invite-link format, so a reload lands on the same room's join screen.
+    const q = new URLSearchParams({ room, mode: draftMode });
+    window.history.pushState(null, "", `#${q.toString()}`);
     setJoined({ name, room, mode: draftMode });
   };
 
