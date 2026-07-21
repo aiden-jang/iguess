@@ -144,23 +144,55 @@
         .confetti-piece { display: none !important; }
       }
 
-      /* Responsive: stack the 3-column layout on narrow screens. */
+      /* Responsive: stack the 3-column layout on narrow screens and keep the WHOLE game
+         inside one viewport — the page itself never scrolls. The canvas flexes to fill
+         whatever the (bounded) chat and scoreboard don't use; chat and scoreboard scroll
+         internally if their content is taller than their share. */
       @media (max-width: 880px) {
         .app-layout {
           display: flex !important;
           flex-direction: column;
-          height: auto !important;
-          min-height: 100vh;
+          height: 100dvh !important;
+          overflow: hidden;
         }
-        .app-layout > * { width: 100%; }
-        .app-layout .pane-canvas { order: 1; }
-        /* Drive canvas height explicitly so the pane hugs its content
-           (no dead space) and the surface stays usefully large. */
-        .app-layout .canvas-wrap { flex: none; height: 52vh; }
-        /* Chat sits directly under the canvas so a guesser isn't scrolling past the
-           whole scoreboard/sidebar to reach the input. Sidebar goes last. */
-        .app-layout > main { order: 2; min-height: 44vh; }
-        .app-layout > aside { order: 3; }
+        .app-layout > * { width: 100%; min-height: 0; }
+
+        /* Canvas pane grows; the board itself fills the pane (banner + toolbar aside). */
+        .app-layout .pane-canvas {
+          order: 1;
+          flex: 1 1 auto !important;
+          min-height: 0;
+          padding: 10px 12px !important;
+          gap: 8px !important;
+        }
+        .app-layout .canvas-wrap { height: auto !important; min-height: 0; }
+
+        /* Drawing toolbar: one horizontal row that scrolls, instead of wrapping into
+           three rows and eating the canvas. */
+        .app-layout .draw-toolbar {
+          flex-wrap: nowrap !important;
+          overflow-x: auto;
+          padding: 6px 10px !important;
+        }
+
+        /* Chat directly under the canvas so a guesser reaches the input fast. */
+        .app-layout > main {
+          order: 2;
+          flex: 0 0 24dvh !important;
+          min-height: 0;
+          padding: 10px 12px !important;
+          gap: 8px !important;
+        }
+
+        /* Scoreboard/controls last, compact; scrolls internally rather than clipping. */
+        .app-layout > aside {
+          order: 3;
+          flex: 0 0 auto;
+          max-height: 18dvh;
+          overflow-y: auto !important;
+          padding: 10px 12px !important;
+          gap: 8px !important;
+        }
       }
     </style>
   </head>
