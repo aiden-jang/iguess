@@ -167,13 +167,24 @@
         }
         .app-layout .canvas-wrap { height: auto !important; min-height: 0; }
 
-        /* Drawing toolbar: one horizontal row that scrolls, instead of wrapping into
-           three rows and eating the canvas. */
-        .app-layout .draw-toolbar {
-          flex-wrap: nowrap !important;
-          overflow-x: auto;
-          padding: 6px 10px !important;
+        /* Banner: wrap the round-pill / word tiles / timer onto extra lines instead of
+           letting them bleed off the right edge. */
+        .app-layout .play-banner {
+          flex-wrap: wrap !important;
+          gap: 8px 10px !important;
+          padding: 8px 12px !important;
         }
+        .app-layout .word-tiles { flex-wrap: wrap !important; }
+
+        /* Drawing toolbar: compact, wrapping into at most ~2 tidy rows (no cut-off
+           horizontal scroll). Neutralize the undo button's marginLeft:auto and shrink
+           the brush slider so the row packs efficiently. */
+        .app-layout .draw-toolbar {
+          gap: 6px !important;
+          padding: 8px 10px !important;
+        }
+        .app-layout .draw-toolbar > button { margin-left: 0 !important; }
+        .app-layout .draw-toolbar input[type="range"] { width: 92px !important; }
 
         /* Chat directly under the canvas so a guesser reaches the input fast. */
         .app-layout > main {
