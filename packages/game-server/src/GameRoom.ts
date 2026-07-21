@@ -6,6 +6,7 @@ import { AIDrawerMode } from './modes/AIDrawerMode.ts';
 import { TeamBattleMode } from './modes/TeamBattleMode.ts';
 import type { GameMode, PlayerRef } from './modes/GameMode.ts';
 import { requestAIGuess } from './services/aiWorkerClient.ts';
+import { shouldResetRoom } from './roomReset.ts';
 import type { Env } from './env.ts';
 
 // One Durable Object per room — the single authority for that room's game. Because we use
@@ -93,20 +94,24 @@ export class GameRoom {
     this.conns.add(conn);
 
     const modeBefore = this.mode;
-    const hadEngine = !!this.engine;
+    const prevEngine = this.engine;
     const game = this.gameFor(modeName);
-    const switchedMode = hadEngine && this.mode !== modeBefore;
+    const wasReset = prevEngine !== null && prevEngine !== this.engine; // room restarted fresh
+    const switchedMode = wasReset && this.mode !== modeBefore;
     this.send(server, { type: 'welcome', you: player, roomId: this.roomId, mode: this.mode });
     this.send(server, { type: 'canvas_sync', ops: this.strokes });
     game.sendStateTo(player.id); // catch the joiner up (re-delivers word if they're the drawer)
     this.broadcastPresence();
-    if (switchedMode) {
-      // A lobby re-pick changed the room's mode; bring everyone already here onto it (welcome is
-      // idempotent — it only sets `you` + mode). Then everyone's mode display stays in sync.
+    if (wasReset) {
+      // The room restarted (finished game, or a lobby mode re-pick). Resync everyone already here to
+      // the fresh lobby: welcome (idempotent — sets `you` + mode), a canvas clear, and current state.
       for (const c of this.conns) {
-        if (c !== conn) this.send(c.ws, { type: 'welcome', you: c.player, roomId: this.roomId, mode: this.mode });
+        if (c === conn) continue;
+        this.send(c.ws, { type: 'welcome', you: c.player, roomId: this.roomId, mode: this.mode });
+        this.send(c.ws, { type: 'draw', op: { kind: 'clear' } });
+        game.sendStateTo(c.player.id);
       }
-      this.broadcast({ type: 'system', text: `mode switched to ${MODE_LABELS[this.mode]}` });
+      if (switchedMode) this.broadcast({ type: 'system', text: `mode switched to ${MODE_LABELS[this.mode]}` });
     }
     if (!isReconnect) this.broadcast({ type: 'system', text: `${name} joined` });
 
@@ -190,12 +195,16 @@ export class GameRoom {
 
   private gameFor(modeName: string | null): GameEngine {
     const requested = normalizeMode(modeName);
-    // The mode only truly locks once a round starts. While the room is still in lobby, honor a
-    // joiner's different pick — so reusing an existing room name with a new mode actually switches
-    // mode instead of silently keeping the old one. A game in progress keeps its mode (you join IT).
-    if (this.engine && requested !== this.mode && this.engine.currentPhase === 'lobby') {
+    // A (re)join to an IDLE room starts it fresh:
+    //  - a finished game ("round over — run it back") shouldn't strand the next joiner on the old
+    //    results screen; landing on the same name should give a clean lobby.
+    //  - a lobby re-pick with a different mode should actually switch the mode (not silently keep it).
+    // A game in progress is left untouched — you're joining IT. (Run-it-back from the ended screen is
+    // a start_game on the existing connection, not a join, so this doesn't disturb that flow.)
+    if (this.engine && shouldResetRoom(this.engine.currentPhase, requested, this.mode)) {
       this.engine = null;
       this.virtualPlayers.clear();
+      this.strokes = [];
     }
     if (!this.engine) {
       this.mode = requested; // latch the room's mode (at creation, or on a lobby re-pick)
