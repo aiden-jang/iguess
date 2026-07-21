@@ -465,6 +465,32 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
   const [text, setText] = useState("");
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(4);
+  // Chat auto-scroll: follow the newest message while pinned to the bottom; if the user has scrolled
+  // up to read history, stop following and surface a "new messages" button instead of yanking them down.
+  const chatLogRef = useRef<HTMLDivElement>(null);
+  const followChatRef = useRef(true);
+  const [hasNewChat, setHasNewChat] = useState(false);
+  const scrollChatToBottom = () => {
+    const el = chatLogRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+    followChatRef.current = true;
+    setHasNewChat(false);
+  };
+  const onChatScroll = () => {
+    const el = chatLogRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+    followChatRef.current = nearBottom;
+    if (nearBottom) setHasNewChat(false);
+  };
+  useEffect(() => {
+    if (followChatRef.current) {
+      const el = chatLogRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    } else {
+      setHasNewChat(true);
+    }
+  }, [log.length]);
   const [copied, setCopied] = useState(false);
   const [flexed, setFlexed] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -937,7 +963,15 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
       {/* ---- Chat ---- */}
       <main className="glass" style={styles.main}>
         <div style={styles.sectionLabel}>the group chat</div>
-        <div style={styles.chatLog} role="log" aria-live="polite" aria-label="game chat and guesses">
+        <div style={styles.chatWrap}>
+          <div
+            ref={chatLogRef}
+            onScroll={onChatScroll}
+            style={styles.chatLog}
+            role="log"
+            aria-live="polite"
+            aria-label="game chat and guesses"
+          >
           {log.map((line, i) =>
             line.kind === "system" ? (
               <div key={i} style={styles.system}>
@@ -959,6 +993,17 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
             )
           )}
           {log.length === 0 && <div style={styles.system}>crickets… break the ice bestie 👀</div>}
+          </div>
+          {hasNewChat && (
+            <button
+              type="button"
+              className="lift"
+              style={styles.newMsgBtn}
+              onClick={scrollChatToBottom}
+            >
+              ↓ new messages
+            </button>
+          )}
         </div>
         <div style={styles.reactRow}>
           {REACTIONS.map((emoji) => (
@@ -1436,6 +1481,13 @@ const styles: Record<string, React.CSSProperties> = {
     minWidth: 0,
     minHeight: 0,
   },
+  chatWrap: {
+    position: "relative",
+    flex: 1,
+    minHeight: 0,
+    display: "flex",
+    flexDirection: "column",
+  },
   chatLog: {
     flex: 1,
     overflowY: "auto",
@@ -1443,6 +1495,23 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     gap: 8,
     paddingRight: 4,
+  },
+  newMsgBtn: {
+    position: "absolute",
+    bottom: 8,
+    left: "50%",
+    transform: "translateX(-50%)",
+    zIndex: 2,
+    padding: "6px 14px",
+    borderRadius: 999,
+    border: "none",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 700,
+    color: "white",
+    background: "var(--grad)",
+    boxShadow: "0 6px 18px rgba(168,85,247,0.5)",
+    whiteSpace: "nowrap",
   },
   chatLine: { fontSize: 14, lineHeight: 1.4 },
   chatFrom: { fontWeight: 700, marginRight: 6, color: "var(--accent-2)" },
