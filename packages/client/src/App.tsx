@@ -827,7 +827,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
           )}
         </div>
 
-        <div className="glass" style={styles.toolbar}>
+        <div className="glass draw-toolbar" style={styles.toolbar}>
           {COLORS.map((c) => (
             <button
               key={c}
