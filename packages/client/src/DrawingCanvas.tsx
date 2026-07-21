@@ -190,6 +190,17 @@ export function DrawingCanvas({
     }
   }
 
+  // A cursor that IS the brush: a circle the exact diameter of the stroke (lineWidth is in CSS px,
+  // same units), tinted the brush color so you can see size + color before you draw. Hotspot centered.
+  const d = Math.max(6, Math.min(width, 48));
+  const s = d + 4;
+  const half = s / 2;
+  const svg =
+    `<svg xmlns='http://www.w3.org/2000/svg' width='${s}' height='${s}'>` +
+    `<circle cx='${half}' cy='${half}' r='${d / 2}' fill='${color}' fill-opacity='0.35' ` +
+    `stroke='black' stroke-opacity='0.55' stroke-width='1.5'/></svg>`;
+  const brushCursor = `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${half} ${half}, crosshair`;
+
   return (
     <canvas
       ref={canvasRef}
@@ -205,7 +216,7 @@ export function DrawingCanvas({
         // Only capture touch while it's your turn to draw; otherwise let a guesser scroll the page
         // past the canvas instead of trapping their finger on a dead surface.
         touchAction: canDraw ? "none" : "auto",
-        cursor: canDraw ? "crosshair" : "not-allowed",
+        cursor: canDraw ? brushCursor : "not-allowed",
         background: "white",
       }}
     />

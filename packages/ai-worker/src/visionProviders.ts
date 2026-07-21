@@ -131,25 +131,44 @@ export class WorkersAIProvider implements VisionProvider {
   }
 }
 
-// Pick a provider: explicit override wins; otherwise a configured paid key, else free Workers AI
-// (when the [ai] binding is present), else the mock. So the default is real-and-free, not mock.
-export function selectProvider(env: Env): VisionProvider {
+// Ordered list of providers to try, best-first, with fallbacks. The worker tries each in turn and
+// uses the first that returns a guess — so a rate-limited or broken paid key (e.g. OpenAI 429)
+// degrades to free Workers AI, then to the mock, instead of killing the AI entirely. The preferred
+// provider (a configured paid key, or VISION_PROVIDER) goes first; MockProvider is always last and
+// never throws, so there is always a guess.
+export function selectProviders(env: Env): VisionProvider[] {
   const pick = env.VISION_PROVIDER?.toLowerCase();
+  if (pick === 'mock') return [new MockProvider()];
+
   const openai = env.OPENAI_API_KEY;
   const anthropic = env.ANTHROPIC_API_KEY;
   const workersModel = env.WORKERS_AI_MODEL ?? DEFAULT_WORKERS_AI_MODEL;
+  const make: Record<string, () => VisionProvider | null> = {
+    openai: () => (openai ? new OpenAIProvider(openai, env.OPENAI_MODEL ?? 'gpt-4o-mini') : null),
+    anthropic: () =>
+      anthropic ? new AnthropicProvider(anthropic, env.ANTHROPIC_MODEL ?? 'claude-3-5-haiku-latest') : null,
+    workers: () => (env.AI ? new WorkersAIProvider(env.AI, workersModel) : null),
+  };
 
-  if (pick === 'mock') return new MockProvider();
-  if (pick === 'openai' && openai) return new OpenAIProvider(openai, env.OPENAI_MODEL ?? 'gpt-4o-mini');
-  if (pick === 'anthropic' && anthropic) {
-    return new AnthropicProvider(anthropic, env.ANTHROPIC_MODEL ?? 'claude-3-5-haiku-latest');
-  }
-  if ((pick === 'workers' || pick === 'workers-ai' || pick === 'cf') && env.AI) {
-    return new WorkersAIProvider(env.AI, workersModel);
-  }
+  // Forced provider first (if available), then everything else in default priority as fallbacks.
+  const order = ['openai', 'anthropic', 'workers'];
+  if (pick === 'workers-ai' || pick === 'cf' || pick === 'workers') order.unshift('workers');
+  else if (pick && order.includes(pick)) order.unshift(pick);
 
-  if (openai) return new OpenAIProvider(openai, env.OPENAI_MODEL ?? 'gpt-4o-mini');
-  if (anthropic) return new AnthropicProvider(anthropic, env.ANTHROPIC_MODEL ?? 'claude-3-5-haiku-latest');
-  if (env.AI) return new WorkersAIProvider(env.AI, workersModel);
-  return new MockProvider();
+  const out: VisionProvider[] = [];
+  const seen = new Set<string>();
+  for (const key of order) {
+    const p = make[key]?.();
+    if (p && !seen.has(p.name)) {
+      seen.add(p.name);
+      out.push(p);
+    }
+  }
+  out.push(new MockProvider()); // always-succeeds backstop
+  return out;
+}
+
+// The primary provider (what /health reports). Guessing uses the full fallback list above.
+export function selectProvider(env: Env): VisionProvider {
+  return selectProviders(env)[0]!;
 }
