@@ -29,6 +29,14 @@ function normalizeMode(name: string | null): GameModeName {
   return 'classic';
 }
 
+// Friendly labels for the "mode switched to …" system message (matches the join-screen names).
+const MODE_LABELS: Record<GameModeName, string> = {
+  classic: 'Classic',
+  ai: 'AI Guesser',
+  'ai-drawer': 'AI Drawer',
+  'team-battle': 'Team Battle',
+};
+
 interface Conn {
   ws: WebSocket;
   player: PlayerInfo;
@@ -84,11 +92,22 @@ export class GameRoom {
     const conn: Conn = { ws: server, player, rate: { count: 0, windowStart: Date.now() } };
     this.conns.add(conn);
 
+    const modeBefore = this.mode;
+    const hadEngine = !!this.engine;
     const game = this.gameFor(modeName);
+    const switchedMode = hadEngine && this.mode !== modeBefore;
     this.send(server, { type: 'welcome', you: player, roomId: this.roomId, mode: this.mode });
     this.send(server, { type: 'canvas_sync', ops: this.strokes });
     game.sendStateTo(player.id); // catch the joiner up (re-delivers word if they're the drawer)
     this.broadcastPresence();
+    if (switchedMode) {
+      // A lobby re-pick changed the room's mode; bring everyone already here onto it (welcome is
+      // idempotent — it only sets `you` + mode). Then everyone's mode display stays in sync.
+      for (const c of this.conns) {
+        if (c !== conn) this.send(c.ws, { type: 'welcome', you: c.player, roomId: this.roomId, mode: this.mode });
+      }
+      this.broadcast({ type: 'system', text: `mode switched to ${MODE_LABELS[this.mode]}` });
+    }
     if (!isReconnect) this.broadcast({ type: 'system', text: `${name} joined` });
 
     server.addEventListener('message', (event) => {
@@ -170,8 +189,16 @@ export class GameRoom {
   // --- engine wiring -------------------------------------------------------
 
   private gameFor(modeName: string | null): GameEngine {
+    const requested = normalizeMode(modeName);
+    // The mode only truly locks once a round starts. While the room is still in lobby, honor a
+    // joiner's different pick — so reusing an existing room name with a new mode actually switches
+    // mode instead of silently keeping the old one. A game in progress keeps its mode (you join IT).
+    if (this.engine && requested !== this.mode && this.engine.currentPhase === 'lobby') {
+      this.engine = null;
+      this.virtualPlayers.clear();
+    }
     if (!this.engine) {
-      this.mode = normalizeMode(modeName); // latch the room's mode at creation time
+      this.mode = requested; // latch the room's mode (at creation, or on a lobby re-pick)
       this.engine = new GameEngine(
         {
           broadcast: (msg) => this.broadcast(msg),
