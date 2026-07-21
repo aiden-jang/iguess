@@ -38,7 +38,7 @@ export type GamePhase = "lobby" | "choosing" | "playing" | "intermission" | "end
 // The room's game mode. A room's mode is fixed by whoever creates it, so a
 // late joiner who requested a different mode still plays (and must be SHOWN)
 // the room's actual mode — hence the server echoes it back in `welcome`.
-export type GameModeName = "classic" | "ai" | "ai-drawer" | "team-battle";
+export type GameModeName = "classic" | "ai" | "ai-drawer" | "team-battle" | "duel";
 
 // The view of game state that is safe for EVERY client to see. Note it
 // carries only `wordLength`, never the word itself — the secret word is

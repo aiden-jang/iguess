@@ -22,6 +22,13 @@ export default {
       if (request.headers.get('Upgrade') !== 'websocket') {
         return new Response('Expected a WebSocket upgrade.', { status: 426 });
       }
+      // Throttle new connections per client IP at the edge, BEFORE the room DO is created — so one
+      // IP can't spin up unbounded rooms/objects. Degrades open if the binding is unconfigured.
+      const ip = request.headers.get('CF-Connecting-IP');
+      if (env.RATE_LIMITER && ip) {
+        const { success } = await env.RATE_LIMITER.limit({ key: ip });
+        if (!success) return new Response('Too many connections, slow down.', { status: 429 });
+      }
       const roomId = decodeURIComponent(match[1]).slice(0, 32);
       url.searchParams.set('room', roomId); // the DO echoes this back in `welcome`
       const stub = env.GAME_ROOM.get(env.GAME_ROOM.idFromName(roomId));

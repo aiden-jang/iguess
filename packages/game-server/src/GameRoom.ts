@@ -4,9 +4,11 @@ import { ClassicMode } from './modes/ClassicMode.ts';
 import { AIGuesserMode } from './modes/AIGuesserMode.ts';
 import { AIDrawerMode } from './modes/AIDrawerMode.ts';
 import { TeamBattleMode } from './modes/TeamBattleMode.ts';
+import { DuelMode } from './modes/DuelMode.ts';
 import type { GameMode, PlayerRef } from './modes/GameMode.ts';
 import { requestAIGuess } from './services/aiWorkerClient.ts';
 import { shouldResetRoom } from './roomReset.ts';
+import { atCapacity, CLOSE_ROOM_FULL, MAX_PLAYERS_PER_ROOM } from './limits.ts';
 import type { Env } from './env.ts';
 
 // One Durable Object per room — the single authority for that room's game. Because we use
@@ -26,7 +28,7 @@ const MAX_AI_CALLS_PER_ROOM = 240;
 // Map the client-asserted mode query param to a known mode (defaulting to classic). Keeping this
 // beside the DO ensures the label sent in `welcome` and the engine built in `makeMode` never diverge.
 function normalizeMode(name: string | null): GameModeName {
-  if (name === 'ai' || name === 'ai-drawer' || name === 'team-battle') return name;
+  if (name === 'ai' || name === 'ai-drawer' || name === 'team-battle' || name === 'duel') return name;
   return 'classic';
 }
 
@@ -36,6 +38,7 @@ const MODE_LABELS: Record<GameModeName, string> = {
   ai: 'AI Guesser',
   'ai-drawer': 'AI Drawer',
   'team-battle': 'Team Battle',
+  duel: 'You vs AI',
 };
 
 interface Conn {
@@ -80,6 +83,17 @@ export class GameRoom {
     // (a pending leave for this pid). Either way it's silent: no "joined" line, and we cancel the
     // pending leave so their game slot is never dropped.
     const isReconnect = !!this.findConn(id) || this.pendingLeaves.has(id);
+
+    // Refuse a genuinely-new joiner once the room is full (reconnects always get back in — they
+    // reclaim an existing/pending slot). We still complete the upgrade, then immediately close with
+    // a terminal code + human-readable reason the client shows instead of auto-reconnecting.
+    if (atCapacity(this.conns.size, isReconnect)) {
+      const pair = new WebSocketPair();
+      pair[1].accept();
+      pair[1].close(CLOSE_ROOM_FULL, `this room is full (up to ${MAX_PLAYERS_PER_ROOM} players). try another room name.`);
+      return new Response(null, { status: 101, webSocket: pair[0] });
+    }
+
     const pendingLeave = this.pendingLeaves.get(id);
     if (pendingLeave) {
       clearTimeout(pendingLeave);
@@ -250,6 +264,7 @@ export class GameRoom {
     if (name === 'ai') return new AIGuesserMode(aiGuess);
     if (name === 'ai-drawer') return new AIDrawerMode();
     if (name === 'team-battle') return new TeamBattleMode(aiGuess);
+    if (name === 'duel') return new DuelMode(aiGuess);
     return new ClassicMode();
   }
 
