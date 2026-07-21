@@ -735,7 +735,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
 
       {/* ---- Canvas pane ---- */}
       <section className="pane-canvas" style={styles.canvasPane}>
-        <div className="glass" style={styles.banner}>
+        <div className="glass play-banner" style={styles.banner}>
           {phase === "lobby" && (
             <>
               <span style={styles.bannerText}>
@@ -782,7 +782,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
               {isDrawer && wordChoices ? (
                 <span style={styles.wordZone}>
                   <span style={styles.wordVerb}>pick one</span>
-                  <span style={styles.tiles}>
+                  <span className="word-tiles" style={styles.tiles}>
                     {wordChoices.map((w) => (
                       <button
                         key={w}
@@ -814,7 +814,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
               </span>
               <span style={styles.wordZone}>
                 <span style={styles.wordVerb}>{isDrawer ? "cook this" : "guess fr"}</span>
-                <span style={styles.tiles}>
+                <span className="word-tiles" style={styles.tiles}>
                   {wordLetters.map((ch, i) => (
                     <span key={i} style={styles.tile}>
                       {ch}
@@ -1190,6 +1190,9 @@ const styles: Record<string, React.CSSProperties> = {
   layout: {
     display: "grid",
     gridTemplateColumns: "240px minmax(0,1fr) 320px",
+    // A single row bounded to the viewport (minmax(0,1fr), not the default content-sized auto row)
+    // so the flex:1 canvas fills the height instead of growing unbounded and overflowing the page.
+    gridTemplateRows: "minmax(0, 1fr)",
     height: "100vh",
     gap: 1,
     background: "var(--line)",
@@ -1200,6 +1203,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     gap: 14,
     overflow: "hidden",
+    minHeight: 0,
   },
   roomHead: { display: "flex", alignItems: "center", gap: 10 },
   roomMark: { fontSize: 26 },
@@ -1298,6 +1302,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 18,
     gap: 12,
     minWidth: 0,
+    minHeight: 0,
   },
   banner: {
     display: "flex",
@@ -1425,6 +1430,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 18,
     gap: 12,
     minWidth: 0,
+    minHeight: 0,
   },
   chatLog: {
     flex: 1,
