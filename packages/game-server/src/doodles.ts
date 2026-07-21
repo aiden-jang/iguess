@@ -84,6 +84,57 @@ export const DOODLES: Record<string, () => DrawOp[][]> = {
     stroke([{ x: 0.7, y: 0.6 }, { x: 0.82, y: 0.57 }]),
     stroke([{ x: 0.7, y: 0.63 }, { x: 0.82, y: 0.64 }]),
   ],
+  sun: () => {
+    const rays: DrawOp[][] = [];
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      rays.push(stroke([{ x: 0.5 + 0.19 * c, y: 0.5 + 0.19 * s }, { x: 0.5 + 0.32 * c, y: 0.5 + 0.32 * s }]));
+    }
+    return [circle(0.5, 0.5, 0.15), ...rays];
+  },
+  flower: () => {
+    const petals: DrawOp[][] = [];
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + (i / 5) * Math.PI * 2;
+      petals.push(circle(0.5 + 0.13 * Math.cos(a), 0.4 + 0.13 * Math.sin(a), 0.07));
+    }
+    return [...petals, circle(0.5, 0.4, 0.06), stroke([{ x: 0.5, y: 0.48 }, { x: 0.5, y: 0.82 }])];
+  },
+  heart: () => [
+    stroke([
+      { x: 0.5, y: 0.74 }, { x: 0.32, y: 0.55 }, { x: 0.3, y: 0.42 }, { x: 0.38, y: 0.36 },
+      { x: 0.5, y: 0.44 }, { x: 0.62, y: 0.36 }, { x: 0.7, y: 0.42 }, { x: 0.68, y: 0.55 },
+      { x: 0.5, y: 0.74 },
+    ]),
+  ],
+  fish: () => [
+    stroke([
+      { x: 0.3, y: 0.5 }, { x: 0.44, y: 0.4 }, { x: 0.6, y: 0.4 }, { x: 0.68, y: 0.5 },
+      { x: 0.6, y: 0.6 }, { x: 0.44, y: 0.6 }, { x: 0.3, y: 0.5 },
+    ]),
+    stroke([{ x: 0.68, y: 0.5 }, { x: 0.8, y: 0.42 }, { x: 0.8, y: 0.58 }, { x: 0.68, y: 0.5 }]),
+    circle(0.4, 0.47, 0.014),
+  ],
+  cloud: () => [
+    circle(0.41, 0.53, 0.09),
+    circle(0.54, 0.49, 0.11),
+    circle(0.65, 0.54, 0.08),
+    circle(0.52, 0.58, 0.1),
+  ],
+  boat: () => [
+    stroke([{ x: 0.32, y: 0.62 }, { x: 0.68, y: 0.62 }, { x: 0.6, y: 0.74 }, { x: 0.4, y: 0.74 }, { x: 0.32, y: 0.62 }]),
+    stroke([{ x: 0.5, y: 0.62 }, { x: 0.5, y: 0.32 }]),
+    stroke([{ x: 0.5, y: 0.34 }, { x: 0.5, y: 0.58 }, { x: 0.66, y: 0.58 }, { x: 0.5, y: 0.34 }]),
+  ],
+  mushroom: () => [
+    stroke([
+      { x: 0.32, y: 0.5 }, { x: 0.36, y: 0.4 }, { x: 0.5, y: 0.36 }, { x: 0.64, y: 0.4 },
+      { x: 0.68, y: 0.5 }, { x: 0.32, y: 0.5 },
+    ]),
+    stroke([{ x: 0.44, y: 0.5 }, { x: 0.44, y: 0.66 }, { x: 0.56, y: 0.66 }, { x: 0.56, y: 0.5 }]),
+  ],
 };
 
 export const DOODLE_WORDS = Object.keys(DOODLES);
