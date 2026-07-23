@@ -4,6 +4,18 @@ A deep-dive into how *iguess* is built, why it's structured this way, and
 what I'd change to take it to production. Written to be read top-to-bottom; each
 section ends with the trade-off I actually made.
 
+## TL;DR — the decisions that matter
+
+If you read nothing else, these are the calls I'd defend in an interview:
+
+1. **Engine vs. modes (§1).** The turn timeline and the game rules are separate. `engine.ts` has zero game rules; each of the five modes is a strategy behind a fixed hook interface. Four of the five modes were added after the engine froze, with no engine change.
+2. **One Durable Object per room (§4).** Gives single-writer-per-room by construction, so roster + strokes live in memory with no Redis, no lock, no cross-instance race. It's the runtime that happens to be the room-affinity cluster I'd otherwise have hand-rolled.
+3. **AI off the hot path (§3).** Vision runs in a separate Worker on an interval with a hard per-turn cap and a provider fallback chain, so a slow or failed guess never blocks the socket loop or the game.
+4. **One abstraction, added on demand (§6).** The only engine change the whole project needed was a single transport-agnostic `ctx.draw` verb, introduced when AI-as-drawer actually required it, not speculated up front.
+5. **Production concerns are real (§7).** Server-enforced abuse limits at three layers, identity-preserving reconnect with a grace window, a committed test suite, and CI that gates deploys.
+
+The sections below are the long form, each ending with the trade-off I made.
+
 ---
 
 ## 1. Core engine vs. mode plugins
