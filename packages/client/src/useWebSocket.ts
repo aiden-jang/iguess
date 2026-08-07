@@ -50,6 +50,8 @@ export function useGameSocket(room: string, name: string, mode: string) {
   const [myWord, setMyWord] = useState<string | null>(null);
   // Word options offered to US during the "choosing" phase; cleared once the
   // turn begins (or any non-choosing state arrives).
+  /** The most recent turn's revealed word, so the client can keep the drawing that went with it. */
+  const [turnEnd, setTurnEnd] = useState<{ word: string; at: number } | null>(null);
   const [wordChoices, setWordChoices] = useState<string[] | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const drawListeners = useRef<Set<DrawListener>>(new Set());
@@ -146,6 +148,9 @@ export function useGameSocket(room: string, name: string, mode: string) {
           break;
         case "turn_end":
           setMyWord(null);
+          // Stamped, so a repeat of the same word later in the game is still a new event to react
+          // to. Without the timestamp a second turn on the same word would look like no change.
+          setTurnEnd({ word: msg.word, at: Date.now() });
           setLog((l) => [
             ...l,
             { kind: "system", text: `The word was: ${msg.word}` },
@@ -216,6 +221,7 @@ export function useGameSocket(room: string, name: string, mode: string) {
     game,
     myWord,
     wordChoices,
+    turnEnd,
     sendChat,
     chooseWord,
     sendDraw,

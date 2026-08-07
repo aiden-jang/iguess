@@ -93,6 +93,38 @@ function saveCanvasPng(canvas: HTMLCanvasElement, room: string) {
   a.click();
 }
 
+/**
+ * A small PNG of whatever is on the board right now.
+ *
+ * Kept deliberately tiny. These accumulate one per turn and live in React state for the length of
+ * a game, so a full-size board (which the download button already offers) would be megabytes of
+ * data URL sitting in memory to show something rendered 160px wide.
+ */
+function thumbnailOf(canvas: HTMLCanvasElement): string {
+  const out = document.createElement("canvas");
+  out.width = 320;
+  out.height = Math.round((canvas.height / canvas.width) * 320);
+  const c = out.getContext("2d");
+  if (!c) return "";
+  // White first: the board is transparent, and a transparent PNG on a dark card is an empty box.
+  c.fillStyle = "#ffffff";
+  c.fillRect(0, 0, out.width, out.height);
+  c.drawImage(canvas, 0, 0, out.width, out.height);
+  // Skip a turn nobody drew on. Otherwise the gallery collects blank white cards, which read as
+  // broken images rather than as "the drawer went afk", and there is no joke in an empty rectangle.
+  if (isBlank(c, out.width, out.height)) return "";
+  return out.toDataURL("image/png");
+}
+
+/** Any non-white pixel? Sampled on a grid rather than every pixel; a stroke is never one dot. */
+function isBlank(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
+  const { data } = ctx.getImageData(0, 0, w, h);
+  for (let i = 0; i < data.length; i += 4 * 7) {
+    if (data[i] < 250 || data[i + 1] < 250 || data[i + 2] < 250) return false;
+  }
+  return true;
+}
+
 // Open a pre-filled X/Twitter compose window — the actual viral loop.
 function shareToX(text: string) {
   const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
@@ -443,6 +475,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
     clearBoard,
     startGame,
     wordChoices,
+    turnEnd,
     chooseWord,
   } = useGameSocket(room, name, mode);
   // Show the room's real mode once the server confirms it; the requested mode is just the
@@ -503,6 +536,16 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
   const aiMsgCount = useRef(0);
   const [winConfetti, setWinConfetti] = useState(48);
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+
+  /*
+   * Every drawing from this game, kept so the end screen can show them back.
+   *
+   * The funniest thing this app produces is the drawings, and until now every one of them was
+   * wiped the instant the turn ended. The score was already shareable as text; the actual artifact
+   * was thrown away. Client-side only: nobody else needs a copy, and a gallery that outlived the
+   * game would be an account feature in an app that deliberately has no accounts.
+   */
+  const [gallery, setGallery] = useState<{ word: string; png: string }[]>([]);
   const prevGuessed = useRef<string[]>([]);
 
   const phase = game?.phase ?? "lobby";
@@ -565,6 +608,21 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
       blip([880], muted); // someone else got it
     }
   }, [game?.guessedIds]);
+
+  // Grab the board the moment the word is revealed, before the next turn clears it.
+  useEffect(() => {
+    if (!turnEnd) return;
+    const el = canvasElRef.current;
+    if (!el) return;
+    const png = thumbnailOf(el);
+    if (png) setGallery((g) => [...g, { word: turnEnd.word, png }]);
+  }, [turnEnd?.at]);
+
+  // A new game starts a new gallery. Keyed on the turn index returning to zero rather than on the
+  // phase, because "run it back" goes ended → playing without passing through the lobby.
+  useEffect(() => {
+    if (phase === "lobby" || game?.turnIndex === 0) setGallery([]);
+  }, [phase, game?.turnIndex]);
 
   // On game end: figure out if you won, update the streak, and play a sting.
   useEffect(() => {
@@ -985,6 +1043,27 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
             </div>
           )}
         </div>
+
+        {/*
+          The gallery. Only at the end, and only if anything was drawn.
+
+          Placed under the board rather than in the banner because it is the thing worth looking
+          at when the game is over: the score is two numbers, but nobody has seen these drawings
+          side by side before, and the joke is cumulative.
+        */}
+        {phase === "ended" && gallery.length > 0 && (
+          <div style={styles.gallery}>
+            <div style={styles.sectionLabel}>the evidence</div>
+            <div style={styles.galleryStrip}>
+              {gallery.map((g, i) => (
+                <figure key={i} style={styles.galleryItem}>
+                  <img src={g.png} alt={`the drawing for "${g.word}"`} style={styles.galleryImg} />
+                  <figcaption style={styles.galleryCaption}>{g.word}</figcaption>
+                </figure>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* ---- Chat ---- */}
@@ -1375,6 +1454,35 @@ const styles: Record<string, React.CSSProperties> = {
   emptyRoster: { color: "var(--muted)", fontSize: 13, padding: 8 },
 
   // ---- Canvas pane ----
+  gallery: {
+    marginTop: 12,
+  },
+  // Horizontal scroll rather than a wrap: eight turns wrapped into rows pushes the whole end
+  // screen off the fold, and a strip you drag through reads as a filmstrip, which is what it is.
+  galleryStrip: {
+    display: "flex",
+    gap: 10,
+    overflowX: "auto",
+    paddingBottom: 6,
+  },
+  galleryItem: {
+    margin: 0,
+    flex: "0 0 auto",
+    width: 132,
+  },
+  galleryImg: {
+    width: "100%",
+    display: "block",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,.18)",
+    background: "#fff",
+  },
+  galleryCaption: {
+    marginTop: 4,
+    fontSize: 12,
+    textAlign: "center",
+    opacity: 0.85,
+  },
   canvasPane: {
     background: "var(--bg)",
     display: "flex",
