@@ -545,7 +545,15 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
    * was thrown away. Client-side only: nobody else needs a copy, and a gallery that outlived the
    * game would be an account feature in an app that deliberately has no accounts.
    */
-  const [gallery, setGallery] = useState<{ word: string; png: string }[]>([]);
+  const [gallery, setGallery] = useState<{ word: string; png: string; guess: string | null; right: boolean }[]>([]);
+  /*
+   * The AI's last guess, held past the moment it's cleared from the canvas bubble.
+   *
+   * `botGuess` is deliberately transient: it flashes in the bubble and resets to "thinking", so by
+   * the time the turn ends it is usually already null. The gallery needs whatever it said *last*,
+   * which is the actual punchline: you drew a cactus, the machine said broccoli.
+   */
+  const lastGuess = useRef<{ guess: string | null; right: boolean }>({ guess: null, right: false });
   const prevGuessed = useRef<string[]>([]);
 
   const phase = game?.phase ?? "lobby";
@@ -615,7 +623,10 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
     const el = canvasElRef.current;
     if (!el) return;
     const png = thumbnailOf(el);
-    if (png) setGallery((g) => [...g, { word: turnEnd.word, png }]);
+    if (!png) return;
+    const { guess, right } = lastGuess.current;
+    setGallery((g) => [...g, { word: turnEnd.word, png, guess, right }]);
+    lastGuess.current = { guess: null, right: false };
   }, [turnEnd?.at]);
 
   // A new game starts a new gallery. Keyed on the turn index returning to zero rather than on the
@@ -659,6 +670,8 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
   const modeMeta = MODES.find((m) => m.value === effectiveMode);
   const hasAI = players.some((p) => isAI(p.id));
   const aiGuessedRight = hasAI && (game?.guessedIds ?? []).some((id) => isAI(id));
+  // When it actually gets there, that is the fact worth keeping, not its last wrong stab.
+  if (aiGuessedRight) lastGuess.current = { ...lastGuess.current, right: true };
   // Nobody to guess: it's just you, no AI in the room. Nudge toward inviting or an AI mode.
   const soloWaiting = !hasAI && players.filter((p) => !isAI(p.id)).length <= 1;
 
@@ -668,7 +681,10 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
     const aiMsgs = log.filter((l) => isAI(l.from?.id));
     if (aiMsgs.length <= aiMsgCount.current) return;
     aiMsgCount.current = aiMsgs.length;
-    setBotGuess(aiMsgs[aiMsgs.length - 1]?.text ?? null);
+    const latest = aiMsgs[aiMsgs.length - 1]?.text ?? null;
+    setBotGuess(latest);
+    // Remembered separately from the bubble, which clears itself after four seconds.
+    if (latest) lastGuess.current = { guess: latest, right: false };
     const t = setTimeout(() => setBotGuess(null), 4200);
     return () => clearTimeout(t);
   }, [log]);
@@ -1059,6 +1075,20 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                 <figure key={i} style={styles.galleryItem}>
                   <img src={g.png} alt={`the drawing for "${g.word}"`} style={styles.galleryImg} />
                   <figcaption style={styles.galleryCaption}>{g.word}</figcaption>
+                  {/*
+                    What the machine thought it was.
+                    This is the actual joke of the whole app and it was being thrown away every
+                    turn: the drawing alone is just a bad drawing, but "cactus / 🤖 broccoli" is the
+                    thing you screenshot. A correct guess gets said plainly rather than quoted,
+                    because being right is not funny and pretending it is would be smug.
+                  */}
+                  {g.right ? (
+                    <p style={{ ...styles.galleryGuess, color: "#a3e635" }}>🤖 got it</p>
+                  ) : g.guess ? (
+                    <p style={styles.galleryGuess}>🤖 &ldquo;{g.guess}&rdquo;</p>
+                  ) : (
+                    <p style={{ ...styles.galleryGuess, opacity: 0.45 }}>🤖 no idea</p>
+                  )}
                 </figure>
               ))}
             </div>
@@ -1476,6 +1506,14 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 10,
     border: "1px solid rgba(255,255,255,.18)",
     background: "#fff",
+  },
+  // Tighter and dimmer than the word: the word is what it was, the guess is the aside.
+  galleryGuess: {
+    margin: "2px 0 0",
+    fontSize: 11.5,
+    textAlign: "center",
+    opacity: 0.8,
+    lineHeight: 1.25,
   },
   galleryCaption: {
     marginTop: 4,
