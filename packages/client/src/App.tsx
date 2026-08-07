@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useGameSocket } from "./useWebSocket";
 import { DrawingCanvas } from "./DrawingCanvas";
+import { renderEvidencePng } from "./evidenceCard";
 
 const COLORS = ["#111111", "#e11d48", "#2563eb", "#16a34a", "#f59e0b", "#ffffff"];
 
@@ -116,10 +117,18 @@ function thumbnailOf(canvas: HTMLCanvasElement): string {
   return out.toDataURL("image/png");
 }
 
-/** Any non-white pixel? Sampled on a grid rather than every pixel; a stroke is never one dot. */
+/**
+ * Any non-white pixel?
+ *
+ * Stride of 3 pixels, not 7. At 7 a thin single-stroke drawing could be missed entirely and thrown
+ * away as blank, which is worse than the empty card this check exists to prevent: a drawing someone
+ * actually made is the whole point of the gallery. 3 still samples a third of a 320px thumbnail,
+ * which is nothing, and a real stroke is many pixels wide once it has been downscaled and
+ * anti-aliased.
+ */
 function isBlank(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
   const { data } = ctx.getImageData(0, 0, w, h);
-  for (let i = 0; i < data.length; i += 4 * 7) {
+  for (let i = 0; i < data.length; i += 4 * 3) {
     if (data[i] < 250 || data[i + 1] < 250 || data[i + 2] < 250) return false;
   }
   return true;
@@ -545,6 +554,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
    * was thrown away. Client-side only: nobody else needs a copy, and a gallery that outlived the
    * game would be an account feature in an app that deliberately has no accounts.
    */
+  const [savingEvidence, setSavingEvidence] = useState(false);
   const [gallery, setGallery] = useState<{ word: string; png: string; guess: string | null; right: boolean }[]>([]);
   /*
    * The AI's last guess, held past the moment it's cleared from the canvas bubble.
@@ -708,6 +718,37 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
 
   // Wordle-style flex text: a copy-pasteable recap of how you stacked up. This
   // is the share loop — text + a link is what actually spreads.
+  /**
+   * One PNG of the whole game: every drawing, its word, and what the AI thought it was.
+   *
+   * The text share (a block grid of scores) travels anywhere but shares the least interesting part.
+   * This shares the part people actually laugh at. Best-effort: a failure leaves the strip on screen
+   * and says nothing, because the game is over and there is nothing to recover.
+   */
+  const saveEvidence = async () => {
+    if (savingEvidence || gallery.length === 0) return;
+    setSavingEvidence(true);
+    try {
+      const line = ranked
+        .slice(0, 4)
+        .map((p) => `${p.id === you?.id ? "you" : isAI(p.id) ? "🤖" : p.name} ${game?.scores[p.id] ?? 0}`)
+        .join("  ·  ");
+      const blob = await renderEvidencePng(gallery, line);
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.download = `iguess-evidence-${room}.png`;
+      a.href = href;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(href);
+    } catch {
+      /* nothing to do about it, and nothing worth interrupting the end screen for */
+    } finally {
+      setSavingEvidence(false);
+    }
+  };
+
   const flexText = () => {
     const place = you ? ranked.findIndex((p) => p.id === you.id) + 1 : 0;
     const beatAI =
@@ -1069,7 +1110,17 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
         */}
         {phase === "ended" && gallery.length > 0 && (
           <div style={styles.gallery}>
-            <div style={styles.sectionLabel}>the evidence</div>
+            <div style={styles.galleryHead}>
+              <span style={styles.sectionLabel}>the evidence</span>
+              <button
+                className="lift"
+                style={styles.ghostButton}
+                onClick={() => void saveEvidence()}
+                title="one image of every drawing and what the AI thought it was"
+              >
+                {savingEvidence ? "rendering…" : "🖼️ save the evidence"}
+              </button>
+            </div>
             <div style={styles.galleryStrip}>
               {gallery.map((g, i) => (
                 <figure key={i} style={styles.galleryItem}>
@@ -1484,6 +1535,13 @@ const styles: Record<string, React.CSSProperties> = {
   emptyRoster: { color: "var(--muted)", fontSize: 13, padding: 8 },
 
   // ---- Canvas pane ----
+  galleryHead: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 6,
+  },
   gallery: {
     marginTop: 12,
   },
