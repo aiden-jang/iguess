@@ -117,6 +117,7 @@ A few of the choices and why:
 | Dropped Redis | In-memory in the DO | The old Node build used Redis for presence + strokes across instances. A Durable Object *is* the single instance for a room, so that entire dependency (and its ops cost) went away in the port. |
 | WebSocket style | Pinned (`server.accept()`), not hibernation | The turn timeline runs on `setTimeout`/`setInterval`; hibernation evicts timers, so a room stays pinned while a game is live. |
 | Transport | Raw `ws`, not Socket.IO | I wanted to see the actual protocol instead of relying on hidden reconnection/room behavior. |
+| Player identity | Client-asserted `pid` in `sessionStorage` | A reconnect has to be the *same* player or you lose your score, your place in the draw order and your turn. The server gives a returning `pid` an 8-second grace window and rejoins it silently. Keeping that id in `sessionStorage` rather than a variable is what makes it survive a refresh — the most common reconnect there is — while staying per-tab, so two tabs on one device are still two players. |
 | Stroke format | Normalized 0–1 coords, streamed ops | Works at any canvas size, messages stay small, and the op log replays for late joiners and the AI. |
 | AI guess timing | Interval (~8s first, then every 10s, max 4/turn) | Keeps cost and latency bounded without spamming the model. |
 | AI process | Separate Worker | Vision calls are slow, so I kept them off the WebSocket loop. |
