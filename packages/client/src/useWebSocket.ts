@@ -21,6 +21,40 @@ function socketUrl(room: string, name: string, mode: string, pid: string): strin
   return `${proto}://${window.location.host}/rooms/${encodeURIComponent(room)}/ws?${q.toString()}`;
 }
 
+const PID_KEY = "iguess_pid";
+
+function newPid(): string {
+  return typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID().slice(0, 12)
+    : Math.random().toString(36).slice(2, 14);
+}
+
+/**
+ * The id that says "this is the same player".
+ *
+ * The server keys its whole reconnect path on this: a returning pid inside the 8s grace window is
+ * silent and keeps your score, your place in the draw order, and your turn if you were the one
+ * drawing. It used to be generated inside the socket effect, which made it stable across a dropped
+ * socket but new on every mount — so the single most common way anyone reconnects, hitting refresh,
+ * was read as a stranger arriving. The chat said "Aiden joined" and "Aiden left" about one person
+ * pressing F5, and their score went with it.
+ *
+ * sessionStorage, not localStorage: it survives a reload, which is the case that was broken, and
+ * stays per-tab, so two tabs on one device remain two players the way they do today. Private mode
+ * throwing here just puts us back on the old per-mount behaviour, which is no worse than before.
+ */
+function stablePid(): string {
+  try {
+    const existing = sessionStorage.getItem(PID_KEY);
+    if (existing) return existing;
+    const fresh = newPid();
+    sessionStorage.setItem(PID_KEY, fresh);
+    return fresh;
+  } catch {
+    return newPid();
+  }
+}
+
 export interface ChatLine {
   kind: "chat" | "system";
   from?: PlayerInfo;
@@ -62,14 +96,7 @@ export function useGameSocket(room: string, name: string, mode: string) {
 
   useEffect(() => {
     if (!room || !name) return;
-    // A stable per-session id so a dropped connection reconnects as the SAME
-    // player (keeps score, draw order, drawer role). Generated once per effect
-    // run and reused by every reconnect; resets only when room/name/mode change.
-    const pid =
-      typeof crypto !== "undefined" && crypto.randomUUID
-        ? crypto.randomUUID().slice(0, 12)
-        : Math.random().toString(36).slice(2, 14);
-    const url = socketUrl(room, name, mode, pid);
+    const url = socketUrl(room, name, mode, stablePid());
 
     // `alive` distinguishes an intentional unmount (no reconnect) from a
     // dropped connection (reconnect with capped backoff). The server replays
