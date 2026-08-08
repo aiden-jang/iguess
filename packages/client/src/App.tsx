@@ -5,12 +5,16 @@ import { renderEvidencePng } from "./evidenceCard";
 
 const COLORS = ["#111111", "#e11d48", "#2563eb", "#16a34a", "#f59e0b", "#ffffff"];
 
+// `needsTwo` mirrors each mode's `minHumans` on the server (see packages/game-server/src/modes).
+// Classic is the only one that can't run alone, and it is also the default — so someone arriving on
+// their own picked the single unplayable option before they had any way to know, then hit "need at
+// least 2 players" from inside a room whose mode is already fixed by whoever created it.
 const MODES = [
-  { value: "classic", label: "Classic", blurb: "you draw, humans guess", icon: "🎨" },
-  { value: "ai", label: "AI Guesser", blurb: "you draw, an AI races to guess it", icon: "🔍" },
-  { value: "ai-drawer", label: "AI Drawer", blurb: "the AI draws, you guess", icon: "🖌️" },
-  { value: "team-battle", label: "Team Battle", blurb: "humans vs AI, first guess wins", icon: "⚔️" },
-  { value: "duel", label: "You vs AI", blurb: "trade turns drawing, most points beats the machine", icon: "🤖" },
+  { value: "classic", label: "Classic", blurb: "you draw, humans guess", icon: "🎨", needsTwo: true },
+  { value: "ai", label: "AI Guesser", blurb: "you draw, an AI races to guess it", icon: "🔍", needsTwo: false },
+  { value: "ai-drawer", label: "AI Drawer", blurb: "the AI draws, you guess", icon: "🖌️", needsTwo: false },
+  { value: "team-battle", label: "Team Battle", blurb: "humans vs AI, first guess wins", icon: "⚔️", needsTwo: false },
+  { value: "duel", label: "You vs AI", blurb: "trade turns drawing, most points beats the machine", icon: "🤖", needsTwo: false },
 ];
 
 const isAI = (id?: string | null) => !!id && id.startsWith("ai-");
@@ -387,6 +391,7 @@ export function App() {
                   <span style={styles.modeIcon}>{m.icon}</span>
                   <span style={styles.modeLabel}>{m.label}</span>
                   <span style={styles.modeBlurb}>{m.blurb}</span>
+                  <span style={styles.modeNeeds}>{m.needsTwo ? "needs 2+" : "play solo"}</span>
                 </button>
               );
             })}
@@ -1341,6 +1346,14 @@ const styles: Record<string, React.CSSProperties> = {
   modeIcon: { fontSize: 20 },
   modeLabel: { fontWeight: 600, fontSize: 14 },
   modeBlurb: { fontSize: 11, color: "var(--muted)" },
+  modeNeeds: {
+    fontSize: 10,
+    marginTop: 6,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase" as const,
+    color: "var(--muted)",
+    opacity: 0.75,
+  },
   hint: { display: "block", color: "var(--muted)", fontSize: 12, margin: "12px 0 4px" },
   howto: {
     margin: "16px 0 4px",
