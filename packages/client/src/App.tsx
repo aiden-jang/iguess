@@ -391,7 +391,7 @@ export function App() {
                   <span style={styles.modeIcon}>{m.icon}</span>
                   <span style={styles.modeLabel}>{m.label}</span>
                   <span style={styles.modeBlurb}>{m.blurb}</span>
-                  <span style={styles.modeNeeds}>{m.needsTwo ? "needs 2+" : "play solo"}</span>
+                  <span style={styles.modeNeeds}>{m.needsTwo ? "needs a friend" : "no friends needed"}</span>
                 </button>
               );
             })}
