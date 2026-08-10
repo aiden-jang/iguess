@@ -41,7 +41,16 @@
         --grad: linear-gradient(135deg, #a855f7 0%, #f472b6 55%, #fb923c 100%);
         --good: #34d399;
         --bad: #fb7185;
+
+        /* Spring easing, sampled from a damped harmonic oscillator. A cubic-bezier is bounded by
+           its endpoints and so cannot overshoot and settle back, however springy the control
+           points look; linear() can, because it is a lookup table. 1.1% and 12% overshoot. Both
+           are normalized, so duration stays a separate decision. */
+        --ease-spring: linear(0, 0.038, 0.13, 0.248, 0.373, 0.494, 0.604, 0.699, 0.778, 0.842, 0.893, 0.931, 0.959, 0.98, 0.993, 1.002, 1.008, 1.01, 1.011, 1.011, 1.01, 1.009, 1.007, 1.006, 1.005, 1.004, 1.003, 1.002, 1);
+        --ease-bounce: linear(0, 0.084, 0.277, 0.507, 0.724, 0.899, 1.022, 1.093, 1.122, 1.121, 1.102, 1.074, 1.046, 1.021, 1.003, 0.991, 0.986, 0.984, 0.986, 0.989, 0.993, 0.996, 0.999, 1.001, 1.002, 1.002, 1.002, 1.002, 1);
       }
+      h1, h2, h3 { text-wrap: balance; }
+      p { text-wrap: pretty; }
       * { box-sizing: border-box; }
       html, body, #root { height: 100%; }
       /* Base color on the root canvas so any scroll-overflow area (e.g. the tall home screen,
@@ -107,7 +116,7 @@
       .lift:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.08); }
       .lift:active:not(:disabled) { transform: translateY(0) scale(0.98); }
       .pulse-cta { animation: glowPulse 2.4s ease-in-out infinite; }
-      .pop-in { animation: pop .28s ease-out both; }
+      .pop-in { animation: pop .42s var(--ease-bounce) both; }
       @keyframes confettiFall {
         0% { transform: translateY(-12vh) rotate(0deg); opacity: 1; }
         100% { transform: translateY(110vh) rotate(720deg); opacity: 1; }
@@ -137,7 +146,7 @@
         0% { transform: translate(-50%, -16px) scale(.9); opacity: 0; }
         100% { transform: translate(-50%, 0) scale(1); opacity: 1; }
       }
-      .toast-in { animation: toastIn .3s cubic-bezier(.2,.9,.3,1.3) both; }
+      .toast-in { animation: toastIn .42s var(--ease-spring) both; }
 
       /* Respect users who don't want motion: kill animations + transitions. */
       @media (prefers-reduced-motion: reduce) {
