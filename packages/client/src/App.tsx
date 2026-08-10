@@ -6,9 +6,8 @@ import { renderEvidencePng } from "./evidenceCard";
 const COLORS = ["#111111", "#e11d48", "#2563eb", "#16a34a", "#f59e0b", "#ffffff"];
 
 // `needsTwo` mirrors each mode's `minHumans` on the server (see packages/game-server/src/modes).
-// Classic is the only one that can't run alone, and it is also the default — so someone arriving on
-// their own picked the single unplayable option before they had any way to know, then hit "need at
-// least 2 players" from inside a room whose mode is already fixed by whoever created it.
+// Classic is the only one that can't run alone, so first-time visitors start in AI Guesser: the
+// app's hook is immediately playable by one person rather than leading with a dead-end room.
 const MODES = [
   { value: "classic", label: "Classic", blurb: "you draw, humans guess", icon: "🎨", needsTwo: true },
   { value: "ai", label: "AI Guesser", blurb: "you draw, an AI races to guess it", icon: "🔍", needsTwo: false },
@@ -286,7 +285,7 @@ export function App() {
   const [draftRoom, setDraftRoom] = useState(
     invite.room ?? localStorage.getItem("iguess_room") ?? "lobby"
   );
-  const [draftMode, setDraftMode] = useState(invite.mode ?? "classic");
+  const [draftMode, setDraftMode] = useState(invite.mode ?? "ai");
   const [joined, setJoined] = useState<{
     name: string;
     room: string;
@@ -546,7 +545,10 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
       setHasNewChat(true);
     }
   }, [log.length]);
-  const [copied, setCopied] = useState(false);
+  // An invite should leave the game through the quickest native path. Most
+  // phones can hand it straight to Messages, Discord, or WhatsApp; older
+  // browsers still get the familiar copied-link fallback.
+  const [inviteResult, setInviteResult] = useState<"copied" | "shared" | null>(null);
   const [flexed, setFlexed] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [muted, setMuted] = useState(() => localStorage.getItem(MUTE_KEY) === "1");
@@ -721,10 +723,30 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
   };
 
   const handleInvite = async () => {
-    const ok = await copyText(inviteLink(room, effectiveMode));
-    if (ok) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
+    const url = inviteLink(room, effectiveMode);
+    const resetResult = (result: "copied" | "shared") => {
+      setInviteResult(result);
+      setTimeout(() => setInviteResult(null), 1800);
+    };
+
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({
+          title: "iguess",
+          text: `pull up to #${room} — ${modeMeta?.label ?? effectiveMode}`,
+          url,
+        });
+        resetResult("shared");
+        return;
+      } catch (err) {
+        // Closing the share sheet is a completed choice, not a failed invite.
+        // Other errors fall through to copy so there is still a useful path.
+        if (err instanceof Error && err.name === "AbortError") return;
+      }
+    }
+
+    if (await copyText(url)) {
+      resetResult("copied");
     }
   };
 
@@ -870,10 +892,14 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
 
         <button
           className="lift"
-          style={{ ...styles.inviteButton, ...(copied ? styles.inviteButtonOk : null) }}
+          style={{ ...styles.inviteButton, ...(inviteResult ? styles.inviteButtonOk : null) }}
           onClick={handleInvite}
         >
-          {copied ? "✅ copied, go spam it" : "🔗 invite the squad"}
+          {inviteResult === "shared"
+            ? "✅ invite sent"
+            : inviteResult === "copied"
+              ? "✅ copied, go spam it"
+              : "🔗 invite the squad"}
         </button>
 
         <button className="lift" style={styles.muteButton} onClick={toggleMute}>
