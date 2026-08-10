@@ -756,8 +756,9 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
    * One PNG of the whole game: every drawing, its word, and what the AI thought it was.
    *
    * The text share (a block grid of scores) travels anywhere but shares the least interesting part.
-   * This shares the part people actually laugh at. Best-effort: a failure leaves the strip on screen
-   * and says nothing, because the game is over and there is nothing to recover.
+   * This shares the part people actually laugh at. On browsers that support
+   * file sharing, it opens the native sheet with the PNG attached; elsewhere
+   * it keeps the reliable download behavior.
    */
   const saveEvidence = async () => {
     if (savingEvidence || gallery.length === 0) return;
@@ -768,9 +769,32 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
         .map((p) => `${p.id === you?.id ? "you" : isAI(p.id) ? "🤖" : p.name} ${game?.scores[p.id] ?? 0}`)
         .join("  ·  ");
       const blob = await renderEvidencePng(gallery, line);
+      const filename = `iguess-evidence-${room}.png`;
+      const file = new File([blob], filename, { type: "image/png" });
+      // `navigator.share` alone isn't enough: some browsers can share links
+      // but reject files. `canShare` asks about this exact attachment first,
+      // so a tap never opens a broken sheet.
+      if (
+        typeof navigator.share === "function" &&
+        typeof navigator.canShare === "function" &&
+        navigator.canShare({ files: [file] })
+      ) {
+        try {
+          await navigator.share({
+            title: "iguess evidence",
+            text: "the drawings, the score, and what the AI thought it saw",
+            files: [file],
+          });
+          return;
+        } catch (err) {
+          // Cancel means the person chose not to share; don't surprise them
+          // with a download. A genuine share failure falls back below.
+          if (err instanceof Error && err.name === "AbortError") return;
+        }
+      }
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.download = `iguess-evidence-${room}.png`;
+      a.download = filename;
       a.href = href;
       document.body.appendChild(a);
       a.click();
@@ -1156,7 +1180,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                 onClick={() => void saveEvidence()}
                 title="one image of every drawing and what the AI thought it was"
               >
-                {savingEvidence ? "rendering…" : "🖼️ save the evidence"}
+                {savingEvidence ? "rendering…" : "🖼️ share the evidence"}
               </button>
             </div>
             <div style={styles.galleryStrip}>

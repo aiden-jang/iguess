@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "iguess-client", "runtimeExecutable": "pnpm", "runtimeArgs": ["dev:client"], "port": 33100 }
+  ]
+}
