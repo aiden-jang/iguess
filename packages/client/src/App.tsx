@@ -64,12 +64,19 @@ function blip(freqs: number[], muted: boolean) {
       (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     audioCtx = audioCtx ?? new Ctor();
     const ctx = audioCtx;
+    // A context built before the page has been interacted with starts suspended, and nothing here
+    // ever woke it: every cue would schedule correctly and play to nobody, for the whole session.
+    if (ctx.state === "suspended") void ctx.resume();
     freqs.forEach((f, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "triangle";
       osc.frequency.value = f;
-      const t = ctx.currentTime + i * 0.09;
+      // The 20ms offset is not spacing, it's headroom. The audio thread has already rendered up to
+      // currentTime by the time this runs, so the i=0 note booked at exactly currentTime lands in
+      // the past and the hardware skips what it missed — which eats the attack rather than the
+      // whole note, so it reads as "the first beep is quieter" instead of as a bug.
+      const t = ctx.currentTime + 0.02 + i * 0.09;
       gain.gain.setValueAtTime(0.0001, t);
       gain.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
