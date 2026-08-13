@@ -198,6 +198,7 @@ Same engine, different mode.
 ### Tests
 
 ```bash
+pnpm -r test                              # 65 tests: 44 game-server, 21 ai-worker
 pnpm --filter @iguess/game-server test    # engine + modes + helpers
 pnpm --filter @iguess/ai-worker test      # stroke→SVG + vision providers
 ```
@@ -207,6 +208,43 @@ The engine tests run whole games through the `GameEngine` with in-memory deps
 step, and guess matching.
 
 ---
+
+## Talking about this
+
+[ARCHITECTURE.md](ARCHITECTURE.md) is the long version and it's written for exactly this. The short
+version is below.
+
+**The short version.** Realtime draw-and-guess rooms like skribbl.io, except an AI actually looks at
+the canvas and races you to name the drawing. Five modes on one engine that doesn't know AI exists.
+
+**The shape.** One Durable Object per room owns the WebSocket connections and the game state, so the
+roster and stroke log sit in memory with no Redis and no cross-instance race. A separate Worker
+rasterizes the strokes to a PNG and calls a vision model, on an interval, off the socket loop.
+
+**The call I'd defend.** The game timeline and the game rules are different things. `engine.ts` owns
+turns, scoring and phases and contains zero game rules. Each mode is a strategy behind a fixed set of
+hooks. Four of the five modes were added after the engine froze without touching it. The one time the
+engine did have to change was a single transport-agnostic `draw` verb, added when AI-as-drawer
+actually needed it rather than guessed at up front.
+
+**Why Durable Objects, said properly.** A room needs one writer. On a normal stack that means a
+room-affinity cluster plus Redis plus a lock, and you spend real time on the case where two instances
+think they own the same room. A Durable Object is that cluster, already built. This project started
+on Node with ws and Redis and ported over with the engine and modes unchanged, which is the cleanest
+evidence the split was in the right place.
+
+**AI is never on the hot path.** Vision runs on an interval with a hard per-turn cap and a fallback
+chain: a paid key, then free Workers AI, then a mock. A slow or failed guess degrades to no guess. It
+never blocks the socket loop, and a per-room lifetime spend budget means a "run it back" loop can't
+run up a bill.
+
+**What breaks first.** Nothing shared, because rooms don't talk to each other. The per-room limits are
+the real ones: 8 players, a 200 msg/s token bucket per connection, and a per-IP cap checked at the
+edge before the Durable Object is even created, so one client can't spin up unbounded rooms.
+
+**What I'd change.** Reconnect identity is a `pid` the client asserts on the connect URL. It preserves
+score and drawer role across a drop, which is what it was for, but nothing stops one client claiming
+another's id. A signed token would fix it and I'd do that before this had real users.
 
 ## Game modes
 
