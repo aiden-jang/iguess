@@ -1503,7 +1503,10 @@ const styles: Record<string, React.CSSProperties> = {
     // A single row bounded to the viewport (minmax(0,1fr), not the default content-sized auto row)
     // so the flex:1 canvas fills the height instead of growing unbounded and overflowing the page.
     gridTemplateRows: "minmax(0, 1fr)",
-    height: "100vh",
+    // dvh, not vh: mobile Safari counts the URL bar inside 100vh, so the board would be taller
+    // than the screen and shift as the bar hides. A style object cannot carry a vh fallback line,
+    // and dvh is supported by every browser that can run the canvas anyway.
+    height: "100dvh",
     gap: 1,
     background: "var(--line)",
   },
