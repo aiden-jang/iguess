@@ -591,7 +591,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
     : phase === "lobby"
       ? "hit “send it” to start a round"
       : phase === "ended"
-        ? "round over — run it back"
+        ? "round over. run it back"
         : phase === "choosing"
           ? isDrawer
             ? "pick a word to start drawing ☝️"
@@ -733,7 +733,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
       try {
         await navigator.share({
           title: "iguess",
-          text: `pull up to #${room} — ${modeMeta?.label ?? effectiveMode}`,
+          text: `pull up to #${room}, ${modeMeta?.label ?? effectiveMode}`,
           url,
         });
         resetResult("shared");

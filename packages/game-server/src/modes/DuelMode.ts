@@ -85,7 +85,7 @@ export class DuelMode extends ClassicMode {
     } else {
       // You draw; the AI races to read your canvas. A correct read pays the AI (guesser) AND you
       // (drawer, +25) via the shared acceptGuess path.
-      ctx.broadcast({ type: "system", text: "your turn — make the machine guess it 🎨" });
+      ctx.broadcast({ type: "system", text: "your turn. make the machine guess it 🎨" });
       super.onTurnStart(turn, ctx); // deliver the secret word to you, the drawer
       this.stopLoop = startGuessLoop(turn, ctx, {
         aiId: AI_ID,
@@ -95,7 +95,7 @@ export class DuelMode extends ClassicMode {
         onUnavailable: () =>
           ctx.broadcast({
             type: "system",
-            text: "🤖 the machine can't see the canvas right now — this one's a freebie.",
+            text: "🤖 the machine can't see the canvas right now, so this one's a freebie.",
           }),
       });
     }
