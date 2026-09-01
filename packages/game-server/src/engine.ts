@@ -45,6 +45,8 @@ export class GameEngine {
   // While in the "choosing" phase: the words offered to the drawer and the
   // timer that auto-picks one if they dawdle. Cleared when the turn begins.
   private pendingChoices: string[] | null = null;
+  // One word-skip per player per game. Cleared with the rest of the game state in startGame.
+  private skipsUsed = new Set<string>();
   private chooseTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private deps: EngineDeps, private mode: GameMode) {}
@@ -78,7 +80,12 @@ export class GameEngine {
     // If the drawer reconnects/refreshes mid-"choosing", re-send the options — otherwise their
     // client lost them and they're stuck on "someone is picking…" (about themselves) until auto-pick.
     if (this.phase === "choosing" && playerId === this.drawerId && this.pendingChoices) {
-      this.deps.sendToPlayer(playerId, { type: "word_choices", words: this.pendingChoices, tiers: this.pendingChoices.map(tierOf) });
+      this.deps.sendToPlayer(playerId, {
+        type: "word_choices",
+        words: this.pendingChoices,
+        tiers: this.pendingChoices.map(tierOf),
+        canSkip: !this.skipsUsed.has(playerId),
+      });
     }
   }
 
@@ -118,6 +125,7 @@ export class GameEngine {
     // Fall back to a single round when the mode doesn't report a round size.
     this.turnsPerRound = Math.max(1, turnsPerRound ?? totalTurns);
     this.turnIndex = 0;
+    this.skipsUsed.clear();
     this.scoreboard = Object.fromEntries(
       [...this.roster.keys()].map((id) => [id, 0])
     );
@@ -177,7 +185,12 @@ export class GameEngine {
     this.pendingChoices = choices;
 
     void this.deps.clearCanvas();
-    this.deps.sendToPlayer(drawerId, { type: "word_choices", words: choices, tiers: choices.map(tierOf) });
+    this.deps.sendToPlayer(drawerId, {
+      type: "word_choices",
+      words: choices,
+      tiers: choices.map(tierOf),
+      canSkip: !this.skipsUsed.has(drawerId),
+    });
     this.broadcastState();
 
     if (this.chooseTimer) clearTimeout(this.chooseTimer); // never leak a prior choose-timer
@@ -195,6 +208,17 @@ export class GameEngine {
     if (playerId !== this.drawerId) return;
     if (!this.pendingChoices?.includes(word)) return;
     this.beginTurn(this.drawerId, word);
+  }
+
+  /** Swap all three options for three new ones. One skip per player per game. */
+  handleSkipWord(playerId: string) {
+    if (this.phase !== "choosing") return;
+    if (playerId !== this.drawerId) return;
+    if (this.skipsUsed.has(playerId)) return;
+    const fresh = this.mode.pickWordChoices?.(this.ctx);
+    if (!fresh || fresh.length < 2) return;
+    this.skipsUsed.add(playerId);
+    this.startChoosing(playerId, fresh);
   }
 
   private beginTurn(drawerId: string, word: string) {

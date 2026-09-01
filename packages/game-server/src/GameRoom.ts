@@ -179,6 +179,8 @@ export class GameRoom {
       game.startGame([...this.conns].map((c) => c.player.id));
     } else if (msg.type === 'choose_word') {
       game.handleChooseWord(player.id, msg.word);
+    } else if (msg.type === 'skip_word') {
+      game.handleSkipWord(player.id);
     }
   }
 

@@ -89,6 +89,11 @@ export type ClientMessage =
       // this client is the drawer in the "choosing" phase). Ignored otherwise.
       type: "choose_word";
       word: string;
+    }
+  | {
+      // Throw away all three options and get three new ones. One per player per game,
+      // so a drawer stuck with three unrawable words isn't simply stuck.
+      type: "skip_word";
     };
 
 // ---- Server → Client ----
@@ -142,6 +147,8 @@ export type ServerMessage =
       // ONLY to the drawer; they reply with `choose_word`.
       type: "word_choices";
       words: string[];
+      // Whether this drawer still has their one skip. Drives the button's enabled state.
+      canSkip: boolean;
       // Parallel to `words`: the tier of each option, so the drawer can see what
       // the harder pick is worth before committing to drawing it.
       tiers: WordTier[];
