@@ -109,11 +109,17 @@ export interface Point {
 // A single incremental drawing operation. Streaming start/move/end (rather
 // than whole completed strokes) lets watchers see a line grow in real time.
 export type DrawOp =
-  | { kind: "start"; strokeId: string; color: string; width: number; point: Point }
+  // `erase: true` lifts ink back off rather than painting over it in white. Painting white
+  // left white pixels behind, which the fill tool would then treat as a region of its own.
+  | { kind: "start"; strokeId: string; color: string; width: number; point: Point; erase?: boolean }
   // `widths` is parallel to `points` when the line tapers (stylus pressure, or speed on a
   // mouse/finger). Omitted entirely for a constant-width stroke, so nothing pays for it.
   | { kind: "move"; strokeId: string; points: Point[]; widths?: number[] }
   | { kind: "end"; strokeId: string }
+  // Bucket fill from a point. Rasterized on each client rather than sent as pixels: a fill is
+  // three numbers on the wire instead of a bitmap. Replaying at a different canvas size gives
+  // a near-identical, not bit-identical, result — fine for a doodle.
+  | { kind: "fill"; strokeId: string; color: string; point: Point }
   | { kind: "clear" }
   // Drawer-only. The client sends it bare; the server pops the stroke and echoes it back
   // naming the stroke, so every client drops that one stroke and repaints from its own log
