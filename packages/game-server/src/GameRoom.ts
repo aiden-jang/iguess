@@ -19,6 +19,7 @@ import {
   MAX_PLAYERS_PER_ROOM,
   MAX_SPECTATORS_PER_ROOM,
 } from './limits.ts';
+import { seatSpectators, pickHost } from './hosting.ts';
 import type { Env } from './env.ts';
 
 // One Durable Object per room — the single authority for that room's game. Because we use
@@ -386,11 +387,9 @@ export class GameRoom {
 
   /** Move waiting spectators into free seats, oldest first. */
   private seatSpectators(): void {
-    for (const c of this.conns) {
-      if (!c.spectator) continue;
-      if (this.playerCount() >= MAX_PLAYERS_PER_ROOM) break;
-      c.spectator = false;
-    }
+    const seated = seatSpectators([...this.conns].map((c) => ({ id: c.player.id, spectator: c.spectator })));
+    const byId = new Map(seated.map((s) => [s.id, s.spectator]));
+    for (const c of this.conns) c.spectator = byId.get(c.player.id) ?? c.spectator;
   }
 
   private presenceList(): PlayerInfo[] {
@@ -407,8 +406,10 @@ export class GameRoom {
 
   /** Longest-present connection holds the room. Called whenever the roster changes. */
   private ensureHost(): void {
-    if (this.hostId && this.findConn(this.hostId)) return;
-    this.hostId = [...this.conns].find((c) => !c.spectator)?.player.id ?? null;
+    const seats = () => [...this.conns].map((c) => ({ id: c.player.id, spectator: c.spectator }));
+    // Nobody playing but somebody watching: seat them, or the room can never start again.
+    if (this.conns.size > 0 && this.playerCount() === 0) this.seatSpectators();
+    this.hostId = pickHost(seats(), this.hostId);
   }
 
   private isHost(playerId: string): boolean {
