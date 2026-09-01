@@ -72,13 +72,20 @@ function loadImage(src: string): Promise<HTMLImageElement> {
  * `subtitle` is the one-line result ("you 4 · 🤖 6"), passed in rather than computed here so this
  * file never needs to know how scoring works.
  */
-export async function renderEvidencePng(items: EvidenceItem[], subtitle: string): Promise<Blob> {
+export async function renderEvidencePng(
+  items: EvidenceItem[],
+  subtitle: string,
+  awards: { title: string; who: string; detail: string }[] = []
+): Promise<Blob> {
   const shown = items.slice(0, 8); // two rows is plenty; more makes every drawing too small to read
   const cols = Math.min(PER_ROW, Math.max(1, shown.length));
   const rows = Math.ceil(shown.length / cols);
 
   const width = PAD * 2 + cols * CELL + (cols - 1) * GAP;
-  const headerH = 150;
+  // The awards are the punchline of the card, so they get their own band under the header
+  // rather than being squeezed into the subtitle line.
+  const awardsH = awards.length ? 26 + awards.length * 30 : 0;
+  const headerH = 150 + awardsH;
   const height = headerH + rows * (CELL + CAPTION_H) + (rows - 1) * GAP + PAD;
 
   const canvas = document.createElement("canvas");
@@ -105,6 +112,17 @@ export async function renderEvidencePng(items: EvidenceItem[], subtitle: string)
   ctx.font = "700 20px system-ui, -apple-system, sans-serif";
   const label = "THE EVIDENCE";
   ctx.fillText(label, width - PAD - ctx.measureText(label).width, 78);
+
+  awards.forEach((a, i) => {
+    const y = 168 + i * 30;
+    ctx.font = "700 22px system-ui, -apple-system, sans-serif";
+    ctx.fillStyle = TEXT;
+    ctx.fillText(`${a.title}  ${a.who}`, PAD, y);
+    const w = ctx.measureText(`${a.title}  ${a.who}`).width;
+    ctx.font = "500 20px system-ui, -apple-system, sans-serif";
+    ctx.fillStyle = MUTED;
+    ctx.fillText(`  ${a.detail}`, PAD + w, y);
+  });
 
   const images = await Promise.all(shown.map((i) => loadImage(i.png)));
 

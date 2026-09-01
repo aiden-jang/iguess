@@ -947,7 +947,7 @@ function Room({
         .slice(0, 4)
         .map((p) => `${p.id === you?.id ? "you" : isAI(p.id) ? "🤖" : p.name} ${game?.scores[p.id] ?? 0}`)
         .join("  ·  ");
-      const blob = await renderEvidencePng(gallery, line);
+      const blob = await renderEvidencePng(gallery, line, awardsFor(gallery, players));
       const filename = `iguess-evidence-${room}.png`;
       const file = new File([blob], filename, { type: "image/png" });
       // `navigator.share` alone isn't enough: some browsers can share links
