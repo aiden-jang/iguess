@@ -88,6 +88,13 @@ word. Proof the strokes sync live and the word stays secret:
   joke ("no cap that's a dog … or is it a horse"). It paces its own guessing by
   how much new ink has appeared, which also stops it spending vision calls on a
   canvas nobody is touching.
+- Rules that both sides need — undo, word tiers, the end-of-game awards — live in
+  `shared/` as pure functions, so the client and the server can't disagree about
+  them. Each is unit-tested without a socket or a Durable Object.
+
+A note on comments: they're for traps and constraints, not for describing the
+code. If a comment is there, it's recording something that would cost someone
+real time to find out the hard way — usually a thing that already bit once.
 
 ---
 

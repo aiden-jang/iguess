@@ -12,7 +12,7 @@ If you read nothing else, these are the calls I'd defend in an interview:
 2. **One Durable Object per room (§4).** Gives single-writer-per-room by construction, so roster + strokes live in memory with no Redis, no lock, no cross-instance race. It's the runtime that happens to be the room-affinity cluster I'd otherwise have hand-rolled.
 3. **AI off the hot path (§3).** Vision runs in a separate Worker on an interval with a hard per-turn cap and a provider fallback chain, so a slow or failed guess never blocks the socket loop or the game.
 4. **One abstraction, added on demand (§6).** The only engine change the whole project needed was a single transport-agnostic `ctx.draw` verb, introduced when AI-as-drawer actually required it, not speculated up front.
-5. **Production concerns are real (§7).** Server-enforced abuse limits at three layers, identity-preserving reconnect with a grace window, a committed test suite, and CI that gates deploys.
+5. **Production concerns are real (§8).** Server-enforced abuse limits at three layers, identity-preserving reconnect with a grace window, a committed test suite, and CI that gates deploys.
 
 The sections below are the long form, each ending with the trade-off I made.
 
@@ -234,6 +234,8 @@ So:
 | Team scoring | System messages + scoreboard | New `PublicGameState` fields | Team scoring is mode-specific; adding it to the shared contract is the wrong coupling |
 | Room runtime | Durable Object per room | Node + Redis / stateless + pub-sub | Single-writer-per-room by construction; roster + strokes in-memory, no external store (§4) |
 | WebSocket style | Pinned (`server.accept()`) | Hibernation API | The turn timer must survive; hibernation evicts pending timers |
+| Comments | Traps and constraints only | Explaining the code | Naming carries what the code does; a comment earns its place by recording something that would cost someone real time to rediscover |
+| Shared rules | Pure functions in `shared/` | Duplicated per side | Undo, word tiers and awards all run on both client and server, and a disagreement shows up as one player seeing a stroke another has dropped |
 | Abuse limits | Per-IP + per-room + per-connection caps | Accounts / auth | Bound the blast radius (spammed rooms, overfull rooms, message floods) without bolting a login onto a share-a-link party game |
 
 ---
@@ -255,7 +257,34 @@ up front — is the design discipline I'm most happy with here.
 
 ---
 
-## 7. Known limitations & what I'd do next
+## 7. What a post-change audit turned up
+
+Worth writing down, because none of it was caught by the unit tests that were passing at the time.
+
+- **A feature leaked into the one mode that overrode the hook.** `?word` bets on the AI's next
+  guess. `TeamBattleMode` writes its own `onChat` and never called the base, and the guess
+  normalizer strips punctuation — so `?dog` was scored as a plain answer and won the round. The
+  fix was to move the handling into a `takeCall()` the base class exposes, and say in the comment
+  that any override must run it first. **Lesson: an inherited hook that a subclass replaces is a
+  place features silently do not arrive.**
+- **A capacity rule created a state with no exit.** Spectators are seated when a host starts a
+  game, and the host is chosen from players. When every player left a full room, neither
+  condition could ever fire again and the room was stuck forever. The rule now promotes watchers
+  when nobody is playing. **Lesson: two rules that each depend on the other having run is a
+  deadlock, not a policy.**
+- **A UI control that did nothing in three of five modes.** The lobby's round-count picker fed
+  `ClassicMode`, but the AI modes each hardcoded their own length. **Lesson: adding a setting
+  means auditing every implementer, not the one you were looking at.**
+- **A first-round bug that predated all of it.** The gallery cleared itself on `turnIndex === 0`,
+  and the state broadcast immediately after a turn ends still carries the old index — so round
+  one's drawing was wiped the instant it was captured. In a one-round game that is the entire
+  gallery. It took an end-to-end test that actually played a game to the results screen to see
+  it. **Lesson: unit tests over an engine will not catch a bug in what the client does with the
+  engine's output.**
+
+---
+
+## 8. Known limitations & what I'd do next
 
 Honest list:
 
