@@ -645,6 +645,7 @@ function Room({
     sendCursor,
     reactions,
     react,
+    socketBacklog,
     turnEnd,
     chooseWord,
   } = useGameSocket(room, name, mode, avatar);
@@ -1470,6 +1471,7 @@ function Room({
             erasing={erasing}
             filling={filling}
             opsRef={roundOps}
+            socketBacklog={socketBacklog}
             onCursor={sendCursor}
             peerCursor={peerCursor}
             canDraw={canDraw}

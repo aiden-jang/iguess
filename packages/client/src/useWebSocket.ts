@@ -309,6 +309,10 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
     ws.send(JSON.stringify({ type: "cursor", point } satisfies ClientMessage));
   }, []);
 
+  // Bytes the socket has accepted but not yet put on the wire. A rising number means the
+  // link can't keep up with a stroke a frame, and the drawer should batch harder.
+  const socketBacklog = useCallback(() => wsRef.current?.bufferedAmount ?? 0, []);
+
   const react = useCallback((emoji: string) => {
     const ws = wsRef.current;
     if (ws?.readyState === WebSocket.OPEN) {
@@ -366,6 +370,7 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
     sendCursor,
     reactions,
     react,
+    socketBacklog,
     sendDraw,
     subscribeDraw,
     clearBoard,

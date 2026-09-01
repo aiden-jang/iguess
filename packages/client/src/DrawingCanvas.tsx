@@ -14,6 +14,7 @@ interface Props {
   peerCursor?: Point | null;
   // Live handle on this round's op log, so the results screen can replay the round.
   opsRef?: React.MutableRefObject<DrawOp[]>;
+  socketBacklog?: () => number;
   canDraw: boolean; // only the current drawer may paint
   // Hands the underlying <canvas> element up so the parent can snapshot it.
   onCanvas?: (el: HTMLCanvasElement | null) => void;
@@ -31,6 +32,7 @@ export function DrawingCanvas({
   onCursor,
   peerCursor,
   opsRef,
+  socketBacklog,
   canDraw,
   onCanvas,
 }: Props) {
@@ -150,9 +152,24 @@ export function DrawingCanvas({
 
   // Coalesce buffered points into one "move" op per animation frame. This
   // caps message rate (~60/s) instead of firing on every pointermove event.
+  // A stroke message a frame is fine on wifi and far too many on a bad link. When the socket
+  // is already backed up, hold the points and send one larger message later — the drawing is
+  // identical either way, and the alternative is a queue that never drains.
+  const BACKLOG_BYTES = 24_000;
+  const MAX_HELD_POINTS = 240;
+
   function flush() {
     rafPending.current = false;
     if (!strokeId.current || buffer.current.length === 0) return;
+    if (
+      socketBacklog &&
+      socketBacklog() > BACKLOG_BYTES &&
+      buffer.current.length < MAX_HELD_POINTS
+    ) {
+      rafPending.current = true;
+      requestAnimationFrame(flush);
+      return;
+    }
     const points = buffer.current;
     const widths = widthBuffer.current;
     buffer.current = [];
