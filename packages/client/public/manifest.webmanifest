@@ -1,10 +1,14 @@
 {
+  "id": "/",
   "name": "iguess",
   "short_name": "iguess",
   "description": "Real-time multiplayer drawing & guessing. Draw bad, win anyway. Race the AI.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "orientation": "any",
+  "categories": ["games", "entertainment", "social"],
+  "launch_handler": { "client_mode": "focus-existing" },
   "background_color": "#0b0a12",
   "theme_color": "#0b0a12",
   "icons": [
@@ -12,5 +16,24 @@
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Play the AI",
+      "short_name": "vs AI",
+      "description": "You draw, the AI races to guess it",
+      "url": "/#mode=ai"
+    },
+    {
+      "name": "Let the AI draw",
+      "short_name": "AI draws",
+      "description": "The AI draws, you guess",
+      "url": "/#mode=ai-drawer"
+    }
+  ],
+  "screenshots": [
+    { "src": "/screenshots/join.png", "sizes": "1280x820", "type": "image/png", "form_factor": "wide", "label": "Pick a name, a room and a mode" },
+    { "src": "/screenshots/gameplay.png", "sizes": "1280x820", "type": "image/png", "form_factor": "wide", "label": "Drawing, with the AI guessing in chat" },
+    { "src": "/screenshots/gameplay-guesser.png", "sizes": "1280x820", "type": "image/png", "form_factor": "wide", "label": "Guessing against the clock" }
   ]
 }
