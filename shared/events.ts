@@ -30,9 +30,10 @@ export type DrawOp =
   | { kind: "move"; strokeId: string; points: Point[]; widths?: number[] }
   | { kind: "end"; strokeId: string }
   | { kind: "clear" }
-  // Drawer-only: drop the last stroke. The server pops it from the log and rebroadcasts the
-  // canvas so every client rebuilds identically (never rendered directly on the client).
-  | { kind: "undo" };
+  // Drawer-only. The client sends it bare; the server pops the stroke and echoes it back
+  // naming the stroke, so every client drops that one stroke and repaints from its own log
+  // instead of being sent the whole canvas again.
+  | { kind: "undo"; strokeId?: string };
 
 // ---- Game state ----
 

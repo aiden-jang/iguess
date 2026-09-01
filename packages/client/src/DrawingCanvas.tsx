@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { DrawOp, Point } from "@iguess/shared";
+import { dropStroke } from "@iguess/shared/strokeLog";
 
 interface Props {
   sendDraw: (op: DrawOp) => void;
@@ -112,13 +113,27 @@ export function DrawingCanvas({
       case "end":
         strokes.current.delete(op.strokeId);
         break;
+      case "undo":
+        // Handled in applyOp by rebuilding the log; nothing to paint directly.
+        break;
     }
   }
 
   // Record then render, so the op-log can rebuild the canvas after a resize.
   function applyOp(op: DrawOp | { kind: "reset" }) {
-    if (op.kind === "reset" || op.kind === "clear") opLog.current = [];
-    else opLog.current.push(op);
+    if (op.kind === "reset" || op.kind === "clear") {
+      opLog.current = [];
+    } else if (op.kind === "undo") {
+      // The server names the stroke it dropped; drop the same one here and repaint from the
+      // remaining log, rather than being shipped the whole canvas back.
+      if (!op.strokeId) return;
+      opLog.current = dropStroke(opLog.current, op.strokeId);
+      render({ kind: "reset" });
+      for (const o of opLog.current) render(o);
+      return;
+    } else {
+      opLog.current.push(op);
+    }
     render(op);
   }
 

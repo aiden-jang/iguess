@@ -1,5 +1,6 @@
 import type { ClientMessage, ServerMessage, PlayerInfo, DrawOp, GameModeName } from '@iguess/shared';
 import { WordMemory } from './wordMemory.ts';
+import { lastStrokeId, dropStroke } from '@iguess/shared/strokeLog';
 import { GameEngine } from './engine.ts';
 import { ClassicMode } from './modes/ClassicMode.ts';
 import { AIGuesserMode } from './modes/AIGuesserMode.ts';
@@ -164,9 +165,12 @@ export class GameRoom {
     } else if (msg.type === 'draw') {
       if (!game.canDraw(player.id)) return; // authoritative: only the drawer draws
       if (msg.op.kind === 'undo') {
-        this.undoLastStroke();
-        // Rebuild everyone's canvas from the trimmed log (simplest correct sync for an undo).
-        this.broadcast({ type: 'canvas_sync', ops: this.strokes });
+        const strokeId = this.undoLastStroke();
+        if (!strokeId) return; // nothing drawn yet
+        // Name the stroke instead of resending the canvas: every client holds the same op log,
+        // so they can drop that one stroke and repaint. Undo used to be the largest message
+        // the room sent, fired by the button players press most.
+        this.broadcast({ type: 'draw', op: { kind: 'undo', strokeId } });
         return;
       }
       this.persist(msg.op);
@@ -291,14 +295,12 @@ export class GameRoom {
 
   // Drop the last stroke's ops (its trailing start...move...end). A single drawer draws
   // sequentially, so the last stroke is the suffix from the final "start".
-  private undoLastStroke(): void {
-    for (let i = this.strokes.length - 1; i >= 0; i--) {
-      if (this.strokes[i]!.kind === 'start') {
-        this.strokes.length = i;
-        return;
-      }
-    }
-    this.strokes = [];
+  /** Drop the last stroke and return its id, or null if there was nothing to drop. */
+  private undoLastStroke(): string | null {
+    const id = lastStrokeId(this.strokes);
+    if (!id) { this.strokes = []; return null; }
+    this.strokes = dropStroke(this.strokes, id);
+    return id;
   }
 
   private send(ws: WebSocket, msg: ServerMessage): void {
