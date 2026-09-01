@@ -1,6 +1,6 @@
 import type { ClientMessage, ServerMessage, PlayerInfo, DrawOp, GameModeName } from '@iguess/shared';
 import { WordMemory } from './wordMemory.ts';
-import { DEFAULT_SETTINGS, sanitizeSettings, isReaction, type RoomSettings } from '@iguess/shared';
+import { DEFAULT_SETTINGS, sanitizeSettings, isReaction, isAvatar, type RoomSettings } from '@iguess/shared';
 import { lastStrokeId, dropStroke } from '@iguess/shared/strokeLog';
 import { GameEngine } from './engine.ts';
 import { ClassicMode } from './modes/ClassicMode.ts';
@@ -90,11 +90,13 @@ export class GameRoom {
     const url = new URL(request.url);
     this.roomId = (url.searchParams.get('room') || 'lobby').slice(0, 32);
     const name = (url.searchParams.get('name') || 'Anon').slice(0, 24);
+    const rawAvatar = url.searchParams.get('avatar');
+    const avatar = isAvatar(rawAvatar) ? rawAvatar : undefined;
     const modeName = url.searchParams.get('mode');
     // Client-asserted stable id so a reconnect keeps identity (score, draw order, drawer role).
     const pid = url.searchParams.get('pid');
     const id = pid ? pid.slice(0, 12) : crypto.randomUUID().slice(0, 8);
-    const player: PlayerInfo = { id, name };
+    const player: PlayerInfo = { id, name, avatar };
 
     // A reconnect is either an overlap (old socket still open) or a return within the grace window
     // (a pending leave for this pid). Either way it's silent: no "joined" line, and we cancel the

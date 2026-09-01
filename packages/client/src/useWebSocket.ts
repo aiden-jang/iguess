@@ -25,9 +25,9 @@ let nextReactionId = 1;
 
 // The game server (the room's Durable Object) is same-origin: the Worker serves this SPA and
 // the /rooms/:id/ws endpoint on one host. In dev, Vite proxies /rooms to the local wrangler dev.
-function socketUrl(room: string, name: string, mode: string, pid: string): string {
+function socketUrl(room: string, name: string, mode: string, pid: string, avatar: string): string {
   const proto = window.location.protocol === "https:" ? "wss" : "ws";
-  const q = new URLSearchParams({ name, mode, pid });
+  const q = new URLSearchParams({ name, mode, pid, avatar });
   return `${proto}://${window.location.host}/rooms/${encodeURIComponent(room)}/ws?${q.toString()}`;
 }
 
@@ -80,7 +80,7 @@ const CLOSE_KICKED = 4010;
 // Owns the single persistent WebSocket connection and the derived view
 // state (who you are, the roster, the message log). The component just
 // renders this and calls `sendChat`.
-export function useGameSocket(room: string, name: string, mode: string) {
+export function useGameSocket(room: string, name: string, mode: string, avatar: string) {
   const [connected, setConnected] = useState(false);
   // A terminal rejection from the server (e.g. the room is full). Non-null → stop reconnecting and
   // show this instead of the game; the room screen renders it as a dead-end notice.
@@ -114,7 +114,7 @@ export function useGameSocket(room: string, name: string, mode: string) {
 
   useEffect(() => {
     if (!room || !name) return;
-    const url = socketUrl(room, name, mode, stablePid());
+    const url = socketUrl(room, name, mode, stablePid(), avatar);
 
     // `alive` distinguishes an intentional unmount (no reconnect) from a
     // dropped connection (reconnect with capped backoff). The server replays
@@ -237,7 +237,7 @@ export function useGameSocket(room: string, name: string, mode: string) {
       if (reconnectTimer) clearTimeout(reconnectTimer);
       wsRef.current?.close();
     };
-  }, [room, name, mode]);
+  }, [room, name, mode, avatar]);
 
   const sendChat = useCallback((text: string) => {
     const ws = wsRef.current;
