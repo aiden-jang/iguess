@@ -1101,14 +1101,24 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                   />
                 </label>
                 <label style={styles.settingLabel}>
-                  rounds
+                  ends
                   <select
                     style={styles.settingSelect}
-                    value={settings.rounds}
-                    onChange={(e) => updateSettings({ rounds: Number(e.target.value) })}
+                    value={settings.scoreTarget > 0 ? `t${settings.scoreTarget}` : `r${settings.rounds}`}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      updateSettings(
+                        v.startsWith("t")
+                          ? { scoreTarget: Number(v.slice(1)) }
+                          : { scoreTarget: 0, rounds: Number(v.slice(1)) }
+                      );
+                    }}
                   >
                     {[1, 2, 3, 4, 5, 6, 8].map((n) => (
-                      <option key={n} value={n}>{n}</option>
+                      <option key={`r${n}`} value={`r${n}`}>{n} rounds</option>
+                    ))}
+                    {[300, 500, 1000].map((n) => (
+                      <option key={`t${n}`} value={`t${n}`}>first to {n}</option>
                     ))}
                   </select>
                 </label>

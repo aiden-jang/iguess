@@ -520,3 +520,27 @@ test("custom words cannot flood the pool", () => {
   const many = Array.from({ length: 500 }, (_, i) => `word${i}`.replace(/\d/g, "a"));
   assert.ok(sanitizeSettings({ customWords: many }).customWords.length <= 40);
 });
+
+test("a score target ends the game the moment someone reaches it", () => {
+  const { engine, broadcasts, sent } = makeHarness({ a: "Ann", b: "Bob" });
+  engine.applySettings(sanitizeSettings({ rounds: 8, scoreTarget: 60 }));
+  engine.startGame(["a", "b"]);
+  settleChoosing(engine, broadcasts, sent);
+  const drawer = latestState(broadcasts).drawerId!;
+  const guesser = drawer === "a" ? "b" : "a";
+  engine.handleChat(guesser, wordSentTo(sent, drawer)); // 50..100 → clears 60
+  flush();
+  assert.equal(latestState(broadcasts).phase, "ended", "should not have played all 8 rounds");
+});
+
+test("with no target the game plays out its rounds", () => {
+  const { engine, broadcasts, sent } = makeHarness({ a: "Ann", b: "Bob" });
+  engine.applySettings(sanitizeSettings({ rounds: 3, scoreTarget: 0 }));
+  engine.startGame(["a", "b"]);
+  settleChoosing(engine, broadcasts, sent);
+  const drawer = latestState(broadcasts).drawerId!;
+  const guesser = drawer === "a" ? "b" : "a";
+  engine.handleChat(guesser, wordSentTo(sent, drawer));
+  flush();
+  assert.notEqual(latestState(broadcasts).phase, "ended", "one guess should not end a 3-round game");
+});

@@ -332,7 +332,11 @@ export class GameEngine {
     this.broadcastState();
 
     this.turnIndex += 1;
-    if (this.turnIndex >= this.totalTurns) {
+    // A score target ends the game whenever someone reaches it. The round count still applies
+    // as a backstop, so a target nobody hits can't run forever.
+    const target = this.settings.scoreTarget;
+    const reached = target > 0 && Math.max(0, ...Object.values(this.scoreboard)) >= target;
+    if (reached || this.turnIndex >= this.totalTurns) {
       setTimeout(() => {
         this.phase = "ended";
         this.drawerId = null;
