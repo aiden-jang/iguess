@@ -28,6 +28,7 @@ export class ClassicMode implements GameMode {
   private usedWords = new Set<string>();
   private memory?: WordMemory;
   private packs: string[] = [];
+  private customWords: string[] = [];
 
   constructor(rounds = 3) {
     this.rounds = Math.max(1, rounds);
@@ -40,6 +41,7 @@ export class ClassicMode implements GameMode {
   useSettings(settings: RoomSettings): void {
     this.rounds = Math.max(1, settings.rounds);
     this.packs = settings.packs;
+    this.customWords = settings.customWords;
   }
 
   configure(
@@ -85,7 +87,10 @@ export class ClassicMode implements GameMode {
   // Pick one word not yet used this game (without marking it used — callers
   // decide what to reserve). Resets the pool if exhausted so we never dead-end.
   private freshWord(tier?: Tier): string {
-    const pool = tier ? poolFor(tier, this.packs) : WORDS;
+    // A room's own words go in the easy slot: they're the ones players actually want to draw,
+    // and nothing outside the built-in list has a tier to score by.
+    const base = tier ? poolFor(tier, this.packs) : WORDS;
+    const pool = tier === "easy" && this.customWords.length ? [...this.customWords, ...base] : base;
     // Reset against the pool actually being drawn from: with tiers, easy can run dry
     // while the combined used-set is still far from the full list.
     if (pool.every((w) => this.usedWords.has(w))) this.usedWords.clear();

@@ -489,7 +489,7 @@ test("only the drawer can skip", () => {
 
 test("room settings change the clock and the round count", () => {
   const { engine, broadcasts, sent } = makeHarness({ a: "Ann", b: "Bob" });
-  engine.applySettings({ turnSeconds: 25, rounds: 5, aiSkill: "normal" });
+  engine.applySettings(sanitizeSettings({ turnSeconds: 25, rounds: 5 }));
   engine.startGame(["a", "b"]);
   settleChoosing(engine, broadcasts, sent);
   const st = latestState(broadcasts);
@@ -509,4 +509,14 @@ test("garbage settings fall back to the defaults", () => {
   const junk = sanitizeSettings({ turnSeconds: "soon" as never, rounds: NaN });
   assert.equal(junk.turnSeconds, DEFAULT_SETTINGS.turnSeconds);
   assert.equal(junk.rounds, DEFAULT_SETTINGS.rounds);
+});
+
+test("a room's own words are cleaned before they can be drawn", () => {
+  const s = sanitizeSettings({ customWords: ["  Ross's HAIR ", "!!!", "ok", "café", "x", "Ross's hair"] });
+  assert.deepEqual(s.customWords, ["rosss hair", "ok", "cafe"]);
+});
+
+test("custom words cannot flood the pool", () => {
+  const many = Array.from({ length: 500 }, (_, i) => `word${i}`.replace(/\d/g, "a"));
+  assert.ok(sanitizeSettings({ customWords: many }).customWords.length <= 40);
 });

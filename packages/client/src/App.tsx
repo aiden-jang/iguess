@@ -1055,6 +1055,16 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                   })}
                 </span>
                 <label style={styles.settingLabel}>
+                  ours
+                  <input
+                    style={{ ...styles.settingSelect, width: 150 }}
+                    placeholder="your own words, comma separated"
+                    defaultValue={settings.customWords.join(", ")}
+                    onBlur={(e) => updateSettings({ customWords: e.target.value.split(",") })}
+                    onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                  />
+                </label>
+                <label style={styles.settingLabel}>
                   round
                   <select
                     style={styles.settingSelect}
@@ -1080,6 +1090,16 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                     </select>
                   </label>
                 )}
+                <label style={styles.settingLabel}>
+                  ours
+                  <input
+                    style={{ ...styles.settingSelect, width: 150 }}
+                    placeholder="your own words, comma separated"
+                    defaultValue={settings.customWords.join(", ")}
+                    onBlur={(e) => updateSettings({ customWords: e.target.value.split(",") })}
+                    onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                  />
+                </label>
                 <label style={styles.settingLabel}>
                   rounds
                   <select
