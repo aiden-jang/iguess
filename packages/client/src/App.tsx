@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useGameSocket } from "./useWebSocket";
 import { DrawingCanvas } from "./DrawingCanvas";
 import { renderEvidencePng } from "./evidenceCard";
+import { useWakeLock } from "./useWakeLock";
 import type { WordTier } from "@iguess/shared";
 
 // What each tier pays, mirroring TIER_MULTIPLIER on the server.
@@ -588,6 +589,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
   const isDrawer = !!game && game.drawerId === you?.id;
   const canDraw = phase === "playing" && isDrawer;
   const inGame = phase === "playing" || phase === "intermission";
+  useWakeLock(inGame || phase === "choosing");
 
   // Why the canvas is inert right now, so a disabled board never just reads as "broken".
   const drawDisabledReason: string | null = canDraw
