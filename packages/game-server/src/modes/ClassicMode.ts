@@ -1,5 +1,5 @@
 import type { GameMode, EngineContext, PlayerRef, TurnContext } from "./GameMode.ts";
-import { WORDS, WORDS_BY_TIER, TIERS, TIER_MULTIPLIER, randomWord, tierOf, type Tier } from "../words.ts";
+import { WORDS, WORDS_BY_TIER, TIERS, TIER_MULTIPLIER, randomWord, tierOf, type Tier } from "@iguess/shared/words";
 import { normalizeGuess, isClose } from "../text.ts";
 import type { WordMemory } from "../wordMemory.ts";
 

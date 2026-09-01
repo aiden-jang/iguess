@@ -4,7 +4,7 @@ import { ClassicMode } from "./ClassicMode.ts";
 import { startGuessLoop } from "../ai/aiGuessLoop.ts";
 import { startDrawLoop } from "../ai/aiDrawLoop.ts";
 import { DOODLE_WORDS } from "../doodles.ts";
-import { randomWord } from "../words.ts";
+import { randomWord } from "@iguess/shared/words";
 import { normalizeGuess } from "../text.ts";
 import type { AIGuess } from "../services/aiWorkerClient.ts";
 

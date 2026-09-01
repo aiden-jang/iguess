@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { ServerMessage } from "@iguess/shared";
 import type { EngineContext, PlayerRef } from "./GameMode.ts";
 import { ClassicMode } from "./ClassicMode.ts";
-import { TIERS, WORDS_BY_TIER, tierOf } from "../words.ts";
+import { TIERS, WORDS_BY_TIER, tierOf } from "@iguess/shared/words";
 
 function makeCtx(frac: number, word: string) {
   const scores: Record<string, number> = {};

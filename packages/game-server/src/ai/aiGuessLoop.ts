@@ -1,5 +1,5 @@
 import type { EngineContext, TurnContext } from "../modes/GameMode.ts";
-import { WORDS } from "../words.ts";
+import { WORDS } from "@iguess/shared/words";
 import { normalizeGuess } from "../text.ts";
 import type { AIGuess } from "../services/aiWorkerClient.ts";
 

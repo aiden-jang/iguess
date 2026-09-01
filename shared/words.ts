@@ -1,4 +1,4 @@
-import type { WordTier } from '@iguess/shared';
+import type { WordTier } from './events.ts';
 import wordsByTier from './words.json';
 
 export type Tier = WordTier;

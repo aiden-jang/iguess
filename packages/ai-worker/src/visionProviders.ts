@@ -1,4 +1,5 @@
 import type { AiBinding, Env } from './env.ts';
+import { WORDS_BY_TIER } from '@iguess/shared/words';
 
 // A pluggable vision backend. Swap providers without touching the worker's HTTP layer or the
 // game server. Keys/config come from the Worker env (not process.env — this runs on Workers).
@@ -25,10 +26,9 @@ function promptFor(hint?: string): string {
   );
 }
 
-const COMMON = [
-  'cat', 'dog', 'house', 'tree', 'car', 'sun', 'fish', 'star', 'boat',
-  'flower', 'apple', 'bird', 'face', 'heart', 'cloud',
-];
+// The mock and the last-resort fallback guess from the game's own easy tier. A hard-coded
+// fifteen looked obviously canned once the real list passed a few hundred words.
+const COMMON = WORDS_BY_TIER.easy;
 
 interface ChatLike {
   choices?: { message?: { content?: string } }[];
