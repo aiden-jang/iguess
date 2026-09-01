@@ -897,7 +897,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
             <span style={{ fontSize: 40 }}>🚪</span>
             <div style={{ fontWeight: 800, fontSize: 24 }}>room's packed</div>
           </div>
-          <p style={{ color: "#c9cde0", lineHeight: 1.5, margin: "0 0 20px" }}>{fatal}</p>
+          <p style={{ color: "var(--muted)", lineHeight: 1.5, margin: "0 0 20px" }}>{fatal}</p>
           <button className="lift" style={{ ...styles.button, ...styles.buttonBig }} onClick={onLeave}>
             back to the lobby
           </button>
@@ -1233,7 +1233,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                     because being right is not funny and pretending it is would be smug.
                   */}
                   {g.right ? (
-                    <p style={{ ...styles.galleryGuess, color: "#a3e635" }}>🤖 got it</p>
+                    <p style={{ ...styles.galleryGuess, color: "var(--on-good)" }}>🤖 got it</p>
                   ) : g.guess ? (
                     <p style={styles.galleryGuess}>🤖 &ldquo;{g.guess}&rdquo;</p>
                   ) : (
@@ -1379,7 +1379,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid var(--line)",
     borderRadius: 20,
     padding: 28,
-    boxShadow: "0 24px 60px rgba(0,0,0,0.45)",
+    boxShadow: "0 24px 60px var(--shadow-deep)",
   },
   brand: { display: "flex", alignItems: "center", gap: 14, marginBottom: 22 },
   brandMark: {
@@ -1434,7 +1434,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   modeCardActive: {
     borderColor: "var(--accent)",
-    background: "linear-gradient(180deg, rgba(99,102,241,0.18), rgba(99,102,241,0.06))",
+    background: "var(--tint-accent)",
     boxShadow: "0 0 0 1px var(--accent)",
   },
   modeIcon: { fontSize: 20 },
@@ -1453,8 +1453,8 @@ const styles: Record<string, React.CSSProperties> = {
     margin: "16px 0 4px",
     padding: "12px 14px",
     borderRadius: 12,
-    background: "rgba(255,255,255,0.03)",
-    border: "1px solid rgba(255,255,255,0.08)",
+    background: "var(--raise)",
+    border: "1px solid var(--raise-line)",
   },
   howtoTitle: {
     display: "block",
@@ -1479,7 +1479,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "10px 12px",
     borderRadius: 12,
     fontSize: 13,
-    background: "linear-gradient(180deg, rgba(99,102,241,0.18), rgba(99,102,241,0.06))",
+    background: "var(--tint-accent)",
     border: "1px solid var(--accent)",
     color: "var(--text)",
   },
@@ -1491,14 +1491,14 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     borderRadius: 10,
     border: "1px dashed var(--accent)",
-    background: "rgba(99,102,241,0.08)",
+    background: "var(--tint-accent-soft)",
     color: "var(--accent-2)",
     transition: "all .12s ease",
   },
   inviteButtonOk: {
     border: "1px solid var(--good)",
-    background: "rgba(34,197,94,0.12)",
-    color: "#4ade80",
+    background: "var(--tint-good)",
+    color: "var(--on-good)",
   },
   streakBadge: {
     margin: "16px 0 0",
@@ -1506,9 +1506,9 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 10,
     fontSize: 13,
     fontWeight: 600,
-    background: "rgba(251,146,60,0.14)",
-    border: "1px solid rgba(251,146,60,0.5)",
-    color: "#fdba74",
+    background: "var(--tint-warm)",
+    border: "1px solid var(--warm-line)",
+    color: "var(--on-warm)",
   },
   muteButton: {
     width: "100%",
@@ -1580,7 +1580,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "5px 10px",
     borderRadius: 999,
   },
-  statusOk: { background: "rgba(34,197,94,0.12)", color: "#4ade80" },
+  statusOk: { background: "var(--tint-good)", color: "var(--on-good)" },
   statusBad: { background: "rgba(239,68,68,0.12)", color: "#f87171" },
   statusDot: {
     width: 7,
@@ -1607,7 +1607,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   scoreRowMe: { boxShadow: "inset 0 0 0 1px var(--accent)" },
   scoreRowDrawer: {
-    background: "linear-gradient(180deg, rgba(99,102,241,0.16), rgba(99,102,241,0.04))",
+    background: "var(--tint-accent)",
   },
   rank: {
     width: 18,
@@ -1672,7 +1672,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: "100%",
     display: "block",
     borderRadius: 10,
-    border: "1px solid rgba(255,255,255,.18)",
+    border: "1px solid var(--hair)",
     background: "#fff",
   },
   // Tighter and dimmer than the word: the word is what it was, the guess is the aside.
@@ -1712,7 +1712,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     fontWeight: 700,
     color: "var(--accent-2)",
-    background: "rgba(99,102,241,0.14)",
+    background: "var(--tint-accent-soft)",
     padding: "4px 10px",
     borderRadius: 999,
   },
@@ -1790,7 +1790,7 @@ const styles: Record<string, React.CSSProperties> = {
     position: "relative",
     borderRadius: 14,
     overflow: "hidden",
-    boxShadow: "0 10px 40px rgba(0,0,0,0.35)",
+    boxShadow: "0 10px 40px var(--shadow)",
   },
   hotTake: {
     position: "absolute",
@@ -1900,7 +1900,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 14,
     color: "#111",
     background: "#fbbf24",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
+    boxShadow: "0 4px 16px var(--shadow)",
   },
   inputRow: { display: "flex", gap: 8 },
   reactRow: { display: "flex", gap: 6, marginBottom: 8 },

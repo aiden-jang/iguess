@@ -10,6 +10,24 @@
   --grad: linear-gradient(135deg, #a855f7 0%, #f472b6 55%, #fb923c 100%);
   --good: #34d399;
   --bad: #fb7185;
+  /* Overlay tints. Separate tokens because "a bit lighter than the surface" flips
+     to "a bit darker" under a light palette. */
+  --raise: rgba(255, 255, 255, 0.03);
+  --raise-line: rgba(255, 255, 255, 0.08);
+  --hair: rgba(255, 255, 255, 0.18);
+  --shadow: rgba(0, 0, 0, 0.35);
+  --shadow-deep: rgba(0, 0, 0, 0.45);
+  --glow: rgba(168, 85, 247, 0.2);
+  --glass: rgba(29, 26, 43, 0.55);
+  /* Status tints. Low-alpha washes read fine on the dark palette but vanish on light,
+     and their text colours flip from pale to deep. */
+  --tint-accent: linear-gradient(180deg, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0.06));
+  --tint-accent-soft: rgba(99, 102, 241, 0.08);
+  --tint-good: rgba(34, 197, 94, 0.12);
+  --on-good: #4ade80;
+  --tint-warm: rgba(251, 146, 60, 0.14);
+  --warm-line: rgba(251, 146, 60, 0.5);
+  --on-warm: #fdba74;
 
   /* Spring easing, sampled from a damped harmonic oscillator. A cubic-bezier is bounded by
      its endpoints and so cannot overshoot and settle back, however springy the control
@@ -18,6 +36,40 @@
   --ease-spring: linear(0, 0.038, 0.13, 0.248, 0.373, 0.494, 0.604, 0.699, 0.778, 0.842, 0.893, 0.931, 0.959, 0.98, 0.993, 1.002, 1.008, 1.01, 1.011, 1.011, 1.01, 1.009, 1.007, 1.006, 1.005, 1.004, 1.003, 1.002, 1);
   --ease-bounce: linear(0, 0.084, 0.277, 0.507, 0.724, 0.899, 1.022, 1.093, 1.122, 1.121, 1.102, 1.074, 1.046, 1.021, 1.003, 0.991, 0.986, 0.984, 0.986, 0.989, 0.993, 0.996, 0.999, 1.001, 1.002, 1.002, 1.002, 1.002, 1);
 }
+/* The app is authored dark. Light is a full token swap for people whose OS asks for it,
+   which also stops form controls and scrollbars rendering dark-on-light. */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f7f4fd;
+    --panel: #ffffff;
+    --panel-2: #f1ecfa;
+    --line: #e0d7f2;
+    --text: #1b1526;
+    --muted: #675e7d;
+    --accent: #7c3aed;
+    --accent-2: #db2777;
+    --grad: linear-gradient(135deg, #7c3aed 0%, #db2777 55%, #ea580c 100%);
+    --good: #059669;
+    --bad: #e11d48;
+    --raise: rgba(20, 10, 40, 0.03);
+    --raise-line: rgba(20, 10, 40, 0.09);
+    --hair: rgba(20, 10, 40, 0.16);
+    --shadow: rgba(40, 20, 70, 0.14);
+    --shadow-deep: rgba(40, 20, 70, 0.2);
+    --glow: rgba(168, 85, 247, 0.12);
+    --glass: rgba(255, 255, 255, 0.66);
+    --tint-accent: linear-gradient(180deg, rgba(99, 102, 241, 0.14), rgba(99, 102, 241, 0.05));
+    --tint-accent-soft: rgba(99, 102, 241, 0.07);
+    --tint-good: rgba(5, 150, 105, 0.12);
+    --on-good: #047857;
+    --tint-warm: rgba(234, 88, 12, 0.12);
+    --warm-line: rgba(234, 88, 12, 0.45);
+    --on-warm: #9a3412;
+  }
+}
+
+:root { color-scheme: dark light; }
+
 h1, h2, h3 { text-wrap: balance; }
 p { text-wrap: pretty; }
 * { box-sizing: border-box; }
@@ -30,7 +82,7 @@ body {
   margin: 0;
   font-family: "Inter Variable", "Inter", system-ui, sans-serif;
   background:
-    radial-gradient(1100px 560px at 82% -12%, rgba(168,85,247,0.20) 0%, transparent 60%),
+    radial-gradient(1100px 560px at 82% -12%, var(--glow) 0%, transparent 60%),
     var(--bg);
   /* Glue the gradient to the viewport so it covers the visible area at any scroll position
      instead of ending at the body box. */
@@ -76,7 +128,7 @@ input:focus-visible { outline-offset: 0; }
 }
 /* Frosted glass panel. */
 .glass {
-  background: rgba(29, 26, 43, 0.55);
+  background: var(--glass);
   backdrop-filter: blur(14px) saturate(140%);
   -webkit-backdrop-filter: blur(14px) saturate(140%);
 }
