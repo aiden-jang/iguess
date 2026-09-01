@@ -539,6 +539,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
     clearBoard,
     startGame,
     wordChoices,
+    skipWord,
     turnEnd,
     chooseWord,
   } = useGameSocket(room, name, mode);
@@ -1067,7 +1068,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                 <span style={styles.wordZone}>
                   <span style={styles.wordVerb}>pick one</span>
                   <span className="word-tiles" style={styles.tiles}>
-                    {wordChoices.map((c) => (
+                    {wordChoices.options.map((c) => (
                       <button
                         key={c.word}
                         className="lift"
@@ -1079,6 +1080,16 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                         <span style={styles.tierBadge}>{TIER_LABEL[c.tier]}</span>
                       </button>
                     ))}
+                    {wordChoices.canSkip && (
+                      <button
+                        className="lift"
+                        style={styles.skipButton}
+                        onClick={skipWord}
+                        title="swap all three for new ones (once per game)"
+                      >
+                        ↻ skip
+                      </button>
+                    )}
                   </span>
                 </span>
               ) : (
@@ -1740,6 +1751,16 @@ const styles: Record<string, React.CSSProperties> = {
     color: "var(--muted)",
   },
   tiles: { display: "flex", gap: 5 },
+  skipButton: {
+    padding: "10px 14px",
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: "pointer",
+    borderRadius: 10,
+    border: "1px dashed var(--line)",
+    background: "transparent",
+    color: "var(--muted)",
+  },
   tierBadge: {
     marginLeft: 6,
     fontSize: 10,

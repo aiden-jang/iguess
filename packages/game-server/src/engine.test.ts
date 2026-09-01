@@ -451,3 +451,36 @@ test("a near-miss privately nudges only the guesser and stays public chat", () =
     "nudge must not leak to the drawer"
   );
 });
+
+test("a skip swaps every option, and only works once per game", () => {
+  const { engine, broadcasts, sent } = makeHarness({ a: "Ann", b: "Bob" });
+  engine.startGame(["a", "b"]);
+  const choicesFor = (id: string) => {
+    const inbox = sent[id] ?? [];
+    for (let i = inbox.length - 1; i >= 0; i--) {
+      const m = inbox[i]!;
+      if (m.type === "word_choices") return m;
+    }
+    throw new Error(`no word_choices for ${id}`);
+  };
+  const drawer = latestState(broadcasts).drawerId!;
+  const before = choicesFor(drawer);
+  assert.equal(before.canSkip, true);
+
+  engine.handleSkipWord(drawer);
+  const after = choicesFor(drawer);
+  for (const w of after.words) assert.ok(!before.words.includes(w), `${w} survived the skip`);
+  assert.equal(after.canSkip, false, "the skip should be spent");
+
+  engine.handleSkipWord(drawer);
+  assert.deepEqual(choicesFor(drawer).words, after.words, "a second skip should do nothing");
+});
+
+test("only the drawer can skip", () => {
+  const { engine, sent } = makeHarness({ a: "Ann", b: "Bob" });
+  engine.startGame(["a", "b"]);
+  const drawerInbox = () => (sent["a"] ?? []).concat(sent["b"] ?? []).filter((m) => m.type === "word_choices");
+  const before = drawerInbox().length;
+  engine.handleSkipWord("nobody");
+  assert.equal(drawerInbox().length, before, "a non-drawer should not get new choices");
+});
