@@ -25,7 +25,7 @@ export default {
       const ops = Array.isArray(body?.ops) ? body.ops : [];
       // Guard against a caller ever sending the answer itself: a hint with no blanks is not a hint.
       const hint = typeof body?.hint === 'string' && body.hint.includes('_') ? body.hint : undefined;
-      if (ops.length === 0) return Response.json({ guess: '', provider: providers[0]?.name });
+      if (ops.length === 0) return Response.json({ guess: '', alternatives: [], provider: providers[0]?.name });
 
       // Rasterize once, only if a real vision model will use it (mock needs no image).
       let png = '';
@@ -41,7 +41,7 @@ export default {
       // key (e.g. OpenAI 429) thus falls through to free Workers AI, then the mock — never a dead AI.
       const result = await guessWithFallback(providers, png, hint);
       if (result) return Response.json(result);
-      return Response.json({ guess: '', error: 'vision_failed' }, { status: 502 });
+      return Response.json({ guess: '', alternatives: [], error: 'vision_failed' }, { status: 502 });
     }
 
     return new Response('Not found', { status: 404 });
