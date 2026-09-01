@@ -232,7 +232,23 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
 
     connect();
 
+    // Backoff alone means coming out of a tunnel, or back to the tab, costs up to five more
+    // seconds of staring at a frozen board. Both events say the network is worth another try.
+    const retryNow = () => {
+      if (!alive) return;
+      if (document.visibilityState !== "visible") return;
+      const ws = wsRef.current;
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      attempt = 0;
+      connect();
+    };
+    document.addEventListener("visibilitychange", retryNow);
+    window.addEventListener("online", retryNow);
+
     return () => {
+      document.removeEventListener("visibilitychange", retryNow);
+      window.removeEventListener("online", retryNow);
       alive = false;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       wsRef.current?.close();
