@@ -1,7 +1,9 @@
 // The AI is the app's whole differentiator and it was called "🤖 AI" in four separate files.
 // Naming it after the answer it reaches for is the joke the README already makes.
 
-export const AI_NAME = "🤖 dogbot";
+// No emoji here: every surface that shows an AI already adds its own badge, so baking one
+// into the name renders it twice ("🤖 🤖 dogbot").
+export const AI_NAME = "dogbot";
 
 // Said when it loses a turn it was sure about.
 const SALTY = [
