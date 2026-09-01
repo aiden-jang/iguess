@@ -316,7 +316,9 @@ export type ServerMessage =
 export type ServerMessageType = ServerMessage["type"];
 // The only emoji a client may send. An open string field here is a way to paint arbitrary
 // text over everyone's canvas.
-export const REACTIONS = ["😂", "🔥", "💀", "👏", "😍", "🤔", "🗑️", "🐶"] as const;
+// Single-codepoint emoji only. 🗑️ carries a variation selector and rendered as a missing-glyph
+// box in Chrome on macOS.
+export const REACTIONS = ["😂", "🔥", "💀", "👏", "😍", "🤔", "🙈", "🐶"] as const;
 export type Reaction = (typeof REACTIONS)[number];
 
 export function isReaction(s: unknown): s is Reaction {
