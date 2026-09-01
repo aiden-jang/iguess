@@ -93,6 +93,16 @@ function blip(freqs: number[], muted: boolean) {
   }
 }
 
+// Haptics run independently of the mute toggle: muting is about noise, and a buzz is the
+// discreet channel. Android-only in practice — iOS Safari has no Vibration API.
+function buzz(pattern: number | number[]) {
+  try {
+    navigator.vibrate?.(pattern);
+  } catch {
+    /* no vibration hardware — no-op */
+  }
+}
+
 // Export the canvas as a downloadable PNG (white background baked in).
 function saveCanvasPng(canvas: HTMLCanvasElement, room: string) {
   const out = document.createElement("canvas");
@@ -456,11 +466,20 @@ const TURN_MS = 60_000;
 
 function Countdown({ endsAt }: { endsAt: number | null }) {
   const [now, setNow] = useState(Date.now());
+  const buzzedAt = useRef<number | null>(null);
   useEffect(() => {
     if (!endsAt) return;
     const id = setInterval(() => setNow(Date.now()), 120);
     return () => clearInterval(id);
   }, [endsAt]);
+  // One buzz per turn as time runs out. Keyed on the deadline so a new turn re-arms it.
+  useEffect(() => {
+    if (!endsAt || buzzedAt.current === endsAt) return;
+    if (endsAt - now <= 5_000) {
+      buzzedAt.current = endsAt;
+      buzz([40, 80, 40]);
+    }
+  }, [endsAt, now]);
   if (!endsAt) return null;
   const msLeft = Math.max(0, endsAt - now);
   const secs = Math.ceil(msLeft / 1000);
@@ -623,6 +642,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
     if (canDraw) {
       setToast("🎨 you're up, cook!");
       blip([523, 784], muted); // little "ping!"
+      buzz([18, 60, 18]);
       const t = setTimeout(() => setToast(null), 2600);
       return () => clearTimeout(t);
     }
@@ -639,11 +659,13 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
     if (you && fresh.includes(you.id)) {
       setBurstKey((k) => k + 1);
       blip([659, 880, 1175], muted);
+      buzz([12, 40, 12, 40, 30]);
       setToast("✅ nailed it! big brain 🧠");
       const t = setTimeout(() => setToast(null), 2400);
       return () => clearTimeout(t);
     } else {
       blip([880], muted); // someone else got it
+      buzz(12);
     }
   }, [game?.guessedIds]);
 
@@ -673,10 +695,12 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
     if (won) {
       setWinConfetti(Math.min(48 + streak * 16, 160)); // bigger party per streak
       blip([523, 659, 784, 1047], muted); // ascending fanfare
+      buzz([25, 50, 25, 50, 90]);
       setToast(streak > 1 ? `🏆 dub! ${streak} in a row 🔥` : pick(WIN_LINES));
     } else {
       setWinConfetti(48);
       blip([330, 247], muted); // sad trombone-ish
+      buzz(140);
       setToast(pick(LOSS_LINES));
     }
     const t = setTimeout(() => setToast(null), 2000);
