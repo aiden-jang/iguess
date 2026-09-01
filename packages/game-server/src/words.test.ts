@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { WORDS, WORDS_BY_TIER, TIERS, randomWord, tierOf } from "./words.ts";
+import { WORDS, WORDS_BY_TIER, TIERS, randomWord, tierOf } from "@iguess/shared/words";
 
 test("every word belongs to exactly one tier", () => {
   const counts = new Map<string, number>();

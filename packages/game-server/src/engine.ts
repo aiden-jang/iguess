@@ -1,5 +1,5 @@
 import type { ServerMessage, PublicGameState, GamePhase, DrawOp } from "@iguess/shared";
-import { tierOf } from "./words.ts";
+import { tierOf } from "@iguess/shared/words";
 import type { GameMode, EngineContext, PlayerRef, TurnContext } from "./modes/GameMode.ts";
 
 const TURN_MS = 60_000;
