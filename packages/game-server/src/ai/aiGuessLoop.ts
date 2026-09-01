@@ -13,6 +13,8 @@ const FIRST_GUESS_MS = 8_000; // let the drawer get something on the canvas
 const BUSY_MS = 4_000;
 const STEADY_MS = 8_000;
 const IDLE_MS = 15_000;
+const TEASE_MS = 1_300; // beat between the wrong shout and the answer
+const TEASE_CHANCE = 0.6;
 const BUSY_OPS = 45;
 const STEADY_OPS = 12;
 const MAX_GUESSES = 4; // cost cap per turn
@@ -69,6 +71,9 @@ export interface GuessLoopOpts {
   // Timing seams, so the loop is drivable in a test without waiting out real seconds.
   firstGuessMs?: number;
   intervalMs?: number;
+  teaseMs?: number;
+  // 0..1, how often a win is preceded by a wrong shout. A seam so tests aren't coin flips.
+  teaseChance?: number;
 }
 
 /** How long to wait before looking again, given how much was drawn since the last look. */
@@ -93,11 +98,13 @@ export function startGuessLoop(
   // attempt() stops the loop itself when the turn is decided, and it is chained to schedule().
   // Without this the re-arm would resurrect a loop that had just shut down.
   let stopped = false;
+  let teaseTimer: ReturnType<typeof setTimeout> | null = null;
 
   const stop = () => {
     stopped = true;
     if (firstTimer) { clearTimeout(firstTimer); firstTimer = null; }
     if (interval) { clearTimeout(interval); interval = null; }
+    if (teaseTimer) { clearTimeout(teaseTimer); teaseTimer = null; }
   };
 
   const getGuess = async (): Promise<AIGuess> => {
@@ -132,11 +139,32 @@ export function startGuessLoop(
     // reads as a bug, so any matching guess in the shortlist counts.
     const hit = [guess, ...alternatives].find((g) => matchesWord(g, turn.word));
     const correct = hit !== undefined;
-    // Correct guesses read straight (the engine adds a "guessed it!" notice);
-    // misses get the hedging personality so the bot feels alive, not robotic.
-    const text = correct ? hit : phraseGuess(guess, alternatives);
-    ctx.broadcast({ type: "chat", from: { id: opts.aiId, name: opts.aiName }, text });
-    if (correct) { stop(); opts.onCorrect(); }
+    const say = (text: string) =>
+      ctx.broadcast({ type: "chat", from: { id: opts.aiId, name: opts.aiName }, text });
+
+    if (!correct) {
+      // Misses get the hedging personality so the bot feels alive, not robotic.
+      say(phraseGuess(guess, alternatives));
+      return;
+    }
+
+    // Landing the answer out of nowhere is flat. A wrong shout, a beat, then the answer plays
+    // like it worked it out. The beat is short and guarded: the turn can end inside it.
+    const tease = alternatives.find((a) => !matchesWord(a, turn.word));
+    stop();
+    if (tease && Math.random() < (opts.teaseChance ?? TEASE_CHANCE)) {
+      say(`wait… is it a ${tease}?`);
+      stopped = false; // the tease is still to come; stop() must be able to cancel it
+      teaseTimer = setTimeout(() => {
+        teaseTimer = null;
+        if (stopped || ctx.currentWord() !== turn.word) return;
+        say(hit!);
+        opts.onCorrect();
+      }, opts.teaseMs ?? TEASE_MS);
+      return;
+    }
+    say(hit!);
+    opts.onCorrect();
   };
 
   const schedule = () => {

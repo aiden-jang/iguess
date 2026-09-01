@@ -7,9 +7,10 @@ import { DOODLE_WORDS } from "../doodles.ts";
 import { randomWord } from "@iguess/shared/words";
 import { normalizeGuess } from "../text.ts";
 import type { AIGuess } from "../services/aiWorkerClient.ts";
+import { AI_NAME } from "../ai/persona.ts";
 
 const AI_ID = "ai-team";
-const AI_NAME = "🤖 AI";
+
 const ROUNDS = 4; // alternates: human draws / AI draws / human / AI
 
 type Team = "human" | "ai";
