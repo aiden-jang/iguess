@@ -12,7 +12,6 @@ import type { AiSkill, RoomSettings } from "@iguess/shared";
 
 const AI_ID = "ai-team";
 
-const ROUNDS = 4; // alternates: human draws / AI draws / human / AI
 
 type Team = "human" | "ai";
 
@@ -47,11 +46,12 @@ export class TeamBattleMode extends ClassicMode {
     this.skill = settings.aiSkill;
   }
 
-  override configure(humans: PlayerRef[], ctx: EngineContext): { totalTurns: number } {
+  override configure(humans: PlayerRef[], ctx: EngineContext): { totalTurns: number; turnsPerRound: number } {
     this.humans = humans.map((h) => h.id);
     this.wins = { human: 0, ai: 0 };
     ctx.addParticipant({ id: AI_ID, name: AI_NAME, isAI: true });
-    return { totalTurns: ROUNDS };
+    // A round is one human draw and one AI draw, so the room's count doubles into turns.
+    return { totalTurns: this.rounds * 2, turnsPerRound: 2 };
   }
 
   private isAITurn(turnIndex: number): boolean {

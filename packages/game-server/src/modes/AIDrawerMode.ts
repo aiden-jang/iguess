@@ -8,7 +8,6 @@ import { AI_NAME } from "../ai/persona.ts";
 
 const AI_ID = "ai-drawer";
 
-const TOTAL_ROUNDS = 3;
 
 // AI-as-drawer. The AI is the sole drawer; humans race to guess. Drawing is
 // produced through the shared aiDrawLoop helper (via ctx.draw). Guessing,
@@ -38,7 +37,8 @@ export class AIDrawerMode extends ClassicMode {
     this.drawOrder = [AI_ID]; // only the AI ever draws
     this.usedDoodles.clear();
     ctx.addParticipant({ id: AI_ID, name: AI_NAME, isAI: true });
-    return { totalTurns: TOTAL_ROUNDS };
+    // One turn per round: the AI is the only one who ever draws.
+    return { totalTurns: this.rounds };
   }
 
   override pickDrawer(): string {
