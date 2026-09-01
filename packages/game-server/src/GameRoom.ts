@@ -207,6 +207,10 @@ export class GameRoom {
       game.handleChooseWord(player.id, msg.word);
     } else if (msg.type === 'skip_word') {
       game.handleSkipWord(player.id);
+    } else if (msg.type === 'cursor') {
+      // Only the live drawer, and never written to the stroke log.
+      if (conn.spectator || !game.canDraw(player.id)) return;
+      this.broadcastExcept(conn, { type: 'cursor', playerId: player.id, point: msg.point });
     } else if (msg.type === 'ready') {
       if (msg.ready) this.readyIds.add(player.id);
       else this.readyIds.delete(player.id);

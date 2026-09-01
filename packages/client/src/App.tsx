@@ -552,6 +552,8 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
     updateSettings,
     kick,
     setReady,
+    peerCursor,
+    sendCursor,
     turnEnd,
     chooseWord,
   } = useGameSocket(room, name, mode);
@@ -1361,6 +1363,8 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
             width={width}
             erasing={erasing}
             filling={filling}
+            onCursor={sendCursor}
+            peerCursor={peerCursor}
             canDraw={canDraw}
             onCanvas={(el) => (canvasElRef.current = el)}
           />

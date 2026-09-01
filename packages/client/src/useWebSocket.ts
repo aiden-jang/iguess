@@ -8,6 +8,7 @@ import type {
   GameModeName,
   WordTier,
   RoomSettings,
+  Point,
 } from "@iguess/shared";
 import { DEFAULT_SETTINGS } from "@iguess/shared";
 
@@ -96,6 +97,8 @@ export function useGameSocket(room: string, name: string, mode: string) {
   const [turnEnd, setTurnEnd] = useState<{ word: string; at: number } | null>(null);
   const [wordChoices, setWordChoices] = useState<Choices | null>(null);
   const [settings, setSettings] = useState<RoomSettings>(DEFAULT_SETTINGS);
+  // Not React state: it moves at pointer rate and only the canvas overlay cares.
+  const [peerCursor, setPeerCursor] = useState<Point | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const drawListeners = useRef<Set<DrawListener>>(new Set());
 
@@ -184,6 +187,9 @@ export function useGameSocket(room: string, name: string, mode: string) {
         case "settings":
           setSettings(msg.settings);
           break;
+        case "cursor":
+          setPeerCursor(msg.point);
+          break;
         case "word_choices":
           setWordChoices({
             options: msg.words.map((word, i) => ({ word, tier: msg.tiers[i] ?? "easy" })),
@@ -259,6 +265,17 @@ export function useGameSocket(room: string, name: string, mode: string) {
     }
   }, []);
 
+  // Throttled to ~15/s: it is a hint about where the pen is, not a second stroke channel.
+  const lastCursorAt = useRef(0);
+  const sendCursor = useCallback((point: Point | null) => {
+    const ws = wsRef.current;
+    if (ws?.readyState !== WebSocket.OPEN) return;
+    const now = Date.now();
+    if (point && now - lastCursorAt.current < 66) return;
+    lastCursorAt.current = now;
+    ws.send(JSON.stringify({ type: "cursor", point } satisfies ClientMessage));
+  }, []);
+
   const setReady = useCallback((ready: boolean) => {
     const ws = wsRef.current;
     if (ws?.readyState === WebSocket.OPEN) {
@@ -305,6 +322,8 @@ export function useGameSocket(room: string, name: string, mode: string) {
     updateSettings,
     kick,
     setReady,
+    peerCursor,
+    sendCursor,
     sendDraw,
     subscribeDraw,
     clearBoard,
