@@ -86,3 +86,27 @@ test("drawing well pays the drawer more than drawing badly", () => {
 test("the drawer is still paid when nobody is quick", () => {
   assert.ok(drawerScoreFor(0) > 0);
 });
+
+test("a trailing player earns more per guess than the leader would", () => {
+  const mode = new ClassicMode();
+  const { ctx, scores } = makeCtx(0.5, "apple");
+  scores["other"] = 1000; // runaway leader
+  mode.onChat("you", "apple", ctx);
+  const trailing = scores["you"]!;
+
+  const mode2 = new ClassicMode();
+  const h2 = makeCtx(0.5, "apple");
+  h2.scores["you"] = 1000; // already the leader
+  mode2.onChat("you", "apple", h2.ctx);
+  const leading = h2.scores["you"]! - 1000;
+
+  assert.ok(trailing > leading, `trailing ${trailing} should beat leading ${leading}`);
+});
+
+test("the comeback bonus cannot exceed a third", () => {
+  const mode = new ClassicMode();
+  const { ctx, scores } = makeCtx(1, "apple");
+  scores["other"] = 1_000_000;
+  mode.onChat("you", "apple", ctx);
+  assert.ok(scores["you"]! <= 100 * 1.35 + 1, `runaway bonus: ${scores["you"]}`);
+});

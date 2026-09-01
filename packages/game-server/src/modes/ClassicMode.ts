@@ -140,7 +140,8 @@ export class ClassicMode implements GameMode {
   protected acceptGuess(playerId: string, ctx: EngineContext): void {
     const frac = ctx.turnFractionRemaining();
     const mult = TIER_MULTIPLIER[tierOf(ctx.currentWord() ?? "")];
-    const points = Math.round((50 + frac * 50) * mult); // 50..100 by speed, then by difficulty
+    const base = (50 + frac * 50) * mult; // 50..100 by speed, then by difficulty
+    const points = Math.round(base * comebackBonus(playerId, ctx));
     ctx.awardPoints(playerId, points);
     ctx.markGuessed(playerId);
 
@@ -168,6 +169,17 @@ export class ClassicMode implements GameMode {
 }
 
 // The end-of-game announcement: who won and with how many points. Handles a
+// Three-round games are decided early: fall behind in round one and the rest is a formality.
+// A trailing player earns more per guess, capped so it can never out-run playing well.
+function comebackBonus(playerId: string, ctx: EngineContext): number {
+  const scores = ctx.scores();
+  const leader = Math.max(0, ...Object.values(scores));
+  if (leader <= 0) return 1;
+  const behind = 1 - (scores[playerId] ?? 0) / leader;
+  if (behind < 0.4) return 1;
+  return 1 + Math.min(0.35, (behind - 0.4) * 0.6);
+}
+
 // tie (multiple players sharing the top score) and the degenerate all-zero
 // game gracefully. Exported for testing.
 export function winnerLine(ctx: EngineContext): string {
