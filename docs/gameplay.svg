@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="300" viewBox="0 0 640 300">
+  <rect width="640" height="300" rx="14" fill="#15131f"/>
+  <rect x="20" y="20" width="260" height="260" rx="10" fill="#0b0a12" stroke="#2c2740"/>
+  <path d="M206.6,166.5L205.9,170.5L205.2,174.5L204.5,178.5L202.9,182.2L201.3,185.9L199.7,189.6L197.2,192.8L194.8,196.1L192.4,199.2L189.4,201.8L186.3,204.4L183.4,207.0L179.9,208.8L176.4,210.8L173.0,212.7L169.3,213.8L165.4,215.0L161.7,216.3L157.8,216.6L153.8,217.1L149.9,217.5L146.0,217.1L142.0,216.6L138.0,216.2L134.2,214.9L130.4,213.5L126.6,212.1L123.2,210.0L119.8,207.7L116.4,205.5L113.7,202.5L110.9,199.5L108.2,196.6L106.2,193.0L104.2,189.5L102.2,185.9L101.1,182.1L99.9,178.2L98.7,174.3L98.4,170.3L98.1,166.2L97.8,162.2L98.3,158.2L98.8,154.2L99.3,150.1L100.7,146.3L102.0,142.4L103.4,138.5L105.6,135.0L107.7,131.6L109.9,128.0L112.9,125.1L115.8,122.2L118.9,119.3L122.5,117.1L126.0,115.1L129.7,113.0L133.7,111.8L137.6,110.7L141.7,109.6L145.9,109.4L150.0,109.2L154.1,109.1L158.2,109.9L162.2,110.7L166.2,111.5L170.0,113.1L173.7,114.7L177.4,116.3L180.7,118.7L184.1,121.0L187.4,123.3L190.1,126.3L192.9,129.2L195.7,132.2L197.7,135.7L199.8,139.2L201.8,142.6L203.1,146.5L204.3,150.4L205.5,154.3L205.7,158.3L206.0,162.4L206.2,166.4L206.6,172.9" fill="none" stroke="#f1edf7" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"
+    stroke-dasharray="347" stroke-dashoffset="0" opacity="1">
+    <animate attributeName="stroke-dashoffset" values="347;347;0" keyTimes="0;0.066;0.286" dur="9.30s" repeatCount="indefinite"/>
+  </path>
+  <path d="M112.6,125.8L111.7,121.3L111.2,116.8L111.0,112.2L110.7,107.6L110.2,103.0L109.4,98.6L108.3,94.1L107.3,89.7L106.6,85.2L106.1,80.7L109.1,84.4L112.1,88.2L115.4,91.7L118.9,94.8L122.7,97.8L126.4,100.8L130.0,104.0L133.4,107.4L136.6,110.9L139.9,114.4L143.3,117.7L147.2,120.8" fill="none" stroke="#f1edf7" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"
+    stroke-dasharray="103" stroke-dashoffset="0" opacity="1">
+    <animate attributeName="stroke-dashoffset" values="103;103;0" keyTimes="0;0.282;0.343" dur="9.30s" repeatCount="indefinite"/>
+  </path>
+  <path d="M193.1,129.0L194.1,124.5L195.4,120.1L197.1,115.9L199.2,111.7L201.1,107.5L202.5,103.2L203.2,98.6L203.7,94.1L204.3,89.5L205.4,85.0L201.5,87.9L197.7,90.9L194.3,94.2L191.0,97.8L187.8,101.4L184.3,104.6L180.3,107.3L176.1,109.6L171.8,112.0L167.9,114.7L164.2,117.8L162.5,119.4" fill="none" stroke="#f1edf7" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"
+    stroke-dasharray="101" stroke-dashoffset="0" opacity="1">
+    <animate attributeName="stroke-dashoffset" values="101;101;0" keyTimes="0;0.335;0.390" dur="9.30s" repeatCount="indefinite"/>
+  </path>
+  <path d="M138.4,155.7L140.8,156.1L143.4,155.0L143.5,158.0" fill="none" stroke="#f1edf7" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"
+    stroke-dasharray="8" stroke-dashoffset="0" opacity="1">
+    <animate attributeName="stroke-dashoffset" values="8;8;0" keyTimes="0;0.387;0.420" dur="9.30s" repeatCount="indefinite"/>
+  </path>
+  <path d="M162.6,159.6L165.1,158.6L167.5,160.2L167.7,160.9" fill="none" stroke="#f1edf7" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"
+    stroke-dasharray="8" stroke-dashoffset="0" opacity="1">
+    <animate attributeName="stroke-dashoffset" values="8;8;0" keyTimes="0;0.416;0.448" dur="9.30s" repeatCount="indefinite"/>
+  </path>
+  <path d="M105.1,175.7L101.0,174.3L96.6,173.8L92.1,173.8L87.7,173.0L83.8,170.9L79.9,168.7L75.7,167.3L74.2,167.0" fill="none" stroke="#f1edf7" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"
+    stroke-dasharray="33" stroke-dashoffset="0" opacity="1">
+    <animate attributeName="stroke-dashoffset" values="33;33;0" keyTimes="0;0.442;0.472" dur="9.30s" repeatCount="indefinite"/>
+  </path>
+  <path d="M104.9,182.1L100.6,182.0L96.4,182.6L92.2,183.5L87.9,182.8L83.6,181.3L79.3,181.2L75.1,182.0L73.6,182.0" fill="none" stroke="#f1edf7" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"
+    stroke-dasharray="32" stroke-dashoffset="0" opacity="1">
+    <animate attributeName="stroke-dashoffset" values="32;32;0" keyTimes="0;0.466;0.495" dur="9.30s" repeatCount="indefinite"/>
+  </path>
+  <path d="M202.4,177.6L206.7,176.8L211.0,175.9L215.4,175.6L219.8,175.3L223.9,173.9L228.0,171.9L232.3,170.9L233.9,171.5" fill="none" stroke="#f1edf7" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"
+    stroke-dasharray="33" stroke-dashoffset="0" opacity="1">
+    <animate attributeName="stroke-dashoffset" values="33;33;0" keyTimes="0;0.488;0.516" dur="9.30s" repeatCount="indefinite"/>
+  </path>
+  <path d="M203.8,186.2L207.9,188.0L212.3,187.4L216.6,187.2L220.8,187.7L225.1,187.4L229.2,188.8L233.2,190.9L234.8,190.4" fill="none" stroke="#f1edf7" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"
+    stroke-dasharray="32" stroke-dashoffset="0" opacity="1">
+    <animate attributeName="stroke-dashoffset" values="32;32;0" keyTimes="0;0.509;0.535" dur="9.30s" repeatCount="indefinite"/>
+  </path>
+  
+  <g opacity="1">
+    <animate attributeName="opacity" values="0;0;1" keyTimes="0;0.172;0.199" dur="9.30s" repeatCount="indefinite"/>
+    <text x="306" y="64" font-family="Verdana, DejaVu Sans, sans-serif" font-size="13"
+      fill="#a39bb8">🤖 dogbot</text>
+    <text x="306" y="82" font-family="Verdana, DejaVu Sans, sans-serif" font-size="15"
+      fill="#f1edf7">no cap that's a dog</text>
+  </g>
+  <g opacity="1">
+    <animate attributeName="opacity" values="0;0;1" keyTimes="0;0.323;0.349" dur="9.30s" repeatCount="indefinite"/>
+    <text x="306" y="98" font-family="Verdana, DejaVu Sans, sans-serif" font-size="13"
+      fill="#a39bb8">🤖 dogbot</text>
+    <text x="306" y="116" font-family="Verdana, DejaVu Sans, sans-serif" font-size="15"
+      fill="#f1edf7">lowkey think it's a owl … or is it a cat?</text>
+  </g>
+  <g opacity="1">
+    <animate attributeName="opacity" values="0;0;1" keyTimes="0;0.473;0.500" dur="9.30s" repeatCount="indefinite"/>
+    <text x="306" y="132" font-family="Verdana, DejaVu Sans, sans-serif" font-size="13"
+      fill="#34d399">you</text>
+    <text x="306" y="150" font-family="Verdana, DejaVu Sans, sans-serif" font-size="15"
+      fill="#f1edf7">CAT</text>
+  </g>
+</svg>

@@ -20,6 +20,10 @@ AI", and "you vs AI" are separate modes rather than changes to the core.
 
 ## Screenshots
 
+The AI drawing, and being wrong about it, in real time:
+
+![The AI drawing a cat stroke by stroke while guessing dog, then owl](docs/gameplay.svg)
+
 The drawer sees the word and sketches it; the AI is in chat guessing off the
 canvas. Here, "GUITAR":
 
