@@ -259,6 +259,13 @@ export function useGameSocket(room: string, name: string, mode: string) {
     }
   }, []);
 
+  const setReady = useCallback((ready: boolean) => {
+    const ws = wsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "ready", ready } satisfies ClientMessage));
+    }
+  }, []);
+
   const kick = useCallback((playerId: string) => {
     const ws = wsRef.current;
     if (ws?.readyState === WebSocket.OPEN) {
@@ -297,6 +304,7 @@ export function useGameSocket(room: string, name: string, mode: string) {
     settings,
     updateSettings,
     kick,
+    setReady,
     sendDraw,
     subscribeDraw,
     clearBoard,
