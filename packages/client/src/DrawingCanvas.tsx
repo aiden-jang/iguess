@@ -15,6 +15,8 @@ interface Props {
 // each remember their own last point + style during replay.
 interface StrokeState {
   last: Point;
+  // Midpoint the last drawn curve ended on. The smoothing anchors here, not on `last`.
+  mid: Point;
   color: string;
   width: number;
 }
@@ -58,6 +60,7 @@ export function DrawingCanvas({
       case "start":
         strokes.current.set(op.strokeId, {
           last: op.point,
+          mid: op.point,
           color: op.color,
           width: op.width,
         });
@@ -69,13 +72,25 @@ export function DrawingCanvas({
         ctx.lineWidth = s.width;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
+        // Curve through the midpoints instead of joining raw samples: a fast stroke samples
+        // sparsely, and straight segments between those samples look visibly polygonal.
+        // Each chunk redraws from the last midpoint, so the half-segment overlap is repainted
+        // in the same colour and never shows.
         ctx.beginPath();
-        ctx.moveTo(s.last.x * W, s.last.y * H);
+        ctx.moveTo(s.mid.x * W, s.mid.y * H);
+        let prev = s.last;
+        let mid = s.mid;
         for (const p of op.points) {
-          ctx.lineTo(p.x * W, p.y * H);
+          mid = { x: (prev.x + p.x) / 2, y: (prev.y + p.y) / 2 };
+          ctx.quadraticCurveTo(prev.x * W, prev.y * H, mid.x * W, mid.y * H);
+          prev = p;
         }
+        // The final sample has no successor yet, so run to it straight; the next chunk
+        // replaces this tip with the real curve.
+        ctx.lineTo(prev.x * W, prev.y * H);
         ctx.stroke();
-        s.last = op.points[op.points.length - 1] ?? s.last;
+        s.last = prev;
+        s.mid = mid;
         break;
       }
       case "end":
