@@ -64,6 +64,9 @@ export class GameEngine {
   }
 
   canDraw(playerId: string): boolean {
+    // Between games the board belongs to everyone. It costs nothing, it is the cheapest fun
+    // in the app, and it gives a lobby something to do while it waits for the last person.
+    if (this.phase === "lobby" || this.phase === "ended") return true;
     return this.mode.canDraw(playerId, this.ctx);
   }
 
