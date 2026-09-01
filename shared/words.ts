@@ -1,5 +1,6 @@
 import type { WordTier } from './events.ts';
 import wordsByTier from './words.json';
+import packsByName from './packs.json';
 
 export type Tier = WordTier;
 
@@ -18,6 +19,22 @@ const TIER_OF = new Map<string, Tier>(
 
 export function tierOf(word: string): Tier {
   return TIER_OF.get(word) ?? 'easy';
+}
+
+export const PACKS = packsByName as Record<string, string[]>;
+export const PACK_NAMES = Object.keys(PACKS);
+
+/**
+ * Words available for a tier, narrowed to the chosen packs. No packs means everything.
+ * A pack with nothing in this tier falls back to the whole tier, so "food" (which has no
+ * hard words) still fills the hard slot on the pick screen instead of leaving it empty.
+ */
+export function poolFor(tier: Tier, packs: string[] = []): string[] {
+  const full = WORDS_BY_TIER[tier];
+  if (packs.length === 0) return full;
+  const allowed = new Set(packs.flatMap((p) => PACKS[p] ?? []));
+  const narrowed = full.filter((w) => allowed.has(w));
+  return narrowed.length > 0 ? narrowed : full;
 }
 
 export function randomWord(tier?: Tier): string {

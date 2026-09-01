@@ -1,5 +1,5 @@
 import type { GameMode, EngineContext, PlayerRef, TurnContext } from "./GameMode.ts";
-import { WORDS, WORDS_BY_TIER, TIERS, TIER_MULTIPLIER, randomWord, tierOf, type Tier } from "@iguess/shared/words";
+import { WORDS, TIERS, TIER_MULTIPLIER, poolFor, tierOf, type Tier } from "@iguess/shared/words";
 import { normalizeGuess, isClose } from "../text.ts";
 import type { WordMemory } from "../wordMemory.ts";
 import type { RoomSettings } from "@iguess/shared";
@@ -27,6 +27,7 @@ export class ClassicMode implements GameMode {
   // prompt. Reset each game in configure().
   private usedWords = new Set<string>();
   private memory?: WordMemory;
+  private packs: string[] = [];
 
   constructor(rounds = 3) {
     this.rounds = Math.max(1, rounds);
@@ -38,6 +39,7 @@ export class ClassicMode implements GameMode {
 
   useSettings(settings: RoomSettings): void {
     this.rounds = Math.max(1, settings.rounds);
+    this.packs = settings.packs;
   }
 
   configure(
@@ -83,13 +85,14 @@ export class ClassicMode implements GameMode {
   // Pick one word not yet used this game (without marking it used — callers
   // decide what to reserve). Resets the pool if exhausted so we never dead-end.
   private freshWord(tier?: Tier): string {
-    const pool = tier ? WORDS_BY_TIER[tier] : WORDS;
+    const pool = tier ? poolFor(tier, this.packs) : WORDS;
     // Reset against the pool actually being drawn from: with tiers, easy can run dry
     // while the combined used-set is still far from the full list.
     if (pool.every((w) => this.usedWords.has(w))) this.usedWords.clear();
     const avoid = new Set([...this.usedWords, ...(this.memory?.avoidFor(pool) ?? [])]);
-    let word = randomWord(tier);
-    for (let i = 0; i < 20 && avoid.has(word); i++) word = randomWord(tier);
+    const roll = () => pool[Math.floor(Math.random() * pool.length)]!;
+    let word = roll();
+    for (let i = 0; i < 20 && avoid.has(word); i++) word = roll();
     if (avoid.has(word)) {
       word = pool.find((w) => !avoid.has(w)) ?? pool.find((w) => !this.usedWords.has(w)) ?? word;
     }

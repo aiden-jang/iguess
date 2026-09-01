@@ -14,6 +14,8 @@ export interface RoomSettings {
   turnSeconds: number;
   rounds: number;
   aiSkill: AiSkill;
+  // Themed word packs. Empty means the whole list.
+  packs: string[];
 }
 
 export type AiSkill = "easy" | "normal" | "brutal";
@@ -27,6 +29,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   turnSeconds: SETTINGS_LIMITS.turnSeconds.default,
   rounds: SETTINGS_LIMITS.rounds.default,
   aiSkill: "normal",
+  packs: [],
 };
 
 /** Clamp untrusted settings from a client into the allowed range. */
@@ -41,6 +44,9 @@ export function sanitizeSettings(raw: Partial<RoomSettings> | undefined): RoomSe
     turnSeconds: clamp(raw?.turnSeconds ?? SETTINGS_LIMITS.turnSeconds.default, "turnSeconds"),
     rounds: clamp(raw?.rounds ?? SETTINGS_LIMITS.rounds.default, "rounds"),
     aiSkill: skill === "easy" || skill === "brutal" ? skill : "normal",
+    packs: Array.isArray(raw?.packs)
+      ? [...new Set(raw.packs.filter((p): p is string => typeof p === "string"))].slice(0, 12)
+      : [],
   };
 }
 
