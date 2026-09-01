@@ -1,12 +1,12 @@
 import type { EngineContext, TurnContext } from "../modes/GameMode.ts";
 import { WORDS } from "@iguess/shared/words";
+import type { AiSkill } from "@iguess/shared";
 import { normalizeGuess } from "../text.ts";
 import type { AIGuess } from "../services/aiWorkerClient.ts";
 
 // Extracted from AIGuesserMode so any mode can give an AI participant a
 // guessing loop without inheriting a whole mode class. This is mode POLICY
 // (cadence + cost caps), deliberately kept out of the core engine.
-const FIRST_GUESS_MS = 8_000; // let the drawer get something on the canvas
 // A flat re-guess interval meant the AI kept staring at a canvas nobody had touched, and kept
 // waiting through a burst of new ink. Pace it by how much has actually changed since the last
 // look — which also stops it spending vision calls on a static picture.
@@ -18,6 +18,14 @@ const TEASE_CHANCE = 0.6;
 const BUSY_OPS = 45;
 const STEADY_OPS = 12;
 const MAX_GUESSES = 4; // cost cap per turn
+
+// How good the AI is allowed to be. "easy" doesn't fake wrong answers: it looks later, looks
+// less often, and sometimes goes with its second thought instead of its first.
+const SKILL: Record<AiSkill, { firstMs: number; pace: number; maxGuesses: number; doubtTop: number }> = {
+  easy: { firstMs: 16_000, pace: 1.6, maxGuesses: 2, doubtTop: 0.5 },
+  normal: { firstMs: 8_000, pace: 1, maxGuesses: 4, doubtTop: 0 },
+  brutal: { firstMs: 4_000, pace: 0.55, maxGuesses: 7, doubtTop: 0 },
+};
 
 // Give the bot a voice. We decorate the DISPLAYED guess with hedging
 // personality, but matching always runs on the raw guess word, so phrasing
@@ -74,6 +82,7 @@ export interface GuessLoopOpts {
   teaseMs?: number;
   // 0..1, how often a win is preceded by a wrong shout. A seam so tests aren't coin flips.
   teaseChance?: number;
+  skill?: AiSkill;
 }
 
 /** How long to wait before looking again, given how much was drawn since the last look. */
@@ -90,6 +99,7 @@ export function startGuessLoop(
   ctx: EngineContext,
   opts: GuessLoopOpts
 ): () => void {
+  const skill = SKILL[opts.skill ?? "normal"];
   let attempts = 0;
   let notifiedDown = false; // fire onUnavailable at most once per turn (this loop's lifetime)
   let firstTimer: ReturnType<typeof setTimeout> | null = null;
@@ -126,9 +136,13 @@ export function startGuessLoop(
   const attempt = async () => {
     // Stop if the turn moved on or the AI already nailed it.
     if (ctx.currentWord() !== turn.word || ctx.hasGuessed(opts.aiId)) { stop(); return; }
-    if (attempts >= MAX_GUESSES) { stop(); return; }
+    if (attempts >= skill.maxGuesses) { stop(); return; }
 
-    const { guess, alternatives } = await getGuess();
+    let { guess, alternatives } = await getGuess();
+    // An easy AI second-guesses itself: it says the runner-up it actually produced.
+    if (alternatives.length && Math.random() < skill.doubtTop) {
+      [guess, alternatives] = [alternatives[0]!, [guess, ...alternatives.slice(1)]];
+    }
     // Re-check after the await — the turn may have ended meanwhile.
     if (!guess || ctx.currentWord() !== turn.word || ctx.hasGuessed(opts.aiId)) return;
 
@@ -174,12 +188,12 @@ export function startGuessLoop(
     seenOps = now;
     interval = setTimeout(() => {
       void attempt().then(schedule);
-    }, opts.intervalMs ?? nextGuessDelay(fresh));
+    }, opts.intervalMs ?? Math.round(nextGuessDelay(fresh) * skill.pace));
   };
 
   firstTimer = setTimeout(() => {
     void attempt().then(schedule);
-  }, opts.firstGuessMs ?? FIRST_GUESS_MS);
+  }, opts.firstGuessMs ?? skill.firstMs);
 
   return stop;
 }
