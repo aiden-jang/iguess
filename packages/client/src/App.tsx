@@ -309,20 +309,35 @@ async function copyText(text: string): Promise<boolean> {
 
 // Build a shareable deep link that drops a friend straight into this room +
 // mode. Name is left out so they pick their own.
+// The room goes in the PATH, not the hash: a hash never reaches the server, so a link
+// preview would only ever show the generic card. /r/:room lets the worker name the room.
 function inviteLink(room: string, mode: string): string {
-  const base = `${window.location.origin}${window.location.pathname}`;
-  const q = new URLSearchParams({ room, mode });
-  return `${base}#${q.toString()}`;
+  const q = new URLSearchParams({ mode });
+  return `${window.location.origin}/r/${encodeURIComponent(room)}?${q.toString()}`;
 }
 
 // Read room/mode/name from the URL hash so an invite link pre-fills the gate.
 function readInvite(): { room?: string; mode?: string; name?: string } {
   // An invite can arrive two ways: the hash on a link someone sent, or the query string when
   // the OS share sheet hands us a link that was shared INTO the installed app (share_target).
+  // A /r/:room path is the current invite shape. The hash form is still read, because links
+  // people already sent each other are out in the world and should keep working.
+  const path = window.location.pathname.match(/^\/r\/([^/]+)\/?$/);
+  if (path) {
+    const q = new URLSearchParams(window.location.search);
+    return {
+      room: decodeURIComponent(path[1]!),
+      mode: q.get("mode") ?? undefined,
+      name: q.get("name") ?? undefined,
+    };
+  }
   const shared = new URLSearchParams(window.location.search);
   const sharedLink = shared.get("url") ?? shared.get("text") ?? "";
-  const fromShare = sharedLink.includes("#") ? sharedLink.slice(sharedLink.indexOf("#") + 1) : "";
-  const raw = window.location.hash.replace(/^#/, "") || fromShare;
+  const fromShare = sharedLink.includes("#")
+    ? sharedLink.slice(sharedLink.indexOf("#") + 1)
+    : (sharedLink.match(/\/r\/([^/?#\s]+)/)?.[1] ?? "");
+  const raw = window.location.hash.replace(/^#/, "") || (fromShare.includes("=") ? fromShare : "");
+  if (!raw && fromShare) return { room: decodeURIComponent(fromShare) };
   if (!raw) return {};
   const q = new URLSearchParams(raw);
   return {
