@@ -663,6 +663,9 @@ function Room({
   const youAreReady = humans.some((p) => p.id === you?.id && p.ready);
   // The lobby board is open to everyone; during a game only the drawer touches it.
   const canDraw = (phase === "playing" && isDrawer) || ((phase === "lobby" || phase === "ended") && !youAreWatching);
+  // Distinct from canDraw: the lobby board is open to everyone, but only a live drawer is
+  // told to stop typing. Gating chat on canDraw silenced the whole lobby.
+  const drawingNow = phase === "playing" && isDrawer;
   const inGame = phase === "playing" || phase === "intermission";
   useWakeLock(inGame || phase === "choosing");
   // One badge when the game is waiting on you specifically.
@@ -1538,7 +1541,7 @@ function Room({
               className="lift"
               style={styles.reactBtn}
               onClick={() => react(emoji)}
-              disabled={canDraw}
+              disabled={drawingNow}
               title={`react ${emoji}`}
             >
               {emoji}
@@ -1559,17 +1562,17 @@ function Room({
           <input
             style={{ ...styles.input, flex: 1, margin: 0 }}
             placeholder={
-              canDraw
+              drawingNow
                 ? "eyes on the canvas, picasso ✋"
                 : inGame
                 ? "guess it bestie… (?word calls the AI)"
                 : "say something fr"
             }
-            disabled={canDraw}
+            disabled={drawingNow}
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
-          <button className="lift" style={styles.button} type="submit" disabled={canDraw}>
+          <button className="lift" style={styles.button} type="submit" disabled={drawingNow}>
             Send
           </button>
         </form>
