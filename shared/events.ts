@@ -90,6 +90,9 @@ export interface PlayerInfo {
   // The room's owner: the only one who can start a game, change settings, or remove someone.
   // Eight-player rooms with nobody in charge go wrong the first time someone goes AFK.
   isHost?: boolean;
+  // Lobby only. Advisory, not a gate: the host can still start, so one AFK player
+  // can't hold the room hostage.
+  ready?: boolean;
 }
 
 // ---- Drawing ----
@@ -183,6 +186,11 @@ export type ClientMessage =
       // Host only: remove a player from the room.
       type: "kick";
       playerId: string;
+    }
+  | {
+      // Lobby only: "I'm at my keyboard".
+      type: "ready";
+      ready: boolean;
     };
 
 // ---- Server → Client ----

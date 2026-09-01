@@ -63,6 +63,7 @@ export class GameRoom {
   private wordMemory = new WordMemory();
   private settings: RoomSettings = DEFAULT_SETTINGS;
   private hostId: string | null = null;
+  private readyIds = new Set<string>();
   private roomId = 'lobby';
   // The room's canonical mode, fixed by the first joiner (who creates the engine). Late joiners
   // are told this in `welcome`, not their own requested mode, so their UI label is correct.
@@ -181,11 +182,16 @@ export class GameRoom {
       this.broadcastExcept(conn, { type: 'draw', op: msg.op });
     } else if (msg.type === 'start_game') {
       if (!this.isHost(player.id)) return;
+      this.readyIds.clear(); // the lobby's ready flags mean nothing once a game is running
       game.startGame([...this.conns].map((c) => c.player.id));
     } else if (msg.type === 'choose_word') {
       game.handleChooseWord(player.id, msg.word);
     } else if (msg.type === 'skip_word') {
       game.handleSkipWord(player.id);
+    } else if (msg.type === 'ready') {
+      if (msg.ready) this.readyIds.add(player.id);
+      else this.readyIds.delete(player.id);
+      this.broadcastPresence();
     } else if (msg.type === 'kick') {
       if (!this.isHost(player.id) || msg.playerId === player.id) return;
       const target = this.findConn(msg.playerId);
@@ -343,7 +349,12 @@ export class GameRoom {
 
   private presenceList(): PlayerInfo[] {
     const humans = new Map<string, PlayerInfo>();
-    for (const c of this.conns) humans.set(c.player.id, { ...c.player, isHost: c.player.id === this.hostId });
+    for (const c of this.conns)
+      humans.set(c.player.id, {
+        ...c.player,
+        isHost: c.player.id === this.hostId,
+        ready: this.readyIds.has(c.player.id),
+      });
     return [...humans.values(), ...this.virtualPlayers.values()];
   }
 

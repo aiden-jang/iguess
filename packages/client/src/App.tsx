@@ -544,6 +544,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
     settings,
     updateSettings,
     kick,
+    setReady,
     turnEnd,
     chooseWord,
   } = useGameSocket(room, name, mode);
@@ -632,6 +633,9 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
   const phase = game?.phase ?? "lobby";
   const isDrawer = !!game && game.drawerId === you?.id;
   const youAreHost = players.some((p) => p.id === you?.id && p.isHost);
+  const humans = players.filter((p) => !isAI(p.id));
+  const readyCount = humans.filter((p) => p.ready).length;
+  const youAreReady = humans.some((p) => p.id === you?.id && p.ready);
   const canDraw = phase === "playing" && isDrawer;
   const inGame = phase === "playing" || phase === "intermission";
   useWakeLock(inGame || phase === "choosing");
@@ -1041,7 +1045,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
             <>
               <span style={styles.bannerText}>
                 {!soloWaiting
-                  ? `lowkey waiting · ${players.length} pulled up`
+                  ? `lowkey waiting · ${readyCount}/${humans.length} ready`
                   : isAIMode
                     ? "it's you vs the 🤖 AI. hit send it whenever you're ready."
                     : "just you so far. classic needs someone to guess, so hit 🔗 invite the squad."}
@@ -1142,6 +1146,13 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                   </select>
                 </label>
               </span>
+              <button
+                className="lift"
+                style={{ ...styles.ghostButton, ...(youAreReady ? styles.readyOn : null) }}
+                onClick={() => setReady(!youAreReady)}
+              >
+                {youAreReady ? "✅ ready" : "i'm ready"}
+              </button>
               <button
                 className="lift pulse-cta"
                 style={{ ...styles.button, marginLeft: "auto", ...(youAreHost ? null : styles.disabled) }}
@@ -1870,6 +1881,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   tiles: { display: "flex", gap: 5 },
   disabled: { opacity: 0.5, cursor: "not-allowed" },
+  readyOn: { borderColor: "var(--good)", color: "var(--on-good)", background: "var(--tint-good)" },
   kickButton: {
     border: "none",
     background: "transparent",
