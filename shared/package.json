@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./events.ts",
-    "./strokeLog": "./strokeLog.ts"
+    "./strokeLog": "./strokeLog.ts",
+    "./roomCode": "./roomCode.ts"
   }
 }
