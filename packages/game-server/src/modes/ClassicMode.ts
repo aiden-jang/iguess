@@ -1,5 +1,5 @@
 import type { GameMode, EngineContext, PlayerRef, TurnContext } from "./GameMode.ts";
-import { WORDS, randomWord } from "../words.ts";
+import { WORDS, WORDS_BY_TIER, TIERS, randomWord, type Tier } from "../words.ts";
 import { normalizeGuess, isClose } from "../text.ts";
 
 export { WORDS }; // re-export so AIGuesserMode's fallback can reuse it
@@ -56,13 +56,12 @@ export class ClassicMode implements GameMode {
     return word;
   }
 
-  // Offer the drawer three distinct, unused words to choose from. The engine
-  // turns this into a "choosing" phase; whichever word the drawer picks becomes
-  // live. We reserve all three as used so they don't recur later this game.
+  // One word per tier, so choosing is a real bet: harder words are worth more
+  // (see TIER_MULTIPLIER) but you have to be able to draw them.
   pickWordChoices(_ctx: EngineContext): string[] | null {
     const choices: string[] = [];
-    while (choices.length < 3 && choices.length < WORDS.length) {
-      const word = this.freshWord();
+    for (const tier of TIERS) {
+      const word = this.freshWord(tier);
       if (choices.includes(word)) continue;
       choices.push(word);
       this.usedWords.add(word);
@@ -72,14 +71,15 @@ export class ClassicMode implements GameMode {
 
   // Pick one word not yet used this game (without marking it used — callers
   // decide what to reserve). Resets the pool if exhausted so we never dead-end.
-  private freshWord(): string {
-    if (this.usedWords.size >= WORDS.length) this.usedWords.clear();
-    let word = randomWord();
-    // A few random retries, then a linear fallback that guarantees an unused
-    // pick when the pool is nearly full.
-    for (let i = 0; i < 20 && this.usedWords.has(word); i++) word = randomWord();
+  private freshWord(tier?: Tier): string {
+    const pool = tier ? WORDS_BY_TIER[tier] : WORDS;
+    // Reset against the pool actually being drawn from: with tiers, easy can run dry
+    // while the combined used-set is still far from the full list.
+    if (pool.every((w) => this.usedWords.has(w))) this.usedWords.clear();
+    let word = randomWord(tier);
+    for (let i = 0; i < 20 && this.usedWords.has(word); i++) word = randomWord(tier);
     if (this.usedWords.has(word)) {
-      word = WORDS.find((w) => !this.usedWords.has(w)) ?? word;
+      word = pool.find((w) => !this.usedWords.has(w)) ?? word;
     }
     return word;
   }
