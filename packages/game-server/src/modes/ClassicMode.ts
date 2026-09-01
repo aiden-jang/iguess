@@ -1,5 +1,5 @@
 import type { GameMode, EngineContext, PlayerRef, TurnContext } from "./GameMode.ts";
-import { WORDS, WORDS_BY_TIER, TIERS, randomWord, type Tier } from "../words.ts";
+import { WORDS, WORDS_BY_TIER, TIERS, TIER_MULTIPLIER, randomWord, tierOf, type Tier } from "../words.ts";
 import { normalizeGuess, isClose } from "../text.ts";
 
 export { WORDS }; // re-export so AIGuesserMode's fallback can reuse it
@@ -131,7 +131,8 @@ export class ClassicMode implements GameMode {
   /** Award a correct guesser + the drawer, announce it, maybe end the turn. */
   protected acceptGuess(playerId: string, ctx: EngineContext): void {
     const frac = ctx.turnFractionRemaining();
-    const points = 50 + Math.round(frac * 50); // 50..100 by speed
+    const mult = TIER_MULTIPLIER[tierOf(ctx.currentWord() ?? "")];
+    const points = Math.round((50 + frac * 50) * mult); // 50..100 by speed, then by difficulty
     ctx.awardPoints(playerId, points);
     ctx.markGuessed(playerId);
 

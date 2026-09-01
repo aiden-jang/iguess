@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useGameSocket } from "./useWebSocket";
 import { DrawingCanvas } from "./DrawingCanvas";
 import { renderEvidencePng } from "./evidenceCard";
+import type { WordTier } from "@iguess/shared";
+
+// What each tier pays, mirroring TIER_MULTIPLIER on the server.
+const TIER_LABEL: Record<WordTier, string> = { easy: "1x", medium: "1.25x", hard: "1.6x" };
 
 const COLORS = ["#111111", "#e11d48", "#2563eb", "#16a34a", "#f59e0b", "#ffffff"];
 
@@ -1017,14 +1021,16 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                 <span style={styles.wordZone}>
                   <span style={styles.wordVerb}>pick one</span>
                   <span className="word-tiles" style={styles.tiles}>
-                    {wordChoices.map((w) => (
+                    {wordChoices.map((c) => (
                       <button
-                        key={w}
+                        key={c.word}
                         className="lift"
                         style={styles.button}
-                        onClick={() => chooseWord(w)}
+                        onClick={() => chooseWord(c.word)}
+                        title={`${c.tier} — worth ${TIER_LABEL[c.tier]}`}
                       >
-                        {w}
+                        {c.word}
+                        <span style={styles.tierBadge}>{TIER_LABEL[c.tier]}</span>
                       </button>
                     ))}
                   </span>
@@ -1688,6 +1694,12 @@ const styles: Record<string, React.CSSProperties> = {
     color: "var(--muted)",
   },
   tiles: { display: "flex", gap: 5 },
+  tierBadge: {
+    marginLeft: 6,
+    fontSize: 10,
+    fontWeight: 800,
+    opacity: 0.7,
+  },
   tile: {
     minWidth: 22,
     height: 30,
