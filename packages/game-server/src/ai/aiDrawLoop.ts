@@ -1,18 +1,49 @@
-import type { DrawOp } from "@iguess/shared";
+import type { DrawOp, Point } from "@iguess/shared";
 import type { EngineContext, TurnContext } from "../modes/GameMode.ts";
 import { doodleFor } from "../doodles.ts";
 
 // Extracted from AIDrawerMode so any mode can have an AI participant draw
 // progressively. Mode policy (reveal cadence), not core-engine concern.
-const REVEAL_MS = 1_500;
+
+// Every doodle is paced to land near this, so a one-stroke heart doesn't finish in two
+// seconds while a cat takes eight. Guessers get roughly the same window to watch either.
+const TARGET_MS = 13_000;
+const MIN_TICK_MS = 45;
+const MAX_TICK_MS = 200;
+const PAUSE_TICKS = 4; // beat between strokes, where a person lifts the pen
 
 export interface DrawLoopOpts {
   // A future model generator. Falls back to the curated doodle library.
   requestDrawing?: (word: string) => Promise<DrawOp[][]>;
-  revealMs?: number;
+  tickMs?: number;
 }
 
-// Reveal the AI's drawing one stroke at a time via ctx.draw. Returns a stop
+// One tick's worth of ops. Empty = the pen is lifted between strokes.
+type Step = DrawOp[];
+
+// Whole strokes appearing at once read as a file being replayed. Dripping points out at a
+// hand's pace, with a beat between strokes, reads as someone drawing.
+function toSteps(strokes: DrawOp[][]): Step[] {
+  const steps: Step[] = [];
+  for (const ops of strokes) {
+    const start = ops.find((o) => o.kind === "start");
+    if (!start || start.kind !== "start") continue;
+    const rest: Point[] = ops.flatMap((o) => (o.kind === "move" ? o.points : []));
+    // Per stroke, not per tick: a confident line and a careful one in the same drawing.
+    const perTick = 2 + Math.floor(Math.random() * 3);
+    steps.push([start]);
+    for (let i = 0; i < rest.length; i += perTick) {
+      steps.push([
+        { kind: "move", strokeId: start.strokeId, points: rest.slice(i, i + perTick) },
+      ]);
+    }
+    steps.push([{ kind: "end", strokeId: start.strokeId }]);
+    for (let i = 0; i < PAUSE_TICKS; i++) steps.push([]);
+  }
+  return steps;
+}
+
+// Reveal the AI's drawing progressively via ctx.draw. Returns a stop
 // fn the caller MUST invoke on turn end.
 export function startDrawLoop(
   turn: TurnContext,
@@ -37,16 +68,18 @@ export function startDrawLoop(
   };
 
   void (async () => {
-    const strokes = await getDrawing();
+    const steps = toSteps(await getDrawing());
     if (ctx.currentWord() !== turn.word) return; // turn outlived a slow generator
     let i = 0;
-    const revealNext = () => {
-      if (ctx.currentWord() !== turn.word || i >= strokes.length) { stop(); return; }
-      for (const op of strokes[i]) ctx.draw(op);
+    const tick = () => {
+      if (ctx.currentWord() !== turn.word || i >= steps.length) { stop(); return; }
+      for (const op of steps[i]!) ctx.draw(op);
       i++;
     };
-    revealNext(); // first stroke immediately
-    interval = setInterval(revealNext, opts.revealMs ?? REVEAL_MS);
+    tick();
+    const paced = Math.round(TARGET_MS / Math.max(1, steps.length));
+    const tickMs = opts.tickMs ?? Math.min(MAX_TICK_MS, Math.max(MIN_TICK_MS, paced));
+    interval = setInterval(tick, tickMs);
   })();
 
   return stop;
