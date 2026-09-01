@@ -122,6 +122,7 @@ export class TeamBattleMode extends ClassicMode {
     const word = ctx.currentWord();
     if (!word) return false; // not a live turn → normal chat
     if (playerId === ctx.currentDrawerId()) return true; // hide drawer chat
+    if (this.takeCall(playerId, text, ctx)) return true;
     if (this.roundDecided) return false; // round already won → let chat through
     // Match human guesses the same forgiving-but-strict way ClassicMode does
     // (a sentence containing the word is NOT a win; the typed answer must be

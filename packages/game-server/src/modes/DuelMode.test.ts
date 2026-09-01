@@ -32,6 +32,7 @@ function makeCtx(frac = 1) {
     removeParticipant: (id: string) => roster.delete(id),
     currentDrawerId: () => drawerId,
     currentWord: () => word,
+    canvasOpCount: () => 0,
     hintsRevealed: () => 0,
     turnFractionRemaining: () => frac,
     syncState: () => {},
