@@ -217,9 +217,20 @@ So:
 | Mode boundary | Strategy + DI | `if (mode)` branches / deep inheritance | Zero engine churn; supports a mode needing two behaviors |
 | Shared AI behavior | Composable helpers | Mode base class / engine | It's policy, not timeline; one mode needs both loops |
 | Canvas sync | Streamed ops | Snapshot images | Tiny messages, live growth, perfect replay, resolution-independent |
-| AI guess timing | Interval + cap | Per-frame / final-only | Bounded cost without killing the live feel |
+| AI guess timing | Ink-delta pacing + cap | Fixed interval | A flat interval both stares at an untouched canvas and waits through a burst; cost falls out of the same knob |
+| AI difficulty | Later, rarer, second-guesses itself | Corrupt its answers | It still says what it actually saw; a bot that lies on purpose stops being a demo of the model |
+| AI confidence | Ranked shortlist | Confidence percentages | These APIs return no calibrated confidence — a percentage would be invented, and the runners-up are the funnier signal anyway |
 | AI vision | Separate Worker | Inline call | Isolate latency; scale the model tier independently |
 | AI drawer art | Curated doodle library | Generative model | Legible, free, testable; a generator can slot behind the same injected callback |
+| Doodle variation | Post-process the vectors | More source doodles | 12 fixed pictures read as canned no matter how many you add; a wobble pass makes each one a subject instead of an image, and it is ~100 lines |
+| Word difficulty | Three tiers, one offered each | Flat list | Makes the pick a bet: harder words pay more, so choosing is a decision rather than a formality |
+| Word repetition | Per-room recency, capped at half a pool | Global shuffle bag | A shuffle bag over a small pool (40 doodles) starves; the cap guarantees a pick always exists |
+| Undo sync | Echo the stroke id | Rebroadcast the canvas | Undo was the largest message in the room, fired by the button people press most; both sides run the same `dropStroke` so they cannot disagree |
+| Fill tool | Rasterize per client | Send pixels | Three numbers on the wire instead of a bitmap; a replay at a different size is near-identical, which is fine for a doodle |
+| Eraser | `destination-out` | Paint white | White pixels are a region the fill tool would treat as its own; erasing back to transparent keeps one background |
+| Overfull rooms | Spectator gallery (capped) | Refuse the connection | Closing the socket on the ninth friend is a worse answer than letting them watch; the gallery is capped because every connection still receives every draw op |
+| Room identity | Generated word codes | A shared default room | Everyone landed in one room called "lobby", so unrelated groups collided and the second one hit the player cap |
+| Invite links | `/r/:room` path | URL hash | A hash never reaches the server, so a scraper could only ever unfurl the generic card |
 | Team scoring | System messages + scoreboard | New `PublicGameState` fields | Team scoring is mode-specific; adding it to the shared contract is the wrong coupling |
 | Room runtime | Durable Object per room | Node + Redis / stateless + pub-sub | Single-writer-per-room by construction; roster + strokes in-memory, no external store (§4) |
 | WebSocket style | Pinned (`server.accept()`) | Hibernation API | The turn timer must survive; hibernation evicts pending timers |
@@ -248,6 +259,19 @@ up front — is the design discipline I'm most happy with here.
 
 Honest list:
 
+- **The AI drawer is still curated, not generative** — 40 hand-coded vector
+  doodles. What changed is that they no longer *look* canned: a post-processing
+  pass redraws each one with an unsteady hand, so the same word never produces
+  the same picture. The seam for a real generator is unchanged
+  (`AIDrawerMode`'s injected `requestDrawing`), and the wobble pass would apply
+  to a generated drawing just as well.
+- **A room's settings, word memory, and host live in memory** alongside the rest
+  of the engine state, so they share the same eviction caveat below.
+- **The fill tool rasterizes per client.** Replaying a filled drawing at a
+  different canvas size gives a near-identical, not bit-identical, result. Fine
+  for a doodle; it would not be fine if drawings were ever authoritative
+  artifacts.
+
 - **Reconnect now preserves identity** via a client-held `pid` on the connect
   URL: a dropped client (including a sole player) gets an ~8s grace window to
   rejoin as the same player (keeps score, draw order, drawer role) before it's
@@ -268,8 +292,11 @@ Honest list:
   message floods without throttling normal play. Paid AI vision is separately
   capped per room (a whole-lifetime budget) so a "run it back" loop can't run up
   a bill. The pure policy (`atCapacity`) is unit-tested; the per-IP layer
-  degrades open when the binding is absent (local dev). *Remaining:* no auth —
-  anyone can still join any room and `start_game`.
+  degrades open when the binding is absent (local dev). Rooms now have a host —
+  the longest-present player — and only the host can start a game, change
+  settings, or remove someone. *Remaining:* no auth, so the host is whoever
+  connected first rather than a verified identity, and anyone with the room code
+  can still join.
 - **Horizontal scale is now the runtime, not a plan.** §4's design is
   implemented: one Durable Object per room gives single-writer-per-room by
   construction. What's *not* done is persisting engine state to the DO's SQLite
@@ -287,10 +314,6 @@ Honest list:
   intended "type a name, share a link" flow for a party game. The abuse surface
   is bounded by the per-IP, per-room, and per-connection limits above rather than
   by accounts.
-- **The AI drawer is canned, not generative.** It draws from a small doodle
-  library. A model-based generator (LLM emitting stroke ops, or image→trace) can
-  slot behind the existing injected `requestDrawing` callback without touching
-  the mode.
 
 **Next three things, in order:** (1) persist engine state to the DO's SQLite so a
 room survives eviction; (2) an end-to-end test across the real WebSocket +

@@ -52,17 +52,31 @@ word. Proof the strokes sync live and the word stays secret:
 - The server is authoritative. The drawer paints locally so their own strokes
   feel instant, but the server holds the real state, saves every stroke, and
   relays them to everyone else. Clients can't fake game state.
-- The secret word is only ever sent to the drawer (`your_word`), and never to the
-  AI worker. So there's nothing to cheat with: the word just isn't in the data a
-  client or the AI receives.
+- The secret word is only ever sent to the drawer (`your_word`). The AI worker
+  gets the pixels and the same masked hint every human guesser can see
+  (`_ u _ t a _`), never the answer — so it plays fair rather than blind, and
+  there is still nothing to cheat with.
 - The engine and the modes are separate. `engine.ts` runs the turn timeline and
   scoring and doesn't know any game rules. A `GameMode` decides who draws, what
   the word is, and how chat is read. `AIGuesserMode` is about 70 lines and
   doesn't touch the engine.
 - Full game loop: multiple rounds with a rotating drawer, a word-choice step
-  (pick one of three), letter hints that reveal as the timer runs down, scoring
-  that rewards guessing fast, and guess matching that ignores case, accents, and
-  punctuation (plus a private "so close!" when you're one letter off).
+  (one word per difficulty tier, with a once-per-game skip), letter hints that
+  reveal as the timer runs down, and guess matching that ignores case, accents,
+  and punctuation (plus a private "so close!" when you're one letter off).
+- Scoring is a set of incentives rather than a single number: speed, then the
+  word's difficulty, then a bonus for reading the drawing before any letter
+  appears, then a capped bonus for whoever is behind. The drawer is paid by how
+  fast people read their drawing, not a flat rate per guesser.
+- 381 words in three tiers, themed packs, and a room can type in its own. Each
+  room remembers what it has already served, so an evening of short games stops
+  recycling the same handful.
+- The AI's drawings are 40 hand-coded vector doodles, redrawn every time by an
+  unsteady hand: densified lines, sideways waver, a global tilt, corner
+  overshoot. The same word never draws the same picture twice, and it appears
+  point by point rather than a stroke at a time.
+- Rooms have a host, a ready check, and a spectator gallery: the ninth player
+  watches instead of being turned away.
 - The AI joins the roster as a regular player, so it goes through the same
   presence, scoring, and turn-end code as a human. The engine has no AI branch.
 - Vision runs in a separate `ai-worker` Worker that turns the stroke log into a
@@ -70,6 +84,10 @@ word. Proof the strokes sync live and the word stays secret:
   just means no guess that round.
 - Vision providers (mock / OpenAI / Anthropic) sit behind one interface and are
   picked based on env vars. With no API key it uses the mock and still runs.
+- The bot returns a ranked shortlist, not one word, so its runners-up become the
+  joke ("no cap that's a dog … or is it a horse"). It paces its own guessing by
+  how much new ink has appeared, which also stops it spending vision calls on a
+  canvas nobody is touching.
 
 ---
 
@@ -146,13 +164,30 @@ packages/game-server/            game Worker: routing + Durable Object + engine 
   src/ai/{aiGuessLoop,aiDrawLoop}.ts  composable AI cadence helpers
   src/text.ts                    guess normalization + close-match
   src/services/aiWorkerClient.ts resilient HTTP client to ai-worker
-  src/words.{ts,json}            configurable word list
+  src/doodles.ts                 40 hand-coded vector doodles the AI draws
+  src/humanize.ts                redraws a doodle with an unsteady hand
+  src/ai/persona.ts              the bot's name and commentary
+  src/wordMemory.ts              per-room recency, so games stop repeating
+  src/hosting.ts                 who holds the room, who is watching
+  src/limits.ts                  player/spectator caps, close codes
+  src/inviteMeta.ts              per-room link-preview rewriting
 packages/ai-worker/              vision Worker
   src/worker.ts                  fetch handler: POST /guess, /health
   src/strokeSvg.ts               DrawOps → SVG (pure)
   src/strokeRender.ts            SVG → PNG via @resvg/resvg-wasm
   src/visionProviders.ts         Mock | OpenAI | Anthropic
+  src/ogCard.ts                  per-room link-preview PNG
 packages/client/                 React + Vite + Canvas UI
+  src/paint.ts                   canvas painter (live board + replay share it)
+  src/Replay.tsx                 redraws a finished round
+  src/styles.ts                  inline style objects
+shared/                          the protocol, and the game data both sides need
+  events.ts                      every message crossing the socket
+  words.{ts,json}                381 words in three difficulty tiers
+  packs.json                     themed subsets of that list
+  awards.ts                      end-of-game awards (pure, so it is testable)
+  strokeLog.ts                   undo, shared so both sides agree
+e2e/                             Playwright, against the real Worker + DO
 ```
 
 ---
@@ -202,14 +237,21 @@ Same engine, different mode.
 ### Tests
 
 ```bash
-pnpm -r test                              # 65 tests: 44 game-server, 21 ai-worker
+pnpm -r test                              # 158 unit tests: 131 game-server, 27 ai-worker
 pnpm --filter @iguess/game-server test    # engine + modes + helpers
 pnpm --filter @iguess/ai-worker test      # stroke→SVG + vision providers
+pnpm test:e2e                             # 9 Playwright specs, real Worker + DO
 ```
 
 The engine tests run whole games through the `GameEngine` with in-memory deps
 (no sockets or real timers), covering rounds, scoring, hints, the word-choice
 step, and guess matching.
+
+The e2e suite starts the SPA and the game-server Durable Object for real. It
+deliberately starts the game-server **without** `AI_WORKER_URL`, so a test run
+can never reach a paid vision provider — `.dev.vars` outranks `--var`, so there
+is no way to force the mock from the command line. The AI guess path is covered
+by unit tests instead.
 
 ---
 
