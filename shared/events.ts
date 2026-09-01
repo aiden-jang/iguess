@@ -87,6 +87,9 @@ export function sanitizeSettings(raw: Partial<RoomSettings> | undefined): RoomSe
 export interface PlayerInfo {
   id: string;
   name: string;
+  // The room's owner: the only one who can start a game, change settings, or remove someone.
+  // Eight-player rooms with nobody in charge go wrong the first time someone goes AFK.
+  isHost?: boolean;
 }
 
 // ---- Drawing ----
@@ -175,6 +178,11 @@ export type ClientMessage =
       // Change the room's settings. Lobby only; the server clamps every value.
       type: "set_settings";
       settings: Partial<RoomSettings>;
+    }
+  | {
+      // Host only: remove a player from the room.
+      type: "kick";
+      playerId: string;
     };
 
 // ---- Server → Client ----

@@ -11,6 +11,9 @@ export const MAX_PLAYERS_PER_ROOM = 8;
 // retrying) and show a "room is full" notice instead of reconnect-storming.
 export const CLOSE_ROOM_FULL = 4009;
 
+// Removed by the host. Terminal like CLOSE_ROOM_FULL: reconnecting would just walk back in.
+export const CLOSE_KICKED = 4010;
+
 // New WS connections allowed per client IP per minute, enforced at the Worker edge before the room
 // DO is ever created — so one IP can't spin up unbounded rooms/objects. Generous enough for legit
 // reconnects (the client backs off up to 5s → well under this) and mode/room switching.
