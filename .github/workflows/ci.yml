@@ -22,6 +22,10 @@ jobs:
       - run: pnpm lint
       - run: pnpm build
       - run: pnpm test
+      - run: pnpm exec playwright install --with-deps chromium
+      # The e2e stack starts the game-server without AI_WORKER_URL on purpose, so a CI run
+      # can never reach a paid vision provider. See playwright.config.ts.
+      - run: pnpm test:e2e
 
   # Auto-deploy to Cloudflare on merge to main, only after the checks above pass.
   # Requires a CLOUDFLARE_API_TOKEN repo secret (Workers-scoped). Wrangler infers the

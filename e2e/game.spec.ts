@@ -1,0 +1,83 @@
+import { test, expect, type Page } from "@playwright/test";
+
+// A fresh room per test AND per run. Rooms are real Durable Objects that outlive a socket by
+// a reconnect grace window, so reusing a name means the previous run still holds the host slot
+// and the new joiner never sees the start button.
+const runId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+const roomFor = (label: string) => `e2e-${label}-${runId}`;
+async function join(page: Page, room: string, name: string, mode = "AI Guesser") {
+  await page.addInitScript(() => localStorage.clear());
+  await page.goto("/");
+  await page.getByPlaceholder("whatever you want, really").fill(name);
+  await page.getByPlaceholder("your room code").fill(room);
+  await page.getByRole("button", { name: new RegExp(mode, "i") }).click();
+  await page.getByRole("button", { name: /pull up/i }).click();
+  await expect(page.getByText(name).first()).toBeVisible();
+}
+
+test("the host starts a game and is offered one word per difficulty", async ({ page }) => {
+  await join(page, roomFor("choose"), "Host");
+  await page.getByRole("button", { name: /send it/i }).click();
+
+  // Three options, each labelled with what it pays, plus the one-per-game skip.
+  const tiles = page.locator(".word-tiles button").filter({ hasNotText: "skip" });
+  await expect(tiles).toHaveCount(3);
+  await expect(page.locator(".word-tiles")).toContainText("1x");
+  await expect(page.locator(".word-tiles")).toContainText("1.6x");
+  await expect(page.getByRole("button", { name: /skip/i })).toBeVisible();
+});
+
+test("skipping swaps every word and then goes away", async ({ page }) => {
+  await join(page, roomFor("skip"), "Host");
+  await page.getByRole("button", { name: /send it/i }).click();
+  const tiles = page.locator(".word-tiles button").filter({ hasNotText: "skip" });
+  await expect(tiles).toHaveCount(3);
+  const before = await tiles.allInnerTexts();
+
+  await page.getByRole("button", { name: /skip/i }).click();
+  // Wait for the replacement to arrive: the old three are still on screen until it does, so
+  // asserting on a count alone would read the pre-skip words back.
+  await expect
+    .poll(async () => (await tiles.allInnerTexts()).join("|"))
+    .not.toBe(before.join("|"));
+  const after = await tiles.allInnerTexts();
+  expect(after.some((w) => before.includes(w))).toBe(false);
+  await expect(page.getByRole("button", { name: /skip/i })).toHaveCount(0);
+});
+
+test("picking a word starts the round and hides the word from the board", async ({ page }) => {
+  await join(page, roomFor("round"), "Host");
+  await page.getByRole("button", { name: /send it/i }).click();
+  const tiles = page.locator(".word-tiles button").filter({ hasNotText: "skip" });
+  await tiles.first().click();
+
+  await expect(page.getByText(/⏱/)).toBeVisible();
+  // The drawer's own tools are live now.
+  await expect(page.getByTitle("fill an area with the current colour")).toBeEnabled();
+  await expect(page.getByTitle("undo the last stroke")).toBeEnabled();
+});
+
+test("the lobby board is drawable before anyone starts", async ({ page }) => {
+  await join(page, roomFor("lobby"), "Host");
+  const canvas = page.locator("canvas");
+  await expect(canvas).toBeVisible();
+  // The board mounts with a pop-in animation. Measuring mid-animation gives a box the canvas
+  // has already moved out of, and the press lands on the page behind it.
+  await page.waitForTimeout(700);
+  await canvas.hover();
+  const box = (await canvas.boundingBox())!;
+
+  await page.mouse.move(box.x + 40, box.y + 40);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 160, box.y + 120, { steps: 12 });
+  await page.mouse.up();
+
+  // Undo is the honest proof a stroke was recorded: it only does anything if one exists.
+  const painted = await canvas.evaluate((c: HTMLCanvasElement) => {
+    const d = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 3; i < d.length; i += 4) if (d[i]! > 0) n++;
+    return n;
+  });
+  expect(painted).toBeGreaterThan(200);
+});
