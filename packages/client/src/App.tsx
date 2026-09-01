@@ -10,7 +10,14 @@ import { PACK_NAMES } from "@iguess/shared/words";
 // What each tier pays, mirroring TIER_MULTIPLIER on the server.
 const TIER_LABEL: Record<WordTier, string> = { easy: "1x", medium: "1.25x", hard: "1.6x" };
 
-const COLORS = ["#111111", "#e11d48", "#2563eb", "#16a34a", "#f59e0b", "#ffffff"];
+// Ink colours. Fixed hexes, not theme tokens: a drawing has to look the same to everyone
+// regardless of which theme each player is using.
+const COLORS = [
+  "#111111", "#6b7280", "#ffffff",
+  "#e11d48", "#f97316", "#f59e0b",
+  "#16a34a", "#0891b2", "#2563eb",
+  "#7c3aed", "#db2777", "#92400e",
+];
 
 // `needsTwo` mirrors each mode's `minHumans` on the server (see packages/game-server/src/modes).
 // Classic is the only one that can't run alone, so first-time visitors start in AI Guesser: the
@@ -569,6 +576,8 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
   const [text, setText] = useState("");
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(4);
+  const [erasing, setErasing] = useState(false);
+  const [filling, setFilling] = useState(false);
   // Chat auto-scroll: follow the newest message while pinned to the bottom; if the user has scrolled
   // up to read history, stop following and surface a "new messages" button instead of yanking them down.
   const chatLogRef = useRef<HTMLDivElement>(null);
@@ -1266,7 +1275,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
             <button
               key={c}
               disabled={!canDraw}
-              onClick={() => setColor(c)}
+              onClick={() => { setColor(c); setErasing(false); }}
               style={{
                 ...styles.swatch,
                 background: c,
@@ -1295,14 +1304,27 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
             className="lift"
             style={{
               ...styles.ghostButton,
-              ...(color === "#ffffff" ? { boxShadow: "0 0 0 2px var(--accent)" } : {}),
+              ...(erasing ? { boxShadow: "0 0 0 2px var(--accent)" } : {}),
             }}
-            onClick={() => setColor("#ffffff")}
+            onClick={() => { setErasing((e) => !e); setFilling(false); }}
             disabled={!canDraw}
-            aria-pressed={color === "#ffffff"}
-            title="eraser (paints white)"
+            aria-pressed={erasing}
+            title="eraser"
           >
             ⌫ erase
+          </button>
+          <button
+            className="lift"
+            style={{
+              ...styles.ghostButton,
+              ...(filling ? { boxShadow: "0 0 0 2px var(--accent)" } : {}),
+            }}
+            onClick={() => { setFilling((f) => !f); setErasing(false); }}
+            disabled={!canDraw}
+            aria-pressed={filling}
+            title="fill an area with the current colour"
+          >
+            🪣 fill
           </button>
           <button
             className="lift"
@@ -1337,6 +1359,8 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
             subscribeDraw={subscribeDraw}
             color={color}
             width={width}
+            erasing={erasing}
+            filling={filling}
             canDraw={canDraw}
             onCanvas={(el) => (canvasElRef.current = el)}
           />

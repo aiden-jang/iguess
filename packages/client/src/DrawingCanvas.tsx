@@ -7,6 +7,8 @@ interface Props {
   subscribeDraw: (fn: (op: DrawOp | { kind: "reset" }) => void) => () => void;
   color: string;
   width: number;
+  erasing: boolean;
+  filling: boolean;
   canDraw: boolean; // only the current drawer may paint
   // Hands the underlying <canvas> element up so the parent can snapshot it.
   onCanvas?: (el: HTMLCanvasElement | null) => void;
@@ -14,8 +16,71 @@ interface Props {
 
 // Per-stroke render state, keyed by strokeId, so interleaved remote strokes
 // each remember their own last point + style during replay.
+// Tolerance is generous because strokes are antialiased: an exact match would stop at the
+// soft edge of a line and leave a halo of unfilled pixels around everything.
+const FILL_TOLERANCE = 60;
+
+/** Scanline flood fill from a normalized point. Operates on the backing store, not CSS pixels. */
+function floodFill(ctx: CanvasRenderingContext2D, at: Point, hex: string): void {
+  const canvas = ctx.canvas;
+  const w = canvas.width;
+  const h = canvas.height;
+  if (w === 0 || h === 0) return;
+  const sx = Math.min(w - 1, Math.max(0, Math.round(at.x * w)));
+  const sy = Math.min(h - 1, Math.max(0, Math.round(at.y * h)));
+
+  const img = ctx.getImageData(0, 0, w, h);
+  const px = img.data;
+  const at4 = (x: number, y: number) => (y * w + x) * 4;
+  const start = at4(sx, sy);
+  const target = [px[start]!, px[start + 1]!, px[start + 2]!, px[start + 3]!];
+
+  const fill = [
+    parseInt(hex.slice(1, 3), 16),
+    parseInt(hex.slice(3, 5), 16),
+    parseInt(hex.slice(5, 7), 16),
+    255,
+  ];
+  const same = (a: number[], b: number[]) =>
+    Math.abs(a[0]! - b[0]!) + Math.abs(a[1]! - b[1]!) + Math.abs(a[2]! - b[2]!) + Math.abs(a[3]! - b[3]!) <
+    FILL_TOLERANCE;
+  if (same(target, fill)) return; // already this colour: filling would spin over the whole region
+
+  const matches = (i: number) => same([px[i]!, px[i + 1]!, px[i + 2]!, px[i + 3]!], target);
+  const paint = (i: number) => {
+    px[i] = fill[0]!;
+    px[i + 1] = fill[1]!;
+    px[i + 2] = fill[2]!;
+    px[i + 3] = 255;
+  };
+
+  // Scanline rather than per-pixel recursion: a full-canvas fill is ~2M pixels, and a
+  // four-way stack blows both the call stack and the frame budget.
+  const stack: [number, number][] = [[sx, sy]];
+  while (stack.length) {
+    const [x0, y] = stack.pop()!;
+    let x = x0;
+    while (x > 0 && matches(at4(x - 1, y))) x--;
+    let spanAbove = false;
+    let spanBelow = false;
+    for (; x < w && matches(at4(x, y)); x++) {
+      paint(at4(x, y));
+      const above = y > 0 && matches(at4(x, y - 1));
+      if (above && !spanAbove) stack.push([x, y - 1]);
+      spanAbove = above;
+      const below = y < h - 1 && matches(at4(x, y + 1));
+      if (below && !spanBelow) stack.push([x, y + 1]);
+      spanBelow = below;
+    }
+  }
+  // putImageData ignores the DPR transform, so write at device pixels and let the existing
+  // transform keep applying to everything drawn afterwards.
+  ctx.putImageData(img, 0, 0);
+}
+
 interface StrokeState {
   last: Point;
+  erase: boolean;
   // Midpoint the last drawn curve ended on. The smoothing anchors here, not on `last`.
   mid: Point;
   color: string;
@@ -27,6 +92,8 @@ export function DrawingCanvas({
   subscribeDraw,
   color,
   width,
+  erasing,
+  filling,
   canDraw,
   onCanvas,
 }: Props) {
@@ -41,8 +108,8 @@ export function DrawingCanvas({
   const opLog = useRef<DrawOp[]>([]);
 
   // Latest brush settings, read at pointer-down time without re-subscribing.
-  const brush = useRef({ color, width });
-  brush.current = { color, width };
+  const brush = useRef({ color, width, erasing, filling });
+  brush.current = { color, width, erasing, filling };
 
   // Paint one op. Pure rendering — no recording — so it's reused for live draws, remote replay,
   // and re-rendering the whole log after a resize.
@@ -64,11 +131,15 @@ export function DrawingCanvas({
           mid: op.point,
           color: op.color,
           width: op.width,
+          erase: op.erase === true,
         });
         break;
       case "move": {
         const s = strokes.current.get(op.strokeId);
         if (!s) return;
+        // destination-out cuts ink back out to transparency. Painting white would leave white
+        // pixels that the fill tool reads as a distinct region.
+        ctx.globalCompositeOperation = s.erase ? "destination-out" : "source-over";
         ctx.strokeStyle = s.color;
         ctx.lineWidth = s.width;
         ctx.lineCap = "round";
@@ -110,8 +181,13 @@ export function DrawingCanvas({
         s.mid = mid;
         break;
       }
+      case "fill": {
+        floodFill(ctx, op.point, op.color);
+        break;
+      }
       case "end":
         strokes.current.delete(op.strokeId);
+        ctx.globalCompositeOperation = "source-over";
         break;
       case "undo":
         // Handled in applyOp by rebuilding the log; nothing to paint directly.
@@ -227,6 +303,17 @@ export function DrawingCanvas({
 
   function onPointerDown(e: React.PointerEvent) {
     if (!canDraw) return; // not your turn
+    if (brush.current.filling) {
+      const op: DrawOp = {
+        kind: "fill",
+        strokeId: Math.random().toString(36).slice(2, 10),
+        color: brush.current.color,
+        point: toNorm(e),
+      };
+      applyOp(op);
+      sendDraw(op);
+      return;
+    }
     e.currentTarget.setPointerCapture(e.pointerId);
     drawing.current = true;
     strokeId.current = Math.random().toString(36).slice(2, 10);
@@ -237,6 +324,7 @@ export function DrawingCanvas({
       strokeId: strokeId.current,
       color: brush.current.color,
       width: brush.current.width,
+      erase: brush.current.erasing,
       point,
     };
     applyOp(op);
@@ -273,7 +361,8 @@ export function DrawingCanvas({
   const half = s / 2;
   const svg =
     `<svg xmlns='http://www.w3.org/2000/svg' width='${s}' height='${s}'>` +
-    `<circle cx='${half}' cy='${half}' r='${d / 2}' fill='${color}' fill-opacity='0.35' ` +
+    `<circle cx='${half}' cy='${half}' r='${d / 2}' fill='${erasing ? "#ffffff" : color}' ` +
+    `fill-opacity='${erasing ? 0.15 : 0.35}' ` +
     `stroke='black' stroke-opacity='0.55' stroke-width='1.5'/></svg>`;
   const brushCursor = `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${half} ${half}, crosshair`;
 
