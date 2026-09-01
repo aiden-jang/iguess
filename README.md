@@ -262,6 +262,33 @@ by unit tests instead.
 
 ---
 
+## Deploying
+
+CI deploys on merge to `main` (`.github/workflows/ci.yml`), after typecheck, lint,
+build, unit tests and the e2e suite all pass. That is the normal path.
+
+To ship by hand:
+
+```bash
+pnpm run deploy        # checks first, then both Workers
+pnpm run deploy:only   # skip the checks (know why you're doing this)
+```
+
+Two things to know:
+
+- **`pnpm run deploy`, not `pnpm deploy`.** `deploy` is a built-in pnpm command
+  (it copies a workspace package to a directory), so without `run` you get that
+  instead of this script.
+- **Order is not arbitrary.** The ai-worker goes first, then the game-server,
+  which builds the client and serves it. Reverse them and you publish a
+  game-server pointing at an ai-worker that hasn't shipped yet.
+
+A manual deploy needs Cloudflare credentials, which CI gets from a repo secret.
+Locally, run `wrangler login` once (or export `CLOUDFLARE_API_TOKEN`), or wrangler
+will stop and ask.
+
+---
+
 ## Talking about this
 
 [ARCHITECTURE.md](ARCHITECTURE.md) is the long version and it's written for exactly this. The short
