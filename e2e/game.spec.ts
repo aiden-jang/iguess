@@ -81,3 +81,38 @@ test("the lobby board is drawable before anyone starts", async ({ page }) => {
   });
   expect(painted).toBeGreaterThan(200);
 });
+
+test("a finished game shows the gallery, a replay and the shareable card", async ({ page }) => {
+  test.setTimeout(90_000); // a real round has to actually elapse
+  await join(page, roomFor("finish"), "Host");
+
+  // Shortest possible game: one round on the shortest clock.
+  // Both labels contain "round", so match on the option values instead of the label text.
+  await page.locator("select").filter({ hasText: "30s" }).selectOption("30");
+  await page.locator("select").filter({ hasText: "first to" }).selectOption("r1");
+  await page.getByRole("button", { name: /send it/i }).click();
+
+  const tiles = page.locator(".word-tiles button").filter({ hasNotText: "skip" });
+  await expect(tiles).toHaveCount(3);
+  await tiles.first().click();
+
+  // Put something on the board so the round has a drawing to remember.
+  const canvas = page.locator("canvas");
+  await page.waitForTimeout(500);
+  await canvas.hover();
+  const box = (await canvas.boundingBox())!;
+  await page.mouse.move(box.x + 60, box.y + 60);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 240, box.y + 180, { steps: 15 });
+  await page.mouse.up();
+  // Round over, then the results screen.
+  await expect(page.getByText(/run it back/i)).toBeVisible({ timeout: 60_000 });
+  // The first round's drawing has to survive: the game_state after turn_end still carries the
+  // old turn index, and a zero-check here used to wipe the gallery the moment it was filled.
+  await expect(page.locator("figure")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /replay/i }).first()).toBeVisible();
+
+  // The replay swaps the still for a live canvas that redraws the round.
+  await page.getByRole("button", { name: /replay/i }).first().click();
+  await expect(page.getByRole("button", { name: /still/i }).first()).toBeVisible();
+});

@@ -748,11 +748,16 @@ function Room({
     lastGuess.current = { guess: null, right: false };
   }, [turnEnd?.at]);
 
-  // A new game starts a new gallery. Keyed on the turn index returning to zero rather than on the
-  // phase, because "run it back" goes ended → playing without passing through the lobby.
+  // A new game starts a new gallery. Keyed on ENTERING a live phase, not on turnIndex hitting
+  // zero: the game_state that follows turn_end still carries the old index, so a zero-check
+  // wiped the first round's drawing the moment it was captured. "run it back" goes
+  // ended → playing without passing through the lobby, which is why phase alone isn't enough.
+  const wasLive = useRef(false);
   useEffect(() => {
-    if (phase === "lobby" || game?.turnIndex === 0) setGallery([]);
-  }, [phase, game?.turnIndex]);
+    const live = phase === "choosing" || phase === "playing";
+    if (live && !wasLive.current) setGallery([]);
+    wasLive.current = live || phase === "intermission";
+  }, [phase]);
 
   // On game end: figure out if you won, update the streak, and play a sting.
   useEffect(() => {
