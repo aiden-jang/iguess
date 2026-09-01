@@ -32,6 +32,7 @@ function makeCtx(frac = 1) {
     removeParticipant: (id: string) => roster.delete(id),
     currentDrawerId: () => drawerId,
     currentWord: () => word,
+    hintsRevealed: () => 0,
     turnFractionRemaining: () => frac,
     syncState: () => {},
     endTurn: () => { ended = true; },
@@ -99,7 +100,7 @@ test("on an AI-draw turn, your correct guess pays you AND the AI its drawer bonu
   setTurn(ai, "sun");
   const handled = mode.onChat("you", "SUN", ctx);
   assert.equal(handled, true);
-  assert.equal(scores["you"], 100, "guesser paid by speed");
+  assert.equal(scores["you"], 120, "guesser paid by speed, +20% for needing no hints");
   assert.equal(scores[ai], 50, "AI drawer paid by how fast you read it: full time → 10 + 40");
   assert.ok(isEnded(), "sole guesser correct → turn ends");
 });

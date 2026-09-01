@@ -378,6 +378,7 @@ export class GameEngine {
     },
     currentDrawerId: () => this.drawerId,
     currentWord: () => this.word,
+    hintsRevealed: () => this.revealed.size,
     turnFractionRemaining: () => {
       if (!this.turnEndsAt) return 0;
       return Math.max(0, Math.min(1, (this.turnEndsAt - Date.now()) / TURN_MS));

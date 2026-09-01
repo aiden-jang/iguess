@@ -55,6 +55,10 @@ export interface EngineContext {
   // Fraction (0..1) of the turn timer remaining — used for speed scoring.
   turnFractionRemaining(): number;
 
+  // How many letters the engine has given away this turn. Lets a mode reward a guess
+  // made off the drawing alone.
+  hintsRevealed(): number;
+
   // Re-broadcast public game state (call after mutating scores/guessed).
   syncState(): void;
 

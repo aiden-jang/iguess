@@ -29,6 +29,7 @@ function makeCtx(frac: number, word: string) {
     removeParticipant: (id: string) => roster.delete(id),
     currentDrawerId: () => "drawer",
     currentWord: () => word,
+    hintsRevealed: () => 0,
     turnFractionRemaining: () => frac,
     syncState: () => {},
     endTurn: () => {},
@@ -104,9 +105,27 @@ test("a trailing player earns more per guess than the leader would", () => {
 });
 
 test("the comeback bonus cannot exceed a third", () => {
-  const mode = new ClassicMode();
-  const { ctx, scores } = makeCtx(1, "apple");
-  scores["other"] = 1_000_000;
-  mode.onChat("you", "apple", ctx);
-  assert.ok(scores["you"]! <= 100 * 1.35 + 1, `runaway bonus: ${scores["you"]}`);
+  // Measured against an identical guess with no deficit, so it stays honest as the other
+  // multipliers change rather than pinning a magic total.
+  const flat = makeCtx(1, "apple");
+  new ClassicMode().onChat("you", "apple", flat.ctx);
+
+  const behind = makeCtx(1, "apple");
+  behind.scores["other"] = 1_000_000;
+  new ClassicMode().onChat("you", "apple", behind.ctx);
+
+  const ratio = behind.scores["you"]! / flat.scores["you"]!;
+  assert.ok(ratio > 1.3 && ratio <= 1.36, `runaway bonus ratio: ${ratio}`);
+});
+
+test("reading the drawing before any letter appears pays extra", () => {
+  const aided = makeCtx(1, "apple");
+  (aided.ctx as unknown as { hintsRevealed: () => number }).hintsRevealed = () => 2;
+  new ClassicMode().onChat("you", "apple", aided.ctx);
+
+  const unaided = makeCtx(1, "apple");
+  new ClassicMode().onChat("you", "apple", unaided.ctx);
+
+  assert.ok(unaided.scores["you"]! > aided.scores["you"]!,
+    `no-hint ${unaided.scores["you"]} should beat hinted ${aided.scores["you"]}`);
 });
