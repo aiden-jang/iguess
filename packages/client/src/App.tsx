@@ -4,6 +4,7 @@ import { DrawingCanvas } from "./DrawingCanvas";
 import { renderEvidencePng } from "./evidenceCard";
 import { useWakeLock } from "./useWakeLock";
 import type { WordTier } from "@iguess/shared";
+import { newRoomCode } from "@iguess/shared/roomCode";
 
 // What each tier pays, mirroring TIER_MULTIPLIER on the server.
 const TIER_LABEL: Record<WordTier, string> = { easy: "1x", medium: "1.25x", hard: "1.6x" };
@@ -302,8 +303,10 @@ export function App() {
   const [draftName, setDraftName] = useState(
     invite.name ?? localStorage.getItem("iguess_name") ?? ""
   );
+  // A generated code rather than a shared default: two groups opening the site at once used
+  // to land in the same room. A returning player keeps the room they last used.
   const [draftRoom, setDraftRoom] = useState(
-    invite.room ?? localStorage.getItem("iguess_room") ?? "lobby"
+    invite.room ?? localStorage.getItem("iguess_room") ?? newRoomCode()
   );
   const [draftMode, setDraftMode] = useState(invite.mode ?? "ai");
   const [joined, setJoined] = useState<{
@@ -323,7 +326,7 @@ export function App() {
   const doJoin = () => {
     const name = draftName.trim();
     if (!name) return;
-    const room = draftRoom.trim() || "lobby";
+    const room = draftRoom.trim() || newRoomCode();
     localStorage.setItem("iguess_name", name);
     localStorage.setItem("iguess_room", room);
     // Reflect the room in the URL so the address bar (and a copy-paste) points at THIS room, not the
@@ -392,13 +395,25 @@ export function App() {
           </div>
 
           <label style={styles.fieldLabel}>Room</label>
-          <input
-            placeholder="lobby"
-            value={draftRoom}
-            onChange={(e) => setDraftRoom(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && doJoin()}
-            style={styles.input}
-          />
+          <div style={styles.nameRow}>
+            <input
+              placeholder="your room code"
+              value={draftRoom}
+              onChange={(e) => setDraftRoom(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && doJoin()}
+              style={{ ...styles.input, flex: 1 }}
+            />
+            <button
+              type="button"
+              className="lift wiggle"
+              style={styles.diceButton}
+              title="start a fresh room"
+              aria-label="new room code"
+              onClick={() => setDraftRoom(newRoomCode())}
+            >
+              🎲
+            </button>
+          </div>
 
           <label style={styles.fieldLabel}>Game mode</label>
           <div style={styles.modeGrid}>
