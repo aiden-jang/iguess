@@ -18,6 +18,9 @@ export interface RoomSettings {
   packs: string[];
   // Words the room typed in. Inside jokes are half the reason people play this with friends.
   customWords: string[];
+  // 0 plays the fixed round count. Anything else ends the game the moment someone reaches it,
+  // however many rounds that takes.
+  scoreTarget: number;
 }
 
 export type AiSkill = "easy" | "normal" | "brutal";
@@ -27,6 +30,7 @@ export const SETTINGS_LIMITS = {
   rounds: { min: 1, max: 8, default: 3 },
   // A room's own words. Capped so one player can't stuff the pool or the message.
   customWords: { maxCount: 40, maxLength: 24 },
+  scoreTarget: { min: 0, max: 5000, default: 0 },
 } as const;
 
 /** Normalize one room-supplied word, or null if it isn't usable as an answer. */
@@ -48,11 +52,12 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   aiSkill: "normal",
   packs: [],
   customWords: [],
+  scoreTarget: 0,
 };
 
 /** Clamp untrusted settings from a client into the allowed range. */
 export function sanitizeSettings(raw: Partial<RoomSettings> | undefined): RoomSettings {
-  const clamp = (n: unknown, k: "turnSeconds" | "rounds") => {
+  const clamp = (n: unknown, k: "turnSeconds" | "rounds" | "scoreTarget") => {
     const { min, max, default: d } = SETTINGS_LIMITS[k];
     const v = Math.round(Number(n));
     return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : d;
@@ -65,6 +70,7 @@ export function sanitizeSettings(raw: Partial<RoomSettings> | undefined): RoomSe
     packs: Array.isArray(raw?.packs)
       ? [...new Set(raw.packs.filter((p): p is string => typeof p === "string"))].slice(0, 12)
       : [],
+    scoreTarget: clamp(raw?.scoreTarget ?? 0, "scoreTarget"),
     customWords: Array.isArray(raw?.customWords)
       ? [
           ...new Set(
