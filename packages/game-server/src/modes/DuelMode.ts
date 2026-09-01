@@ -5,9 +5,10 @@ import { startGuessLoop } from "../ai/aiGuessLoop.ts";
 import { startDrawLoop } from "../ai/aiDrawLoop.ts";
 import { DOODLE_WORDS } from "../doodles.ts";
 import type { AIGuess } from "../services/aiWorkerClient.ts";
+import { AI_NAME } from "../ai/persona.ts";
 
 const AI_ID = "ai-duel";
-const AI_NAME = "🤖 AI";
+
 const TOTAL_TURNS = 6; // alternates you / AI / you / AI / you / AI — three draws each
 
 // Head-to-head "you vs the machine". Unlike TeamBattleMode (a first-to-guess RACE where only the

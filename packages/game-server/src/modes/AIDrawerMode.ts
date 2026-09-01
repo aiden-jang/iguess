@@ -4,9 +4,10 @@ import { ClassicMode } from "./ClassicMode.ts";
 import { startDrawLoop } from "../ai/aiDrawLoop.ts";
 import { DOODLE_WORDS } from "../doodles.ts";
 import type { WordMemory } from "../wordMemory.ts";
+import { AI_NAME } from "../ai/persona.ts";
 
 const AI_ID = "ai-drawer";
-const AI_NAME = "🤖 AI";
+
 const TOTAL_ROUNDS = 3;
 
 // AI-as-drawer. The AI is the sole drawer; humans race to guess. Drawing is

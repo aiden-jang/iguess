@@ -2,9 +2,9 @@ import type { EngineContext, PlayerRef, TurnContext } from "./GameMode.ts";
 import { ClassicMode } from "./ClassicMode.ts";
 import { startGuessLoop } from "../ai/aiGuessLoop.ts";
 import type { AIGuess } from "../services/aiWorkerClient.ts";
+import { AI_NAME, aiComment } from "../ai/persona.ts";
 
 const AI_ID = "ai-guesser";
-const AI_NAME = "🤖 AI";
 
 // AI-as-competing-guesser. The AI joins as a virtual participant and guesses
 // alongside humans through the same scoring path. The actual guessing loop
@@ -55,5 +55,11 @@ export class AIGuesserMode extends ClassicMode {
     super.onTurnEnd(turn, ctx);
     this.stop?.();
     this.stop = null;
+    // The most interesting thing in the room had nothing to say about the round it just played.
+    ctx.broadcast({
+      type: "chat",
+      from: { id: AI_ID, name: AI_NAME },
+      text: aiComment(turn.word, ctx.hasGuessed(AI_ID)),
+    });
   }
 }

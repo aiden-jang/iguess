@@ -96,6 +96,21 @@ test("saying the right word as a runner-up still wins the turn", async () => {
   assert.equal(chats[0], "guitar", "a win should read straight, not hedged");
 });
 
+test("with teasing off, a win lands straight away", async () => {
+  const { chats, ctx, turn } = loopHarness("guitar");
+  let won = 0;
+  const stop = startGuessLoop(turn, ctx, {
+    aiId: "ai", aiName: "AI",
+    requestGuess: async () => ({ guess: "guitar", alternatives: ["horse"] }),
+    onCorrect: () => { won++; },
+    firstGuessMs: 1, intervalMs: 500, teaseChance: 0,
+  });
+  await new Promise((r) => setTimeout(r, 30));
+  stop();
+  assert.equal(won, 1);
+  assert.deepEqual(chats, ["guitar"]);
+});
+
 test("a wrong shortlist keeps the turn going", async () => {
   const { chats, ctx, turn } = loopHarness("guitar");
   let won = false;
@@ -159,4 +174,35 @@ test("a turn ending while the AI is mid-request does not re-arm the loop", async
   assert.equal(calls, 1);
   await new Promise((r) => setTimeout(r, 120));
   assert.equal(calls, 1, "the loop kept guessing after the turn ended");
+});
+
+test("the AI teases a wrong answer before landing the right one", async () => {
+  const { chats, ctx, turn } = loopHarness("guitar");
+  let won = 0;
+  const stop = startGuessLoop(turn, ctx, {
+    aiId: "ai", aiName: "AI",
+    requestGuess: async () => ({ guess: "guitar", alternatives: ["horse"] }),
+    onCorrect: () => { won++; },
+    firstGuessMs: 1, intervalMs: 500, teaseMs: 5, teaseChance: 1,
+  });
+  await new Promise((r) => setTimeout(r, 60));
+  stop();
+  assert.equal(won, 1, "the win should land exactly once");
+  assert.deepEqual(chats, ["wait… is it a horse?", "guitar"]);
+});
+
+test("a turn ending during the tease cancels the late win", async () => {
+  const { chats, ctx, turn } = loopHarness("guitar");
+  let won = 0;
+  const stop = startGuessLoop(turn, ctx, {
+    aiId: "ai", aiName: "AI",
+    requestGuess: async () => ({ guess: "guitar", alternatives: ["horse"] }),
+    onCorrect: () => { won++; },
+    firstGuessMs: 1, intervalMs: 500, teaseMs: 80, teaseChance: 1,
+  });
+  await new Promise((r) => setTimeout(r, 20));
+  stop(); // turn ran out mid-tease
+  await new Promise((r) => setTimeout(r, 120));
+  assert.equal(won, 0, "a cancelled tease must not award the turn");
+  assert.ok(!chats.includes("guitar"), "the answer should never have landed");
 });
