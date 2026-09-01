@@ -16,6 +16,8 @@ export interface RoomSettings {
   aiSkill: AiSkill;
   // Themed word packs. Empty means the whole list.
   packs: string[];
+  // Words the room typed in. Inside jokes are half the reason people play this with friends.
+  customWords: string[];
 }
 
 export type AiSkill = "easy" | "normal" | "brutal";
@@ -23,13 +25,29 @@ export type AiSkill = "easy" | "normal" | "brutal";
 export const SETTINGS_LIMITS = {
   turnSeconds: { min: 20, max: 180, default: 60 },
   rounds: { min: 1, max: 8, default: 3 },
+  // A room's own words. Capped so one player can't stuff the pool or the message.
+  customWords: { maxCount: 40, maxLength: 24 },
 } as const;
+
+/** Normalize one room-supplied word, or null if it isn't usable as an answer. */
+export function cleanCustomWord(raw: string): string | null {
+  const w = raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (w.length < 2 || w.length > SETTINGS_LIMITS.customWords.maxLength) return null;
+  return w;
+}
 
 export const DEFAULT_SETTINGS: RoomSettings = {
   turnSeconds: SETTINGS_LIMITS.turnSeconds.default,
   rounds: SETTINGS_LIMITS.rounds.default,
   aiSkill: "normal",
   packs: [],
+  customWords: [],
 };
 
 /** Clamp untrusted settings from a client into the allowed range. */
@@ -46,6 +64,16 @@ export function sanitizeSettings(raw: Partial<RoomSettings> | undefined): RoomSe
     aiSkill: skill === "easy" || skill === "brutal" ? skill : "normal",
     packs: Array.isArray(raw?.packs)
       ? [...new Set(raw.packs.filter((p): p is string => typeof p === "string"))].slice(0, 12)
+      : [],
+    customWords: Array.isArray(raw?.customWords)
+      ? [
+          ...new Set(
+            raw.customWords
+              .filter((w): w is string => typeof w === "string")
+              .map(cleanCustomWord)
+              .filter((w): w is string => w !== null)
+          ),
+        ].slice(0, SETTINGS_LIMITS.customWords.maxCount)
       : [],
   };
 }
