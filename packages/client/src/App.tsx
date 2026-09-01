@@ -165,6 +165,11 @@ function shareToX(text: string) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
+// The stylesheet hides confetti under prefers-reduced-motion, but hidden pieces are still
+// built and mounted — up to 160 nodes for someone who asked for no motion. Skip the work.
+const stillPlease = () =>
+  typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 // Lightweight emoji confetti — no deps. Renders a burst of falling emoji that
 // auto-clears after the animation. Fired on a win.
 function Confetti({ go, count = 48 }: { go: boolean; count?: number }) {
@@ -172,7 +177,7 @@ function Confetti({ go, count = 48 }: { go: boolean; count?: number }) {
     { id: number; left: number; delay: number; dur: number; emoji: string }[]
   >([]);
   useEffect(() => {
-    if (!go) return;
+    if (!go || stillPlease()) return;
     const emojis = ["🎉", "🎨", "🐶", "🔥", "💀", "✨", "🏆", "💅", "🤖"];
     const burst = Array.from({ length: count }, (_, i) => ({
       id: i,
