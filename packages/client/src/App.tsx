@@ -540,6 +540,8 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
     startGame,
     wordChoices,
     skipWord,
+    settings,
+    updateSettings,
     turnEnd,
     chooseWord,
   } = useGameSocket(room, name, mode);
@@ -1029,6 +1031,32 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                   : isAIMode
                     ? "it's you vs the 🤖 AI. hit send it whenever you're ready."
                     : "just you so far. classic needs someone to guess, so hit 🔗 invite the squad."}
+              </span>
+              <span style={styles.settingsRow}>
+                <label style={styles.settingLabel}>
+                  round
+                  <select
+                    style={styles.settingSelect}
+                    value={settings.turnSeconds}
+                    onChange={(e) => updateSettings({ turnSeconds: Number(e.target.value) })}
+                  >
+                    {[30, 45, 60, 90, 120].map((n) => (
+                      <option key={n} value={n}>{n}s</option>
+                    ))}
+                  </select>
+                </label>
+                <label style={styles.settingLabel}>
+                  rounds
+                  <select
+                    style={styles.settingSelect}
+                    value={settings.rounds}
+                    onChange={(e) => updateSettings({ rounds: Number(e.target.value) })}
+                  >
+                    {[1, 2, 3, 4, 5, 6, 8].map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </label>
               </span>
               <button className="lift pulse-cta" style={{ ...styles.button, marginLeft: "auto" }} onClick={startGame}>
                 send it
@@ -1751,6 +1779,26 @@ const styles: Record<string, React.CSSProperties> = {
     color: "var(--muted)",
   },
   tiles: { display: "flex", gap: 5 },
+  settingsRow: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" },
+  settingLabel: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+    fontSize: 11,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    color: "var(--muted)",
+  },
+  settingSelect: {
+    padding: "4px 6px",
+    borderRadius: 8,
+    border: "1px solid var(--line)",
+    background: "var(--panel-2)",
+    color: "var(--text)",
+    fontSize: 12,
+    fontWeight: 700,
+  },
   skipButton: {
     padding: "10px 14px",
     fontSize: 13,

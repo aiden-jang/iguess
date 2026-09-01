@@ -7,7 +7,9 @@ import type {
   PublicGameState,
   GameModeName,
   WordTier,
+  RoomSettings,
 } from "@iguess/shared";
+import { DEFAULT_SETTINGS } from "@iguess/shared";
 
 export type WordChoice = { word: string; tier: WordTier };
 export type Choices = { options: WordChoice[]; canSkip: boolean };
@@ -91,6 +93,7 @@ export function useGameSocket(room: string, name: string, mode: string) {
   /** The most recent turn's revealed word, so the client can keep the drawing that went with it. */
   const [turnEnd, setTurnEnd] = useState<{ word: string; at: number } | null>(null);
   const [wordChoices, setWordChoices] = useState<Choices | null>(null);
+  const [settings, setSettings] = useState<RoomSettings>(DEFAULT_SETTINGS);
   const wsRef = useRef<WebSocket | null>(null);
   const drawListeners = useRef<Set<DrawListener>>(new Set());
 
@@ -146,6 +149,7 @@ export function useGameSocket(room: string, name: string, mode: string) {
         case "welcome":
           setYou(msg.you);
           setServerMode(msg.mode);
+          setSettings(msg.settings);
           break;
         case "presence":
           setPlayers(msg.players);
@@ -169,6 +173,9 @@ export function useGameSocket(room: string, name: string, mode: string) {
           setMyWord((w) => (msg.state.phase === "playing" ? w : null));
           // Choices are only relevant during our own "choosing" phase.
           if (msg.state.phase !== "choosing") setWordChoices(null);
+          break;
+        case "settings":
+          setSettings(msg.settings);
           break;
         case "word_choices":
           setWordChoices({
@@ -238,6 +245,13 @@ export function useGameSocket(room: string, name: string, mode: string) {
     }
   }, []);
 
+  const updateSettings = useCallback((patch: Partial<RoomSettings>) => {
+    const ws = wsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "set_settings", settings: patch } satisfies ClientMessage));
+    }
+  }, []);
+
   const skipWord = useCallback(() => {
     const ws = wsRef.current;
     if (ws?.readyState === WebSocket.OPEN) {
@@ -266,6 +280,8 @@ export function useGameSocket(room: string, name: string, mode: string) {
     sendChat,
     chooseWord,
     skipWord,
+    settings,
+    updateSettings,
     sendDraw,
     subscribeDraw,
     clearBoard,

@@ -8,6 +8,42 @@
 // Word difficulty. Drives both which pool a word comes from and what it pays.
 export type WordTier = "easy" | "medium" | "hard";
 
+// Room-level knobs. Every field was a hardcoded constant; a room that wants 30-second
+// rounds is a different game from one that wants two minutes.
+export interface RoomSettings {
+  turnSeconds: number;
+  rounds: number;
+  aiSkill: AiSkill;
+}
+
+export type AiSkill = "easy" | "normal" | "brutal";
+
+export const SETTINGS_LIMITS = {
+  turnSeconds: { min: 20, max: 180, default: 60 },
+  rounds: { min: 1, max: 8, default: 3 },
+} as const;
+
+export const DEFAULT_SETTINGS: RoomSettings = {
+  turnSeconds: SETTINGS_LIMITS.turnSeconds.default,
+  rounds: SETTINGS_LIMITS.rounds.default,
+  aiSkill: "normal",
+};
+
+/** Clamp untrusted settings from a client into the allowed range. */
+export function sanitizeSettings(raw: Partial<RoomSettings> | undefined): RoomSettings {
+  const clamp = (n: unknown, k: "turnSeconds" | "rounds") => {
+    const { min, max, default: d } = SETTINGS_LIMITS[k];
+    const v = Math.round(Number(n));
+    return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : d;
+  };
+  const skill = raw?.aiSkill;
+  return {
+    turnSeconds: clamp(raw?.turnSeconds ?? SETTINGS_LIMITS.turnSeconds.default, "turnSeconds"),
+    rounds: clamp(raw?.rounds ?? SETTINGS_LIMITS.rounds.default, "rounds"),
+    aiSkill: skill === "easy" || skill === "brutal" ? skill : "normal",
+  };
+}
+
 export interface PlayerInfo {
   id: string;
   name: string;
@@ -94,6 +130,11 @@ export type ClientMessage =
       // Throw away all three options and get three new ones. One per player per game,
       // so a drawer stuck with three unrawable words isn't simply stuck.
       type: "skip_word";
+    }
+  | {
+      // Change the room's settings. Lobby only; the server clamps every value.
+      type: "set_settings";
+      settings: Partial<RoomSettings>;
     };
 
 // ---- Server → Client ----
@@ -106,6 +147,12 @@ export type ServerMessage =
       you: PlayerInfo;
       roomId: string;
       mode: GameModeName;
+      settings: RoomSettings;
+    }
+  | {
+      // Broadcast whenever the room's settings change, so every lobby stays in step.
+      type: "settings";
+      settings: RoomSettings;
     }
   | {
       // Current roster of the room. Re-sent whenever it changes.

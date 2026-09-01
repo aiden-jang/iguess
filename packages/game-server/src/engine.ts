@@ -1,8 +1,11 @@
-import type { ServerMessage, PublicGameState, GamePhase, DrawOp } from "@iguess/shared";
+import type { ServerMessage, PublicGameState, GamePhase, DrawOp, RoomSettings } from "@iguess/shared";
+import { DEFAULT_SETTINGS } from "@iguess/shared";
 import { tierOf } from "@iguess/shared/words";
 import type { GameMode, EngineContext, PlayerRef, TurnContext } from "./modes/GameMode.ts";
 
-const TURN_MS = 60_000;
+// Default turn length. A room can change it (see RoomSettings), so read this.turnMs, not
+// this constant, anywhere the live timer is involved.
+const TURN_MS = DEFAULT_SETTINGS.turnSeconds * 1000;
 const INTERMISSION_MS = 5_000;
 // How long the drawer has to pick a word before the engine auto-picks for them.
 const CHOOSE_MS = 15_000;
@@ -34,6 +37,8 @@ export class GameEngine {
   // How many turns make up one round (every drawer drawing once). Reported by
   // the mode; defaults to the whole game (one round) when not provided.
   private turnsPerRound = 1;
+  private turnMs = TURN_MS;
+  private settings: RoomSettings = DEFAULT_SETTINGS;
   private drawerId: string | null = null;
   private word: string | null = null;
   private turnEndsAt: number | null = null;
@@ -92,6 +97,12 @@ export class GameEngine {
     }
   }
 
+  /** Apply room settings. Lobby-only; the engine snapshots the turn length at game start. */
+  applySettings(settings: RoomSettings) {
+    this.settings = settings;
+    this.mode.useSettings?.(settings);
+  }
+
   startGame(humanIds: string[]) {
     // Only start from a settled state. Without blocking "choosing" too, a double-click (the start
     // button has no in-flight lock) fires two start_games: the first enters choosing, the second
@@ -127,6 +138,9 @@ export class GameEngine {
     this.totalTurns = totalTurns;
     // Fall back to a single round when the mode doesn't report a round size.
     this.turnsPerRound = Math.max(1, turnsPerRound ?? totalTurns);
+    // Snapshot at kick-off: changing the clock mid-turn would move a deadline players can see.
+    this.turnMs = this.settings.turnSeconds * 1000;
+    this.mode.useSettings?.(this.settings);
     this.turnIndex = 0;
     this.skipsUsed.clear();
     this.scoreboard = Object.fromEntries(
@@ -234,7 +248,7 @@ export class GameEngine {
     this.phase = "playing";
     this.drawerId = drawerId;
     this.word = word;
-    this.turnEndsAt = Date.now() + TURN_MS;
+    this.turnEndsAt = Date.now() + this.turnMs;
     this.guessed.clear();
     this.scheduleHints(word);
 
@@ -248,7 +262,7 @@ export class GameEngine {
     this.mode.onTurnStart(turn, this.ctx);
     this.broadcastState();
 
-    this.timer = setTimeout(() => this.endTurn(), TURN_MS);
+    this.timer = setTimeout(() => this.endTurn(), this.turnMs);
   }
 
   // Reveal a few letters over the course of the turn to keep guessers in it.
@@ -268,7 +282,7 @@ export class GameEngine {
       [letterIdx[i], letterIdx[j]] = [letterIdx[j]!, letterIdx[i]!];
     }
     for (let k = 0; k < maxReveals; k++) {
-      const at = Math.round((TURN_MS * (k + 1)) / (maxReveals + 1));
+      const at = Math.round((this.turnMs * (k + 1)) / (maxReveals + 1));
       const idx = letterIdx[k]!;
       this.revealTimers.push(
         setTimeout(() => {
@@ -385,7 +399,7 @@ export class GameEngine {
     canvasOpCount: () => this.deps.canvasOpCount(),
     turnFractionRemaining: () => {
       if (!this.turnEndsAt) return 0;
-      return Math.max(0, Math.min(1, (this.turnEndsAt - Date.now()) / TURN_MS));
+      return Math.max(0, Math.min(1, (this.turnEndsAt - Date.now()) / this.turnMs));
     },
     syncState: () => this.broadcastState(),
     endTurn: () => this.endTurn(),

@@ -1,6 +1,7 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import type { ServerMessage, PublicGameState } from "@iguess/shared";
+import { sanitizeSettings, DEFAULT_SETTINGS } from "@iguess/shared";
 import { GameEngine, type EngineDeps } from "./engine.ts";
 import { ClassicMode, WORDS, winnerLine } from "./modes/ClassicMode.ts";
 import { isClose, normalizeGuess } from "./text.ts";
@@ -484,4 +485,28 @@ test("only the drawer can skip", () => {
   const before = drawerInbox().length;
   engine.handleSkipWord("nobody");
   assert.equal(drawerInbox().length, before, "a non-drawer should not get new choices");
+});
+
+test("room settings change the clock and the round count", () => {
+  const { engine, broadcasts, sent } = makeHarness({ a: "Ann", b: "Bob" });
+  engine.applySettings({ turnSeconds: 25, rounds: 5, aiSkill: "normal" });
+  engine.startGame(["a", "b"]);
+  settleChoosing(engine, broadcasts, sent);
+  const st = latestState(broadcasts);
+  assert.equal(st.totalRounds, 5);
+  const secondsLeft = ((st.turnEndsAt ?? 0) - Date.now()) / 1000;
+  assert.ok(secondsLeft > 20 && secondsLeft <= 25, `turn was ${secondsLeft}s, wanted 25`);
+});
+
+test("settings are clamped, not trusted", () => {
+  const wild = sanitizeSettings({ turnSeconds: 99999, rounds: -4, aiSkill: "godlike" as never });
+  assert.equal(wild.turnSeconds, 180);
+  assert.equal(wild.rounds, 1);
+  assert.equal(wild.aiSkill, "normal");
+});
+
+test("garbage settings fall back to the defaults", () => {
+  const junk = sanitizeSettings({ turnSeconds: "soon" as never, rounds: NaN });
+  assert.equal(junk.turnSeconds, DEFAULT_SETTINGS.turnSeconds);
+  assert.equal(junk.rounds, DEFAULT_SETTINGS.rounds);
 });

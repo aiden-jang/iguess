@@ -2,6 +2,7 @@ import type { GameMode, EngineContext, PlayerRef, TurnContext } from "./GameMode
 import { WORDS, WORDS_BY_TIER, TIERS, TIER_MULTIPLIER, randomWord, tierOf, type Tier } from "@iguess/shared/words";
 import { normalizeGuess, isClose } from "../text.ts";
 import type { WordMemory } from "../wordMemory.ts";
+import type { RoomSettings } from "@iguess/shared";
 
 export { WORDS }; // re-export so AIGuesserMode's fallback can reuse it
 
@@ -33,6 +34,10 @@ export class ClassicMode implements GameMode {
 
   useWordMemory(memory: WordMemory): void {
     this.memory = memory;
+  }
+
+  useSettings(settings: RoomSettings): void {
+    this.rounds = Math.max(1, settings.rounds);
   }
 
   configure(
