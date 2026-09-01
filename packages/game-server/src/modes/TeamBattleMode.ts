@@ -8,6 +8,7 @@ import { randomWord } from "@iguess/shared/words";
 import { normalizeGuess } from "../text.ts";
 import type { AIGuess } from "../services/aiWorkerClient.ts";
 import { AI_NAME } from "../ai/persona.ts";
+import type { AiSkill, RoomSettings } from "@iguess/shared";
 
 const AI_ID = "ai-team";
 
@@ -37,6 +38,13 @@ export class TeamBattleMode extends ClassicMode {
     private requestDrawing?: (word: string) => Promise<DrawOp[][]>
   ) {
     super();
+  }
+
+  private skill: AiSkill = "normal";
+
+  override useSettings(settings: RoomSettings): void {
+    super.useSettings(settings);
+    this.skill = settings.aiSkill;
   }
 
   override configure(humans: PlayerRef[], ctx: EngineContext): { totalTurns: number } {
@@ -97,6 +105,7 @@ export class TeamBattleMode extends ClassicMode {
       this.stopLoop = startGuessLoop(turn, ctx, {
         aiId: AI_ID,
         aiName: AI_NAME,
+        skill: this.skill,
         requestGuess: this.requestGuess,
         onCorrect: () => this.winRound("ai", AI_ID, ctx),
         onUnavailable: () =>

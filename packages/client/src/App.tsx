@@ -1045,6 +1045,20 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                     ))}
                   </select>
                 </label>
+                {isAIMode && (
+                  <label style={styles.settingLabel}>
+                    ai
+                    <select
+                      style={styles.settingSelect}
+                      value={settings.aiSkill}
+                      onChange={(e) => updateSettings({ aiSkill: e.target.value as typeof settings.aiSkill })}
+                    >
+                      <option value="easy">blindfolded</option>
+                      <option value="normal">normal</option>
+                      <option value="brutal">scary good</option>
+                    </select>
+                  </label>
+                )}
                 <label style={styles.settingLabel}>
                   rounds
                   <select

@@ -6,6 +6,7 @@ import { startDrawLoop } from "../ai/aiDrawLoop.ts";
 import { DOODLE_WORDS } from "../doodles.ts";
 import type { AIGuess } from "../services/aiWorkerClient.ts";
 import { AI_NAME } from "../ai/persona.ts";
+import type { AiSkill, RoomSettings } from "@iguess/shared";
 
 const AI_ID = "ai-duel";
 
@@ -34,6 +35,13 @@ export class DuelMode extends ClassicMode {
     private requestDrawing?: (word: string) => Promise<DrawOp[][]>
   ) {
     super();
+  }
+
+  private skill: AiSkill = "normal";
+
+  override useSettings(settings: RoomSettings): void {
+    super.useSettings(settings);
+    this.skill = settings.aiSkill;
   }
 
   override configure(humans: PlayerRef[], ctx: EngineContext): { totalTurns: number; turnsPerRound: number } {
@@ -92,6 +100,7 @@ export class DuelMode extends ClassicMode {
       this.stopLoop = startGuessLoop(turn, ctx, {
         aiId: AI_ID,
         aiName: AI_NAME,
+        skill: this.skill,
         requestGuess: this.requestGuess,
         onCorrect: () => this.acceptGuess(AI_ID, ctx),
         onUnavailable: () =>

@@ -206,3 +206,40 @@ test("a turn ending during the tease cancels the late win", async () => {
   assert.equal(won, 0, "a cancelled tease must not award the turn");
   assert.ok(!chats.includes("guitar"), "the answer should never have landed");
 });
+
+test("a brutal AI looks sooner and more often than an easy one", async () => {
+  const at = async (skill: "easy" | "normal" | "brutal", ms: number) => {
+    const { ctx, turn } = loopHarness("guitar");
+    let calls = 0;
+    const stop = startGuessLoop(turn, ctx, {
+      aiId: "ai", aiName: "AI", skill,
+      requestGuess: async () => { calls++; return { guess: "horse", alternatives: [] }; },
+      onCorrect: () => {},
+    });
+    await new Promise((r) => setTimeout(r, ms));
+    stop();
+    return calls;
+  };
+  // 5s in: brutal has looked (4s), normal (8s) and easy (16s) have not.
+  assert.equal(await at("brutal", 5_000), 1);
+  assert.equal(await at("easy", 5_000), 0);
+});
+
+test("an easy AI gives up after fewer guesses than a brutal one", async () => {
+  // The per-turn cap is what stops a weak AI grinding to the answer by sheer volume.
+  const spent = async (skill: "easy" | "brutal") => {
+    const { ctx, turn } = loopHarness("guitar");
+    let calls = 0;
+    const stop = startGuessLoop(turn, ctx, {
+      aiId: "ai", aiName: "AI", skill,
+      requestGuess: async () => { calls++; return { guess: "horse", alternatives: [] }; },
+      onCorrect: () => {},
+      firstGuessMs: 1, intervalMs: 3,
+    });
+    await new Promise((r) => setTimeout(r, 150));
+    stop();
+    return calls;
+  };
+  assert.equal(await spent("easy"), 2);
+  assert.equal(await spent("brutal"), 7);
+});

@@ -3,6 +3,7 @@ import { ClassicMode } from "./ClassicMode.ts";
 import { startGuessLoop } from "../ai/aiGuessLoop.ts";
 import type { AIGuess } from "../services/aiWorkerClient.ts";
 import { AI_NAME, aiComment } from "../ai/persona.ts";
+import type { AiSkill, RoomSettings } from "@iguess/shared";
 
 const AI_ID = "ai-guesser";
 
@@ -23,6 +24,13 @@ export class AIGuesserMode extends ClassicMode {
     super();
   }
 
+  private skill: AiSkill = "normal";
+
+  override useSettings(settings: RoomSettings): void {
+    super.useSettings(settings);
+    this.skill = settings.aiSkill;
+  }
+
   override configure(
     humans: PlayerRef[],
     ctx: EngineContext
@@ -41,6 +49,7 @@ export class AIGuesserMode extends ClassicMode {
     this.stop = startGuessLoop(turn, ctx, {
       aiId: AI_ID,
       aiName: AI_NAME,
+      skill: this.skill,
       requestGuess: this.requestGuess,
       onCorrect: () => this.acceptGuess(AI_ID, ctx),
       onUnavailable: () =>
