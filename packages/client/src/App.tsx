@@ -9,6 +9,7 @@ import { PACK_NAMES } from "@iguess/shared/words";
 import { REACTIONS, AVATARS } from "@iguess/shared";
 import type { DrawOp } from "@iguess/shared";
 import { Replay } from "./Replay";
+import { awardsFor } from "@iguess/shared/awards";
 
 // What each tier pays, mirroring TIER_MULTIPLIER on the server.
 const TIER_LABEL: Record<WordTier, string> = { easy: "1x", medium: "1.25x", hard: "1.6x" };
@@ -717,7 +718,7 @@ function Room({
    */
   const [savingEvidence, setSavingEvidence] = useState(false);
   const [gallery, setGallery] = useState<
-    { word: string; png: string; guess: string | null; right: boolean; ops: DrawOp[] }[]
+    { word: string; png: string; guess: string | null; right: boolean; drawerId: string | null; ops: DrawOp[] }[]
   >([]);
   /*
    * The AI's last guess, held past the moment it's cleared from the canvas bubble.
@@ -732,6 +733,7 @@ function Room({
   const phase = game?.phase ?? "lobby";
   const isDrawer = !!game && game.drawerId === you?.id;
   const youAreHost = players.some((p) => p.id === you?.id && p.isHost);
+  const awards = phase === "ended" ? awardsFor(gallery, players) : [];
   const humans = players.filter((p) => !isAI(p.id) && !p.spectator);
   const watching = players.filter((p) => p.spectator);
   const youAreWatching = watching.some((p) => p.id === you?.id);
@@ -809,7 +811,10 @@ function Room({
     if (!png) return;
     const { guess, right } = lastGuess.current;
     // Snapshot the ops too: the still is for sharing, the ops are for replaying the round.
-    setGallery((g) => [...g, { word: turnEnd.word, png, guess, right, ops: roundOps.current.slice() }]);
+    setGallery((g) => [
+      ...g,
+      { word: turnEnd.word, png, guess, right, drawerId: game?.drawerId ?? null, ops: roundOps.current.slice() },
+    ]);
     lastGuess.current = { guess: null, right: false };
   }, [turnEnd?.at]);
 
@@ -1516,6 +1521,17 @@ function Room({
               </button>
             </div>
             <div style={styles.galleryStrip}>
+              {awards.length > 0 && (
+                <ul style={styles.awardList}>
+                  {awards.map((a) => (
+                    <li key={a.title} style={styles.awardItem}>
+                      <span style={styles.awardTitle}>{a.title}</span>
+                      <strong style={styles.awardWho}>{a.who}</strong>
+                      <span style={styles.awardDetail}>{a.detail}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
               {gallery.map((g, i) => (
                 <figure key={i} style={styles.galleryItem}>
                   {replayIdx === i ? (
@@ -2053,6 +2069,11 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: 1,
     padding: "2px 4px",
   },
+  awardList: { listStyle: "none", margin: "0 0 12px", padding: 0, display: "grid", gap: 5 },
+  awardItem: { display: "flex", gap: 7, alignItems: "baseline", fontSize: 12, flexWrap: "wrap" },
+  awardTitle: { fontWeight: 800 },
+  awardWho: { color: "var(--text)" },
+  awardDetail: { color: "var(--muted)" },
   avatarGrid: { display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4 },
   avatarChip: {
     padding: "5px 0",

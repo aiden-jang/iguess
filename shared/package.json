@@ -6,6 +6,7 @@
     ".": "./events.ts",
     "./strokeLog": "./strokeLog.ts",
     "./roomCode": "./roomCode.ts",
-    "./words": "./words.ts"
+    "./words": "./words.ts",
+    "./awards": "./awards.ts"
   }
 }
