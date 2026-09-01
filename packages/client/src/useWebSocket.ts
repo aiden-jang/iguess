@@ -20,6 +20,8 @@ export type Choices = { options: WordChoice[]; canSkip: boolean };
 // paints imperatively. `null` op signals a full reset before a canvas_sync.
 type DrawListener = (op: DrawOp | { kind: "reset" }) => void;
 
+let nextReactionId = 1;
+
 // The game server (the room's Durable Object) is same-origin: the Worker serves this SPA and
 // the /rooms/:id/ws endpoint on one host. In dev, Vite proxies /rooms to the local wrangler dev.
 function socketUrl(room: string, name: string, mode: string, pid: string): string {
@@ -99,6 +101,8 @@ export function useGameSocket(room: string, name: string, mode: string) {
   const [settings, setSettings] = useState<RoomSettings>(DEFAULT_SETTINGS);
   // Not React state: it moves at pointer rate and only the canvas overlay cares.
   const [peerCursor, setPeerCursor] = useState<Point | null>(null);
+  // Transient: each reaction lives just long enough to float up the canvas and vanish.
+  const [reactions, setReactions] = useState<{ id: number; emoji: string; at: number }[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const drawListeners = useRef<Set<DrawListener>>(new Set());
 
@@ -190,6 +194,12 @@ export function useGameSocket(room: string, name: string, mode: string) {
         case "cursor":
           setPeerCursor(msg.point);
           break;
+        case "react": {
+          const id = nextReactionId++;
+          setReactions((r) => [...r.slice(-24), { id, emoji: msg.emoji, at: msg.at }]);
+          setTimeout(() => setReactions((r) => r.filter((x) => x.id !== id)), 2200);
+          break;
+        }
         case "word_choices":
           setWordChoices({
             options: msg.words.map((word, i) => ({ word, tier: msg.tiers[i] ?? "easy" })),
@@ -276,6 +286,13 @@ export function useGameSocket(room: string, name: string, mode: string) {
     ws.send(JSON.stringify({ type: "cursor", point } satisfies ClientMessage));
   }, []);
 
+  const react = useCallback((emoji: string) => {
+    const ws = wsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "react", emoji } satisfies ClientMessage));
+    }
+  }, []);
+
   const setReady = useCallback((ready: boolean) => {
     const ws = wsRef.current;
     if (ws?.readyState === WebSocket.OPEN) {
@@ -324,6 +341,8 @@ export function useGameSocket(room: string, name: string, mode: string) {
     setReady,
     peerCursor,
     sendCursor,
+    reactions,
+    react,
     sendDraw,
     subscribeDraw,
     clearBoard,

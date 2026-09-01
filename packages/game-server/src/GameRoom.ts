@@ -1,6 +1,6 @@
 import type { ClientMessage, ServerMessage, PlayerInfo, DrawOp, GameModeName } from '@iguess/shared';
 import { WordMemory } from './wordMemory.ts';
-import { DEFAULT_SETTINGS, sanitizeSettings, type RoomSettings } from '@iguess/shared';
+import { DEFAULT_SETTINGS, sanitizeSettings, isReaction, type RoomSettings } from '@iguess/shared';
 import { lastStrokeId, dropStroke } from '@iguess/shared/strokeLog';
 import { GameEngine } from './engine.ts';
 import { ClassicMode } from './modes/ClassicMode.ts';
@@ -207,6 +207,9 @@ export class GameRoom {
       game.handleChooseWord(player.id, msg.word);
     } else if (msg.type === 'skip_word') {
       game.handleSkipWord(player.id);
+    } else if (msg.type === 'react') {
+      if (!isReaction(msg.emoji)) return;
+      this.broadcast({ type: 'react', emoji: msg.emoji, at: Math.random() });
     } else if (msg.type === 'cursor') {
       // Only the live drawer, and never written to the stroke log.
       if (conn.spectator || !game.canDraw(player.id)) return;

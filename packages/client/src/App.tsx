@@ -6,6 +6,7 @@ import { useWakeLock } from "./useWakeLock";
 import type { WordTier } from "@iguess/shared";
 import { newRoomCode } from "@iguess/shared/roomCode";
 import { PACK_NAMES } from "@iguess/shared/words";
+import { REACTIONS } from "@iguess/shared";
 
 // What each tier pays, mirroring TIER_MULTIPLIER on the server.
 const TIER_LABEL: Record<WordTier, string> = { easy: "1x", medium: "1.25x", hard: "1.6x" };
@@ -218,8 +219,6 @@ function Confetti({ go, count = 48 }: { go: boolean; count?: number }) {
     </>
   );
 }
-
-const REACTIONS = ["😂", "🔥", "💀", "👏", "😭", "🐶"];
 
 // Randomized end-of-game stings so the payoff hits different every time.
 const WIN_LINES = [
@@ -554,6 +553,8 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
     setReady,
     peerCursor,
     sendCursor,
+    reactions,
+    react,
     turnEnd,
     chooseWord,
   } = useGameSocket(room, name, mode);
@@ -1368,6 +1369,16 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
             canDraw={canDraw}
             onCanvas={(el) => (canvasElRef.current = el)}
           />
+          {reactions.map((r) => (
+            <span
+              key={r.id}
+              aria-hidden
+              className="reaction-float"
+              style={{ left: `${8 + r.at * 84}%` }}
+            >
+              {r.emoji}
+            </span>
+          ))}
           {drawDisabledReason && (
             <div style={styles.canvasHintBadge}>
               {drawDisabledReason}
@@ -1489,7 +1500,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
               type="button"
               className="lift"
               style={styles.reactBtn}
-              onClick={() => sendChat(emoji)}
+              onClick={() => react(emoji)}
               disabled={canDraw}
               title={`react ${emoji}`}
             >
