@@ -4,6 +4,7 @@ import { ClassicMode } from "./ClassicMode.ts";
 import { startGuessLoop } from "../ai/aiGuessLoop.ts";
 import { startDrawLoop } from "../ai/aiDrawLoop.ts";
 import { DOODLE_WORDS } from "../doodles.ts";
+import type { AIGuess } from "../services/aiWorkerClient.ts";
 
 const AI_ID = "ai-duel";
 const AI_NAME = "🤖 AI";
@@ -28,7 +29,7 @@ export class DuelMode extends ClassicMode {
   private stopLoop: (() => void) | null = null;
 
   constructor(
-    private requestGuess?: () => Promise<string>,
+    private requestGuess?: () => Promise<AIGuess>,
     private requestDrawing?: (word: string) => Promise<DrawOp[][]>
   ) {
     super();

@@ -1,6 +1,7 @@
 import type { EngineContext, PlayerRef, TurnContext } from "./GameMode.ts";
 import { ClassicMode } from "./ClassicMode.ts";
 import { startGuessLoop } from "../ai/aiGuessLoop.ts";
+import type { AIGuess } from "../services/aiWorkerClient.ts";
 
 const AI_ID = "ai-guesser";
 const AI_NAME = "🤖 AI";
@@ -18,7 +19,7 @@ export class AIGuesserMode extends ClassicMode {
 
   // requestGuess renders the canvas and asks the vision model. Injected so
   // the mode stays free of HTTP/Redis. Optional → random stub in tests.
-  constructor(private requestGuess?: () => Promise<string>) {
+  constructor(private requestGuess?: () => Promise<AIGuess>) {
     super();
   }
 

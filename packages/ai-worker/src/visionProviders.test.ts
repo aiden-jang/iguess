@@ -16,7 +16,7 @@ const throwing = (name: string): VisionProvider => ({
     throw new Error(`${name} boom`);
   },
 });
-const fixed = (name: string, word: string): VisionProvider => ({ name, guess: async () => word });
+const fixed = (name: string, ...words: string[]): VisionProvider => ({ name, guess: async () => words });
 
 test('defaults to mock when no keys are configured', () => {
   assert.equal(selectProvider({}).name, 'mock');
@@ -41,8 +41,9 @@ test('an explicit provider without its key falls through to mock', () => {
 });
 
 test('the mock guess is one of the common words', async () => {
-  const guess = await new MockProvider().guess('');
-  assert.match(guess, /^[a-z]+$/);
+  const ranked = await new MockProvider().guess('');
+  assert.ok(ranked.length > 0);
+  for (const g of ranked) assert.match(g, /^[a-z]+$/);
 });
 
 const fakeAI: AiBinding = { run: async () => ({ description: 'a cat' }) };
@@ -60,8 +61,8 @@ test('VISION_PROVIDER=workers forces Workers AI when bound', () => {
 });
 
 test('WorkersAIProvider strips a leading article from the model output', async () => {
-  const guess = await new WorkersAIProvider(fakeAI, '@cf/llava').guess('QUJD'); // "a cat" -> "cat"
-  assert.equal(guess, 'cat');
+  const ranked = await new WorkersAIProvider(fakeAI, '@cf/llava').guess('QUJD'); // "a cat" -> "cat"
+  assert.deepEqual(ranked, ['cat']);
 });
 
 const names = (env: Parameters<typeof selectProviders>[0]) => selectProviders(env).map((p) => p.name);
@@ -85,7 +86,7 @@ test('VISION_PROVIDER forces the primary but keeps the rest as fallbacks', () =>
 
 test('guessWithFallback falls through a throwing provider to the next (429 key → free AI)', async () => {
   const res = await guessWithFallback([throwing('openai'), fixed('workers-ai', 'house'), new MockProvider()], 'PNG');
-  assert.deepEqual(res, { guess: 'house', provider: 'workers-ai' });
+  assert.deepEqual(res, { guess: 'house', alternatives: [], provider: 'workers-ai' });
 });
 
 test('guessWithFallback lands on the mock when every vision provider throws', async () => {
@@ -105,7 +106,7 @@ test('the hint reaches the prompt but the answer never does', async () => {
     name: 'spy',
     async guess(_png: string, hint?: string) {
       seen.push(hint ?? '');
-      return 'guitar';
+      return ['guitar'];
     },
   };
   await guessWithFallback([spy], 'png', 'g _ i t _ r');
@@ -114,13 +115,29 @@ test('the hint reaches the prompt but the answer never does', async () => {
 });
 
 test('a guess with no hint still works', async () => {
-  const p: VisionProvider = { name: 'p', async guess(_png, hint) { return hint ? 'hinted' : 'blind'; } };
+  const p: VisionProvider = { name: 'p', async guess(_png, hint) { return [hint ? 'hinted' : 'blind']; } };
   assert.equal((await guessWithFallback([p], 'png'))?.guess, 'blind');
 });
 
 test('the mock respects the hint length so hinted runs look real', async () => {
   const mock = new MockProvider();
   for (let i = 0; i < 30; i++) {
-    assert.equal((await mock.guess('', '_ _ _ _')).length, 4);
+    for (const g of await mock.guess('', '_ _ _ _')) assert.equal(g.length, 4);
   }
+});
+
+test('a comma list from the model becomes a ranked shortlist', async () => {
+  const ai: AiBinding = { run: async () => ({ description: 'a guitar, violin, banjo' }) };
+  assert.deepEqual(await new WorkersAIProvider(ai, '@cf/llava').guess('QUJD'), ['guitar', 'violin', 'banjo']);
+});
+
+test('a chatty model still yields usable guesses', async () => {
+  const ai: AiBinding = { run: async () => ({ response: 'It looks like a house or maybe a barn' }) };
+  const ranked = await new WorkersAIProvider(ai, '@cf/llava').guess('QUJD');
+  assert.deepEqual(ranked, ['house', 'barn']);
+});
+
+test('runners-up ride along with the winning guess', async () => {
+  const res = await guessWithFallback([fixed('workers-ai', 'dog', 'horse', 'cow')], 'PNG');
+  assert.deepEqual(res, { guess: 'dog', alternatives: ['horse', 'cow'], provider: 'workers-ai' });
 });

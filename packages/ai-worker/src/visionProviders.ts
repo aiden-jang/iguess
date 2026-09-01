@@ -4,12 +4,14 @@ import type { AiBinding, Env } from './env.ts';
 // game server. Keys/config come from the Worker env (not process.env — this runs on Workers).
 export interface VisionProvider {
   readonly name: string;
-  guess(pngBase64: string, hint?: string): Promise<string>;
+  // Ranked, best first. The runners-up are the interesting part: "guitar?  no... a fish?"
+  guess(pngBase64: string, hint?: string): Promise<string[]>;
 }
 
 const BASE_PROMPT =
-  'This is a doodle from a Pictionary-style game. In ONE lowercase word, ' +
-  'what is the single object being drawn? Reply with only that word, no punctuation.';
+  'This is a doodle from a Pictionary-style game. What single object is being drawn? ' +
+  'Reply with up to three lowercase single-word guesses, best first, separated by commas. ' +
+  'No punctuation beyond the commas, no explanation.';
 
 // The hint is the masked word every human guesser can already see ("_ u _ t a _"), never the
 // answer. Without it the AI was playing blind against players who get letters for free.
@@ -33,25 +35,45 @@ interface ChatLike {
   content?: { text?: string }[];
 }
 
+// Filler that shows up around the actual noun: "it looks like a house", "maybe a barn".
+const FILLER = new Set([
+  'a', 'an', 'the', 'it', 'is', 'this', 'that', 'looks', 'look', 'like', 'maybe', 'probably',
+  'appears', 'to', 'be', 'of', 'some', 'kind', 'sort', 'drawing', 'doodle', 'sketch', 'picture',
+  'image', 'simple', 'i', 'think', 'see', 'there', 'seems', 'sketchy', 'black', 'white', 'and',
+]);
+
+// The answer is the last real word in the fragment: "a cat" and "it looks like a house" both
+// end on the noun, while taking the first word would give "a" and "it".
 function normalize(s: string): string {
   const words = s.trim().toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(Boolean);
-  // Smaller vision models often reply "a cat" / "the dog" instead of one bare word; drop a leading
-  // article so the guess is the actual noun, not "a".
-  const first = words[0];
-  if ((first === 'a' || first === 'an' || first === 'the') && words[1]) return words[1];
-  return first ?? '';
+  const meaty = words.filter((w) => !FILLER.has(w));
+  return meaty[meaty.length - 1] ?? words[words.length - 1] ?? '';
+}
+
+// Models are asked for "cat, dog, house" but will happily return a sentence, a numbered list,
+// or one word. Split on anything list-shaped and keep the first three that survive normalize.
+function rank(raw: string): string[] {
+  const out: string[] = [];
+  for (const part of raw.split(/[,\n;/]|\bor\b/)) {
+    const w = normalize(part);
+    if (w && !out.includes(w)) out.push(w);
+    if (out.length === 3) break;
+  }
+  return out;
 }
 
 // No key configured ⇒ the whole stack still runs end-to-end. It can't be "correct" (it never
 // sees the word), but it proves the pipeline: ops → PNG → provider → guess → chat.
 export class MockProvider implements VisionProvider {
   readonly name = 'mock';
-  async guess(_pngBase64: string, hint?: string): Promise<string> {
+  async guess(_pngBase64: string, hint?: string): Promise<string[]> {
     // Even the mock respects the hint's length, so a hinted run looks plausible end to end.
     const shape = hint?.replace(/\s+/g, '') ?? '';
     const fits = shape ? COMMON.filter((w) => w.length === shape.length) : COMMON;
-    const pool = fits.length ? fits : COMMON;
-    return pool[Math.floor(Math.random() * pool.length)]!;
+    const pool = [...(fits.length ? fits : COMMON)];
+    const out: string[] = [];
+    while (out.length < 3 && pool.length) out.push(...pool.splice(Math.floor(Math.random() * pool.length), 1));
+    return out;
   }
 }
 
@@ -61,13 +83,13 @@ export class OpenAIProvider implements VisionProvider {
     private apiKey: string,
     private model: string,
   ) {}
-  async guess(pngBase64: string, hint?: string): Promise<string> {
+  async guess(pngBase64: string, hint?: string): Promise<string[]> {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
       body: JSON.stringify({
         model: this.model,
-        max_tokens: 10,
+        max_tokens: 24,
         messages: [
           {
             role: 'user',
@@ -81,7 +103,7 @@ export class OpenAIProvider implements VisionProvider {
     });
     if (!res.ok) throw new Error(`OpenAI ${res.status}`);
     const data = (await res.json()) as ChatLike;
-    return normalize(data.choices?.[0]?.message?.content ?? '');
+    return rank(data.choices?.[0]?.message?.content ?? '');
   }
 }
 
@@ -91,7 +113,7 @@ export class AnthropicProvider implements VisionProvider {
     private apiKey: string,
     private model: string,
   ) {}
-  async guess(pngBase64: string, hint?: string): Promise<string> {
+  async guess(pngBase64: string, hint?: string): Promise<string[]> {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -101,7 +123,7 @@ export class AnthropicProvider implements VisionProvider {
       },
       body: JSON.stringify({
         model: this.model,
-        max_tokens: 10,
+        max_tokens: 24,
         messages: [
           {
             role: 'user',
@@ -115,7 +137,7 @@ export class AnthropicProvider implements VisionProvider {
     });
     if (!res.ok) throw new Error(`Anthropic ${res.status}`);
     const data = (await res.json()) as ChatLike;
-    return normalize(data.content?.[0]?.text ?? '');
+    return rank(data.content?.[0]?.text ?? '');
   }
 }
 
@@ -141,18 +163,18 @@ export class WorkersAIProvider implements VisionProvider {
     private ai: AiBinding,
     private model: string,
   ) {}
-  async guess(pngBase64: string, hint?: string): Promise<string> {
-    const inputs = { image: base64ToBytes(pngBase64), prompt: promptFor(hint), max_tokens: 12 };
+  async guess(pngBase64: string, hint?: string): Promise<string[]> {
+    const inputs = { image: base64ToBytes(pngBase64), prompt: promptFor(hint), max_tokens: 24 };
     try {
       const res = await this.ai.run(this.model, inputs);
       // LLaVA answers on `description`, the llama vision-instruct models on `response`.
-      return normalize(res.description ?? res.response ?? '');
+      return rank(res.description ?? res.response ?? '');
     } catch {
       // First call after a cold start (model/WASM warmup) occasionally fails; one quick retry keeps
       // more first-guesses "real" before the worker falls through to the next provider.
       await new Promise((r) => setTimeout(r, 200));
       const res = await this.ai.run(this.model, inputs);
-      return normalize(res.description ?? res.response ?? '');
+      return rank(res.description ?? res.response ?? '');
     }
   }
 }
@@ -207,11 +229,12 @@ export async function guessWithFallback(
   providers: VisionProvider[],
   png: string,
   hint?: string,
-): Promise<{ guess: string; provider: string } | null> {
+): Promise<{ guess: string; alternatives: string[]; provider: string } | null> {
   for (const p of providers) {
     if (p.name !== 'mock' && !png) continue; // no image to send a vision model
     try {
-      return { guess: await p.guess(png, hint), provider: p.name };
+      const ranked = await p.guess(png, hint);
+      return { guess: ranked[0] ?? '', alternatives: ranked.slice(1), provider: p.name };
     } catch (err) {
       console.error(`vision provider ${p.name} failed:`, err instanceof Error ? err.message : err);
     }

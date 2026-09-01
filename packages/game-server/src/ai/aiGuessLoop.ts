@@ -1,6 +1,7 @@
 import type { EngineContext, TurnContext } from "../modes/GameMode.ts";
 import { WORDS } from "../words.ts";
 import { normalizeGuess } from "../text.ts";
+import type { AIGuess } from "../services/aiWorkerClient.ts";
 
 // Extracted from AIGuesserMode so any mode can give an AI participant a
 // guessing loop without inheriting a whole mode class. This is mode POLICY
@@ -22,9 +23,17 @@ const GUESS_PHRASINGS = [
   "calling it now: %",
   "no cap that's a %",
 ];
-export function phraseGuess(guess: string): string {
+// The runners-up are the joke ("...or a horse. or a guitar."), so show them sometimes rather
+// than every time — a wrong guess that hedges every single turn stops being funny.
+const SECOND_THOUGHTS = ["… or a %", "… or is it a %", "(or a %)", "… a % maybe"];
+
+export function phraseGuess(guess: string, alternatives: string[] = []): string {
   const t = GUESS_PHRASINGS[Math.floor(Math.random() * GUESS_PHRASINGS.length)]!;
-  return t.replace("%", guess);
+  const said = t.replace("%", guess);
+  const alt = alternatives.filter((a) => a && a !== guess);
+  if (!alt.length || Math.random() < 0.45) return said;
+  const s = SECOND_THOUGHTS[Math.floor(Math.random() * SECOND_THOUGHTS.length)]!;
+  return said + " " + s.replace("%", alt[Math.floor(Math.random() * alt.length)]!);
 }
 
 // Lenient match for vision output: a model says "elephant", "an elephant",
@@ -44,12 +53,15 @@ export interface GuessLoopOpts {
   aiName: string;
   // Renders the canvas + asks the vision model. Optional: without it we fall
   // back to a random stub (useful in tests / no worker).
-  requestGuess?: () => Promise<string>;
+  requestGuess?: () => Promise<AIGuess>;
   // Invoked once when the AI guesses correctly.
   onCorrect: () => void;
   // Invoked at most once per turn if the vision worker is unreachable, so the
   // mode can tell players the AI is down instead of leaving it silently mute.
   onUnavailable?: () => void;
+  // Timing seams, so the loop is drivable in a test without waiting out real seconds.
+  firstGuessMs?: number;
+  intervalMs?: number;
 }
 
 // Start the interval guessing loop for an AI participant. Returns a stop fn
@@ -69,19 +81,20 @@ export function startGuessLoop(
     if (interval) { clearInterval(interval); interval = null; }
   };
 
-  const getGuess = async (): Promise<string> => {
+  const getGuess = async (): Promise<AIGuess> => {
     if (opts.requestGuess) {
       try {
         return await opts.requestGuess();
       } catch {
         // Worker unreachable/timed out — flag it once, then keep quietly retrying.
         if (!notifiedDown) { notifiedDown = true; opts.onUnavailable?.(); }
-        return "";
+        return { guess: "", alternatives: [] };
       }
     }
-    if (Math.random() < 0.5) return turn.word;
     const wrong = WORDS.filter((w) => w !== turn.word);
-    return wrong[Math.floor(Math.random() * wrong.length)];
+    const pick = () => wrong[Math.floor(Math.random() * wrong.length)]!;
+    const guess = Math.random() < 0.5 ? turn.word : pick();
+    return { guess, alternatives: [pick(), pick()] };
   };
 
   const attempt = async () => {
@@ -89,25 +102,28 @@ export function startGuessLoop(
     if (ctx.currentWord() !== turn.word || ctx.hasGuessed(opts.aiId)) { stop(); return; }
     if (attempts >= MAX_GUESSES) { stop(); return; }
 
-    const guess = await getGuess();
+    const { guess, alternatives } = await getGuess();
     // Re-check after the await — the turn may have ended meanwhile.
     if (!guess || ctx.currentWord() !== turn.word || ctx.hasGuessed(opts.aiId)) return;
 
     // Count only REAL guesses against the budget, so a flaky worker returning
     // "" doesn't silently burn the cap without ever guessing.
     attempts++;
-    const correct = matchesWord(guess, turn.word);
+    // A runner-up can be the answer. Saying the right word out loud and still losing the turn
+    // reads as a bug, so any matching guess in the shortlist counts.
+    const hit = [guess, ...alternatives].find((g) => matchesWord(g, turn.word));
+    const correct = hit !== undefined;
     // Correct guesses read straight (the engine adds a "guessed it!" notice);
     // misses get the hedging personality so the bot feels alive, not robotic.
-    const text = correct ? guess : phraseGuess(guess);
+    const text = correct ? hit : phraseGuess(guess, alternatives);
     ctx.broadcast({ type: "chat", from: { id: opts.aiId, name: opts.aiName }, text });
     if (correct) { stop(); opts.onCorrect(); }
   };
 
   firstTimer = setTimeout(() => {
     void attempt();
-    interval = setInterval(() => void attempt(), GUESS_INTERVAL_MS);
-  }, FIRST_GUESS_MS);
+    interval = setInterval(() => void attempt(), opts.intervalMs ?? GUESS_INTERVAL_MS);
+  }, opts.firstGuessMs ?? FIRST_GUESS_MS);
 
   return stop;
 }

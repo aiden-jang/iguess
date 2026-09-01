@@ -7,7 +7,7 @@ import { AIDrawerMode } from './modes/AIDrawerMode.ts';
 import { TeamBattleMode } from './modes/TeamBattleMode.ts';
 import { DuelMode } from './modes/DuelMode.ts';
 import type { GameMode, PlayerRef } from './modes/GameMode.ts';
-import { requestAIGuess } from './services/aiWorkerClient.ts';
+import { requestAIGuess, type AIGuess } from './services/aiWorkerClient.ts';
 import { shouldResetRoom } from './roomReset.ts';
 import { atCapacity, CLOSE_ROOM_FULL, MAX_PLAYERS_PER_ROOM } from './limits.ts';
 import type { Env } from './env.ts';
@@ -265,8 +265,8 @@ export class GameRoom {
   private buildMode(name: GameModeName): GameMode {
     // Hard per-room budget on paid AI calls so a single room (via "run it back" restarts) can't
     // burn unbounded vision requests. Beyond it, the AI simply stops guessing.
-    const aiGuess = (): Promise<string> => {
-      if (this.aiCallCount >= MAX_AI_CALLS_PER_ROOM) return Promise.resolve('');
+    const aiGuess = (): Promise<AIGuess> => {
+      if (this.aiCallCount >= MAX_AI_CALLS_PER_ROOM) return Promise.resolve({ guess: '', alternatives: [] });
       this.aiCallCount += 1;
       return requestAIGuess(
         this.env.AI_WORKER_URL,
