@@ -25,7 +25,9 @@ export interface Point {
 // than whole completed strokes) lets watchers see a line grow in real time.
 export type DrawOp =
   | { kind: "start"; strokeId: string; color: string; width: number; point: Point }
-  | { kind: "move"; strokeId: string; points: Point[] }
+  // `widths` is parallel to `points` when the line tapers (stylus pressure, or speed on a
+  // mouse/finger). Omitted entirely for a constant-width stroke, so nothing pays for it.
+  | { kind: "move"; strokeId: string; points: Point[]; widths?: number[] }
   | { kind: "end"; strokeId: string }
   | { kind: "clear" }
   // Drawer-only: drop the last stroke. The server pops it from the log and rebroadcasts the

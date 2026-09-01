@@ -76,19 +76,35 @@ export function DrawingCanvas({
         // sparsely, and straight segments between those samples look visibly polygonal.
         // Each chunk redraws from the last midpoint, so the half-segment overlap is repainted
         // in the same colour and never shows.
-        ctx.beginPath();
-        ctx.moveTo(s.mid.x * W, s.mid.y * H);
         let prev = s.last;
         let mid = s.mid;
-        for (const p of op.points) {
-          mid = { x: (prev.x + p.x) / 2, y: (prev.y + p.y) / 2 };
-          ctx.quadraticCurveTo(prev.x * W, prev.y * H, mid.x * W, mid.y * H);
-          prev = p;
+        // lineWidth applies to a whole path, so a tapering stroke needs one path per segment.
+        // Uniform strokes stay a single path.
+        if (op.widths) {
+          op.points.forEach((p, i) => {
+            const next = { x: (prev.x + p.x) / 2, y: (prev.y + p.y) / 2 };
+            ctx.lineWidth = op.widths![i] ?? s.width;
+            ctx.beginPath();
+            ctx.moveTo(mid.x * W, mid.y * H);
+            ctx.quadraticCurveTo(prev.x * W, prev.y * H, next.x * W, next.y * H);
+            ctx.lineTo(p.x * W, p.y * H);
+            ctx.stroke();
+            mid = next;
+            prev = p;
+          });
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(s.mid.x * W, s.mid.y * H);
+          for (const p of op.points) {
+            mid = { x: (prev.x + p.x) / 2, y: (prev.y + p.y) / 2 };
+            ctx.quadraticCurveTo(prev.x * W, prev.y * H, mid.x * W, mid.y * H);
+            prev = p;
+          }
+          // The final sample has no successor yet, so run to it straight; the next chunk
+          // replaces this tip with the real curve.
+          ctx.lineTo(prev.x * W, prev.y * H);
+          ctx.stroke();
         }
-        // The final sample has no successor yet, so run to it straight; the next chunk
-        // replaces this tip with the real curve.
-        ctx.lineTo(prev.x * W, prev.y * H);
-        ctx.stroke();
         s.last = prev;
         s.mid = mid;
         break;
@@ -145,6 +161,8 @@ export function DrawingCanvas({
   const drawing = useRef(false);
   const strokeId = useRef<string | null>(null);
   const buffer = useRef<Point[]>([]);
+  const widthBuffer = useRef<number[]>([]);
+  const lastSample = useRef<Point | null>(null);
   const rafPending = useRef(false);
 
   function toNorm(e: React.PointerEvent): Point {
@@ -155,14 +173,37 @@ export function DrawingCanvas({
     };
   }
 
+  // Ink width for one sample. A stylus reports real pressure; a mouse always reports 0.5 and
+  // touch usually reports 0, so those fall back to speed — fast strokes thin out, like a pen.
+  function widthAt(e: React.PointerEvent, p: Point): number {
+    const base = brush.current.width;
+    const usable = e.pointerType === "pen" && e.pressure > 0 && e.pressure !== 0.5;
+    let scale: number;
+    if (usable) {
+      scale = 0.45 + e.pressure * 1.1;
+    } else {
+      const prev = lastSample.current;
+      const speed = prev ? Math.hypot(p.x - prev.x, p.y - prev.y) : 0;
+      scale = 1.15 - Math.min(0.6, speed * 12);
+    }
+    lastSample.current = p;
+    return Math.round(Math.max(1, base * scale) * 10) / 10;
+  }
+
   // Coalesce buffered points into one "move" op per animation frame. This
   // caps message rate (~60/s) instead of firing on every pointermove event.
   function flush() {
     rafPending.current = false;
     if (!strokeId.current || buffer.current.length === 0) return;
     const points = buffer.current;
+    const widths = widthBuffer.current;
     buffer.current = [];
-    const op: DrawOp = { kind: "move", strokeId: strokeId.current, points };
+    widthBuffer.current = [];
+    // A stroke of one uniform width sends no widths at all.
+    const varies = widths.some((w) => w !== widths[0]);
+    const op: DrawOp = varies
+      ? { kind: "move", strokeId: strokeId.current, points, widths }
+      : { kind: "move", strokeId: strokeId.current, points };
     applyOp(op); // local immediate render
     sendDraw(op); // relay to others
   }
@@ -173,6 +214,7 @@ export function DrawingCanvas({
     drawing.current = true;
     strokeId.current = Math.random().toString(36).slice(2, 10);
     const point = toNorm(e);
+    lastSample.current = point;
     const op: DrawOp = {
       kind: "start",
       strokeId: strokeId.current,
@@ -186,7 +228,9 @@ export function DrawingCanvas({
 
   function onPointerMove(e: React.PointerEvent) {
     if (!drawing.current) return;
-    buffer.current.push(toNorm(e));
+    const p = toNorm(e);
+    buffer.current.push(p);
+    widthBuffer.current.push(widthAt(e, p));
     if (!rafPending.current) {
       rafPending.current = true;
       requestAnimationFrame(flush);
