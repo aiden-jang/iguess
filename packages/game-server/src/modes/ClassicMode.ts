@@ -144,8 +144,10 @@ export class ClassicMode implements GameMode {
     ctx.awardPoints(playerId, points);
     ctx.markGuessed(playerId);
 
+    // The drawer is paid by how fast this guesser got it, not a flat rate. A scribble that
+    // someone eventually decodes used to pay the same as a sketch people read instantly.
     const drawerId = ctx.currentDrawerId();
-    if (drawerId) ctx.awardPoints(drawerId, 25); // drawer bonus per guesser
+    if (drawerId) ctx.awardPoints(drawerId, Math.round((10 + frac * 40) * mult));
 
     ctx.broadcast({
       type: "system",
