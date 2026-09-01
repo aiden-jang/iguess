@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { withTransition } from "./useViewTransition";
 import type {
   ClientMessage,
   ServerMessage,
@@ -101,6 +102,7 @@ export function useGameSocket(room: string, name: string, mode: string) {
   const [settings, setSettings] = useState<RoomSettings>(DEFAULT_SETTINGS);
   // Not React state: it moves at pointer rate and only the canvas overlay cares.
   const [peerCursor, setPeerCursor] = useState<Point | null>(null);
+  const phaseRef = useRef<string | null>(null);
   // Transient: each reaction lives just long enough to float up the canvas and vanish.
   const [reactions, setReactions] = useState<{ id: number; emoji: string; at: number }[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
@@ -181,13 +183,18 @@ export function useGameSocket(room: string, name: string, mode: string) {
           emitDraw({ kind: "reset" });
           for (const op of msg.ops) emitDraw(op);
           break;
-        case "game_state":
-          setGame(msg.state);
+        case "game_state": {
+          // Only the phase change is worth a transition; scores tick constantly.
+          const changedPhase = msg.state.phase !== phaseRef.current;
+          phaseRef.current = msg.state.phase;
+          if (changedPhase) withTransition(() => setGame(msg.state));
+          else setGame(msg.state);
           // If we're no longer the drawer, forget any word we held.
           setMyWord((w) => (msg.state.phase === "playing" ? w : null));
           // Choices are only relevant during our own "choosing" phase.
           if (msg.state.phase !== "choosing") setWordChoices(null);
           break;
+        }
         case "settings":
           setSettings(msg.settings);
           break;
