@@ -16,6 +16,9 @@ export interface EngineDeps {
   // Emit a mode-originated draw op: persist to the stroke log AND broadcast.
   drawOp: (op: DrawOp) => void | Promise<void>;
   getName: (playerId: string) => string;
+  // How many draw ops the canvas holds right now. The AI guess loop uses the delta to
+  // decide whether anything new is worth looking at.
+  canvasOpCount: () => number;
   // Reflect a virtual participant (AI) into room presence so it appears in
   // the roster/scoreboard like any other player.
   addVirtualPlayer: (p: PlayerRef) => void;
@@ -379,6 +382,7 @@ export class GameEngine {
     currentDrawerId: () => this.drawerId,
     currentWord: () => this.word,
     hintsRevealed: () => this.revealed.size,
+    canvasOpCount: () => this.deps.canvasOpCount(),
     turnFractionRemaining: () => {
       if (!this.turnEndsAt) return 0;
       return Math.max(0, Math.min(1, (this.turnEndsAt - Date.now()) / TURN_MS));

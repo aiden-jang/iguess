@@ -234,6 +234,7 @@ export class GameRoom {
       this.engine = new GameEngine(
         {
           broadcast: (msg) => this.broadcast(msg),
+          canvasOpCount: () => this.strokes.length,
           sendToPlayer: (playerId, msg) => {
             for (const c of this.conns) if (c.player.id === playerId) this.send(c.ws, msg);
           },

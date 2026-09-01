@@ -59,6 +59,9 @@ export interface EngineContext {
   // made off the drawing alone.
   hintsRevealed(): number;
 
+  // Size of the current canvas in draw ops. A jump means the drawer added a lot.
+  canvasOpCount(): number;
+
   // Re-broadcast public game state (call after mutating scores/guessed).
   syncState(): void;
 

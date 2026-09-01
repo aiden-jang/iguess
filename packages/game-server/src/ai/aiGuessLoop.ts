@@ -7,7 +7,14 @@ import type { AIGuess } from "../services/aiWorkerClient.ts";
 // guessing loop without inheriting a whole mode class. This is mode POLICY
 // (cadence + cost caps), deliberately kept out of the core engine.
 const FIRST_GUESS_MS = 8_000; // let the drawer get something on the canvas
-const GUESS_INTERVAL_MS = 10_000; // re-guess cadence
+// A flat re-guess interval meant the AI kept staring at a canvas nobody had touched, and kept
+// waiting through a burst of new ink. Pace it by how much has actually changed since the last
+// look — which also stops it spending vision calls on a static picture.
+const BUSY_MS = 4_000;
+const STEADY_MS = 8_000;
+const IDLE_MS = 15_000;
+const BUSY_OPS = 45;
+const STEADY_OPS = 12;
 const MAX_GUESSES = 4; // cost cap per turn
 
 // Give the bot a voice. We decorate the DISPLAYED guess with hedging
@@ -64,6 +71,13 @@ export interface GuessLoopOpts {
   intervalMs?: number;
 }
 
+/** How long to wait before looking again, given how much was drawn since the last look. */
+export function nextGuessDelay(opsSinceLastLook: number): number {
+  if (opsSinceLastLook >= BUSY_OPS) return BUSY_MS;
+  if (opsSinceLastLook >= STEADY_OPS) return STEADY_MS;
+  return IDLE_MS;
+}
+
 // Start the interval guessing loop for an AI participant. Returns a stop fn
 // the caller MUST invoke on turn end (or when the round is otherwise decided).
 export function startGuessLoop(
@@ -74,11 +88,16 @@ export function startGuessLoop(
   let attempts = 0;
   let notifiedDown = false; // fire onUnavailable at most once per turn (this loop's lifetime)
   let firstTimer: ReturnType<typeof setTimeout> | null = null;
-  let interval: ReturnType<typeof setInterval> | null = null;
+  let interval: ReturnType<typeof setTimeout> | null = null;
+  let seenOps = 0;
+  // attempt() stops the loop itself when the turn is decided, and it is chained to schedule().
+  // Without this the re-arm would resurrect a loop that had just shut down.
+  let stopped = false;
 
   const stop = () => {
+    stopped = true;
     if (firstTimer) { clearTimeout(firstTimer); firstTimer = null; }
-    if (interval) { clearInterval(interval); interval = null; }
+    if (interval) { clearTimeout(interval); interval = null; }
   };
 
   const getGuess = async (): Promise<AIGuess> => {
@@ -120,9 +139,18 @@ export function startGuessLoop(
     if (correct) { stop(); opts.onCorrect(); }
   };
 
+  const schedule = () => {
+    if (stopped) return;
+    const now = ctx.canvasOpCount();
+    const fresh = now - seenOps;
+    seenOps = now;
+    interval = setTimeout(() => {
+      void attempt().then(schedule);
+    }, opts.intervalMs ?? nextGuessDelay(fresh));
+  };
+
   firstTimer = setTimeout(() => {
-    void attempt();
-    interval = setInterval(() => void attempt(), opts.intervalMs ?? GUESS_INTERVAL_MS);
+    void attempt().then(schedule);
   }, opts.firstGuessMs ?? FIRST_GUESS_MS);
 
   return stop;

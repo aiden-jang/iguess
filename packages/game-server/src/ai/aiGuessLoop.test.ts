@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { matchesWord, phraseGuess, startGuessLoop } from "./aiGuessLoop.ts";
+import { matchesWord, phraseGuess, startGuessLoop, nextGuessDelay } from "./aiGuessLoop.ts";
 import type { EngineContext, TurnContext } from "../modes/GameMode.ts";
 
 // ---- matchesWord: the lenient match the scoring path depends on ----
@@ -75,6 +75,7 @@ function loopHarness(word: string) {
   const ctx = {
     currentWord: () => word,
     hasGuessed: () => guessed,
+    canvasOpCount: () => 0,
     broadcast: (m: { type: string; text?: string }) => { if (m.type === "chat") chats.push(m.text ?? ""); },
   } as unknown as EngineContext;
   return { chats, ctx, turn: { word } as TurnContext, markCorrect: () => { guessed = true; } };
@@ -108,4 +109,29 @@ test("a wrong shortlist keeps the turn going", async () => {
   stop();
   assert.ok(!won);
   assert.ok(chats[0]?.includes("horse"), `expected the guess in: ${chats[0]}`);
+});
+
+test("the AI looks again sooner when a lot has just been drawn", () => {
+  assert.ok(nextGuessDelay(80) < nextGuessDelay(20));
+  assert.ok(nextGuessDelay(20) < nextGuessDelay(0));
+});
+
+test("a canvas nobody is touching does not burn guesses", () => {
+  assert.ok(nextGuessDelay(0) >= 15_000, "an idle canvas should wait a long time");
+});
+
+test("a stopped loop stays stopped", async () => {
+  const { ctx, turn } = loopHarness("guitar");
+  let calls = 0;
+  const stop = startGuessLoop(turn, ctx, {
+    aiId: "ai", aiName: "AI",
+    requestGuess: async () => { calls++; return { guess: "guitar", alternatives: [] }; },
+    onCorrect: () => {},
+    firstGuessMs: 1, intervalMs: 1,
+  });
+  await new Promise((r) => setTimeout(r, 40));
+  stop();
+  const settled = calls;
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(calls, settled, "the loop re-armed after being stopped");
 });
