@@ -202,6 +202,11 @@ export type ClientMessage =
       ready: boolean;
     }
   | {
+      // Throw an emoji at the canvas. Guessers spend most of a round with nothing to do.
+      type: "react";
+      emoji: string;
+    }
+  | {
       // Where the drawer's pen is hovering. Never persisted to the stroke log — it is a
       // liveness cue, not part of the drawing, and a late joiner must not replay it.
       type: "cursor";
@@ -230,6 +235,12 @@ export type ServerMessage =
       type: "cursor";
       playerId: string;
       point: Point | null;
+    }
+  | {
+      // Somebody reacted. `at` is a horizontal position so simultaneous reactions don't stack.
+      type: "react";
+      emoji: string;
+      at: number;
     }
   | {
       // Current roster of the room. Re-sent whenever it changes.
@@ -291,4 +302,13 @@ export type ServerMessage =
 
 // Narrowing helpers so consumers get exhaustive switch checking.
 export type ServerMessageType = ServerMessage["type"];
+// The only emoji a client may send. An open string field here is a way to paint arbitrary
+// text over everyone's canvas.
+export const REACTIONS = ["😂", "🔥", "💀", "👏", "😍", "🤔", "🗑️", "🐶"] as const;
+export type Reaction = (typeof REACTIONS)[number];
+
+export function isReaction(s: unknown): s is Reaction {
+  return typeof s === "string" && (REACTIONS as readonly string[]).includes(s);
+}
+
 export type ClientMessageType = ClientMessage["type"];
