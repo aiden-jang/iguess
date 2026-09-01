@@ -141,7 +141,10 @@ export class ClassicMode implements GameMode {
     const frac = ctx.turnFractionRemaining();
     const mult = TIER_MULTIPLIER[tierOf(ctx.currentWord() ?? "")];
     const base = (50 + frac * 50) * mult; // 50..100 by speed, then by difficulty
-    const points = Math.round(base * comebackBonus(playerId, ctx));
+    // Letters are handed out free on a timer, so the only way to make them cost anything is
+    // to pay for not needing them: read the drawing before the first one lands and earn more.
+    const unaided = ctx.hintsRevealed() === 0;
+    const points = Math.round(base * comebackBonus(playerId, ctx) * (unaided ? 1.2 : 1));
     ctx.awardPoints(playerId, points);
     ctx.markGuessed(playerId);
 
@@ -152,7 +155,9 @@ export class ClassicMode implements GameMode {
 
     ctx.broadcast({
       type: "system",
-      text: `${ctx.getName(playerId)} guessed the word! (+${points})`,
+      text:
+        `${ctx.getName(playerId)} guessed the word! (+${points})` +
+        (unaided ? " no hints 🧠" : ""),
     });
     ctx.syncState();
     this.maybeEndTurn(ctx);
