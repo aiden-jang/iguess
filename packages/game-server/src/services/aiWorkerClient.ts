@@ -10,6 +10,7 @@ export async function requestAIGuess(
   baseUrl: string | undefined,
   secret: string | undefined,
   ops: DrawOp[],
+  hint?: string,
 ): Promise<string> {
   if (!baseUrl || ops.length === 0) return ''; // nothing to ask — not a failure
   const controller = new AbortController();
@@ -21,7 +22,7 @@ export async function requestAIGuess(
         'Content-Type': 'application/json',
         ...(secret ? { Authorization: `Bearer ${secret}` } : {}),
       },
-      body: JSON.stringify({ ops }),
+      body: JSON.stringify({ ops, hint }),
       signal: controller.signal,
     });
     if (!res.ok) throw new Error(`ai-worker responded ${res.status}`);

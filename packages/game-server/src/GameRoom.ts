@@ -268,7 +268,12 @@ export class GameRoom {
     const aiGuess = (): Promise<string> => {
       if (this.aiCallCount >= MAX_AI_CALLS_PER_ROOM) return Promise.resolve('');
       this.aiCallCount += 1;
-      return requestAIGuess(this.env.AI_WORKER_URL, this.env.AI_SHARED_SECRET, this.strokes);
+      return requestAIGuess(
+        this.env.AI_WORKER_URL,
+        this.env.AI_SHARED_SECRET,
+        this.strokes,
+        this.engine?.currentHint(),
+      );
     };
     if (name === 'ai') return new AIGuesserMode(aiGuess);
     if (name === 'ai-drawer') return new AIDrawerMode();

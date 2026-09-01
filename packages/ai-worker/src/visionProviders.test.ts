@@ -98,3 +98,29 @@ test('guessWithFallback skips vision providers when there is no image, using the
   const res = await guessWithFallback([fixed('workers-ai', 'house'), new MockProvider()], '');
   assert.equal(res?.provider, 'mock'); // workers-ai skipped (no image); mock needs none
 });
+
+test('the hint reaches the prompt but the answer never does', async () => {
+  const seen: string[] = [];
+  const spy: VisionProvider = {
+    name: 'spy',
+    async guess(_png: string, hint?: string) {
+      seen.push(hint ?? '');
+      return 'guitar';
+    },
+  };
+  await guessWithFallback([spy], 'png', 'g _ i t _ r');
+  assert.deepEqual(seen, ['g _ i t _ r']);
+  assert.ok(!seen[0]!.includes('guitar'));
+});
+
+test('a guess with no hint still works', async () => {
+  const p: VisionProvider = { name: 'p', async guess(_png, hint) { return hint ? 'hinted' : 'blind'; } };
+  assert.equal((await guessWithFallback([p], 'png'))?.guess, 'blind');
+});
+
+test('the mock respects the hint length so hinted runs look real', async () => {
+  const mock = new MockProvider();
+  for (let i = 0; i < 30; i++) {
+    assert.equal((await mock.guess('', '_ _ _ _')).length, 4);
+  }
+});

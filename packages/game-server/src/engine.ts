@@ -257,6 +257,11 @@ export class GameEngine {
     this.revealTimers = [];
   }
 
+  /** The masked word, exactly as guessers see it. Safe to hand the AI: it is not the answer. */
+  currentHint(): string {
+    return this.computeHint();
+  }
+
   // The masked word guessers see: revealed letters in place, "_" elsewhere.
   private computeHint(): string {
     if (!this.word) return "";
