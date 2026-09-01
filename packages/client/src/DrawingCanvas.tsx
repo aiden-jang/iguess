@@ -165,11 +165,13 @@ export function DrawingCanvas({
   const lastSample = useRef<Point | null>(null);
   const rafPending = useRef(false);
 
+  // Rounded to 3 decimals: full doubles serialize to ~18 characters each and stream at
+  // pointer rate to every player in the room. 1/1000 of a canvas is well under one pixel.
   function toNorm(e: React.PointerEvent): Point {
     const rect = canvasRef.current!.getBoundingClientRect();
     return {
-      x: (e.clientX - rect.left) / rect.width,
-      y: (e.clientY - rect.top) / rect.height,
+      x: Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 1000,
+      y: Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 1000,
     };
   }
 
