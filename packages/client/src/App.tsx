@@ -746,7 +746,8 @@ function Room({
   const youAreWatching = watching.some((p) => p.id === you?.id);
   const readyCount = humans.filter((p) => p.ready).length;
   const youAreReady = humans.some((p) => p.id === you?.id && p.ready);
-  const canDraw = phase === "playing" && isDrawer;
+  // The lobby board is open to everyone; during a game only the drawer touches it.
+  const canDraw = (phase === "playing" && isDrawer) || ((phase === "lobby" || phase === "ended") && !youAreWatching);
   const inGame = phase === "playing" || phase === "intermission";
   useWakeLock(inGame || phase === "choosing");
   // One badge when the game is waiting on you specifically.
@@ -755,10 +756,12 @@ function Room({
   // Why the canvas is inert right now, so a disabled board never just reads as "broken".
   const drawDisabledReason: string | null = canDraw
     ? null
-    : phase === "lobby"
-      ? "hit “send it” to start a round"
-      : phase === "ended"
-        ? "round over. run it back"
+    : youAreWatching
+      ? "you're watching this one"
+      : phase === "lobby"
+        ? "doodle while you wait ✏️"
+        : phase === "ended"
+          ? "round over. run it back"
         : phase === "choosing"
           ? isDrawer
             ? "pick a word to start drawing ☝️"
