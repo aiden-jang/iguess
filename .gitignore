@@ -7,3 +7,7 @@ dist/
 .wrangler/
 # Local secrets for `wrangler dev` (the .example is committed, the real file is not).
 .dev.vars
+
+# Playwright
+/test-results/
+/playwright-report/
