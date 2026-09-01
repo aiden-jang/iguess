@@ -1,4 +1,4 @@
-import type { ServerMessage, DrawOp } from "@iguess/shared";
+import type { ServerMessage, DrawOp, RoomSettings } from "@iguess/shared";
 import type { WordMemory } from "../wordMemory.ts";
 
 // A participant in a game — a human (backed by a socket) or a virtual player
@@ -74,6 +74,9 @@ export interface EngineContext {
 export interface GameMode {
   // The room hands every mode its cross-game word memory, if the mode wants one.
   useWordMemory?(memory: WordMemory): void;
+
+  // The room's settings, applied before configure(). Modes that ignore them keep their defaults.
+  useSettings?(settings: RoomSettings): void;
 
   readonly id: string;
 

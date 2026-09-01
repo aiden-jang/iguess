@@ -1,5 +1,6 @@
 import type { ClientMessage, ServerMessage, PlayerInfo, DrawOp, GameModeName } from '@iguess/shared';
 import { WordMemory } from './wordMemory.ts';
+import { DEFAULT_SETTINGS, sanitizeSettings, type RoomSettings } from '@iguess/shared';
 import { lastStrokeId, dropStroke } from '@iguess/shared/strokeLog';
 import { GameEngine } from './engine.ts';
 import { ClassicMode } from './modes/ClassicMode.ts';
@@ -60,6 +61,7 @@ export class GameRoom {
   private aiCallCount = 0;
   // Outlives individual games so an evening in one room stops recycling the same words.
   private wordMemory = new WordMemory();
+  private settings: RoomSettings = DEFAULT_SETTINGS;
   private roomId = 'lobby';
   // The room's canonical mode, fixed by the first joiner (who creates the engine). Late joiners
   // are told this in `welcome`, not their own requested mode, so their UI label is correct.
@@ -116,7 +118,7 @@ export class GameRoom {
     const game = this.gameFor(modeName);
     const wasReset = prevEngine !== null && prevEngine !== this.engine; // room restarted fresh
     const switchedMode = wasReset && this.mode !== modeBefore;
-    this.send(server, { type: 'welcome', you: player, roomId: this.roomId, mode: this.mode });
+    this.send(server, { type: 'welcome', you: player, roomId: this.roomId, mode: this.mode, settings: this.settings });
     this.send(server, { type: 'canvas_sync', ops: this.strokes });
     game.sendStateTo(player.id); // catch the joiner up (re-delivers word if they're the drawer)
     this.broadcastPresence();
@@ -125,7 +127,7 @@ export class GameRoom {
       // the fresh lobby: welcome (idempotent — sets `you` + mode), a canvas clear, and current state.
       for (const c of this.conns) {
         if (c === conn) continue;
-        this.send(c.ws, { type: 'welcome', you: c.player, roomId: this.roomId, mode: this.mode });
+        this.send(c.ws, { type: 'welcome', you: c.player, roomId: this.roomId, mode: this.mode, settings: this.settings });
         this.send(c.ws, { type: 'draw', op: { kind: 'clear' } });
         game.sendStateTo(c.player.id);
       }
@@ -181,6 +183,12 @@ export class GameRoom {
       game.handleChooseWord(player.id, msg.word);
     } else if (msg.type === 'skip_word') {
       game.handleSkipWord(player.id);
+    } else if (msg.type === 'set_settings') {
+      // Lobby only: changing the clock or the round count mid-game would move goalposts.
+      if (game.currentPhase !== 'lobby' && game.currentPhase !== 'ended') return;
+      this.settings = sanitizeSettings({ ...this.settings, ...msg.settings });
+      game.applySettings(this.settings);
+      this.broadcast({ type: 'settings', settings: this.settings });
     }
   }
 
