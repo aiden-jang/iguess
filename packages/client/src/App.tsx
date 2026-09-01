@@ -5,6 +5,7 @@ import { renderEvidencePng } from "./evidenceCard";
 import { useWakeLock } from "./useWakeLock";
 import type { WordTier } from "@iguess/shared";
 import { newRoomCode } from "@iguess/shared/roomCode";
+import { PACK_NAMES } from "@iguess/shared/words";
 
 // What each tier pays, mirroring TIER_MULTIPLIER on the server.
 const TIER_LABEL: Record<WordTier, string> = { easy: "1x", medium: "1.25x", hard: "1.6x" };
@@ -1033,6 +1034,26 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                     : "just you so far. classic needs someone to guess, so hit 🔗 invite the squad."}
               </span>
               <span style={styles.settingsRow}>
+                <span style={styles.packRow}>
+                  {PACK_NAMES.map((p) => {
+                    const on = settings.packs.includes(p);
+                    return (
+                      <button
+                        key={p}
+                        className="lift"
+                        style={{ ...styles.packChip, ...(on ? styles.packChipOn : null) }}
+                        aria-pressed={on}
+                        onClick={() =>
+                          updateSettings({
+                            packs: on ? settings.packs.filter((x) => x !== p) : [...settings.packs, p],
+                          })
+                        }
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+                </span>
                 <label style={styles.settingLabel}>
                   round
                   <select
@@ -1793,6 +1814,22 @@ const styles: Record<string, React.CSSProperties> = {
     color: "var(--muted)",
   },
   tiles: { display: "flex", gap: 5 },
+  packRow: { display: "flex", gap: 5, flexWrap: "wrap" },
+  packChip: {
+    padding: "3px 9px",
+    borderRadius: 999,
+    border: "1px solid var(--line)",
+    background: "transparent",
+    color: "var(--muted)",
+    fontSize: 11,
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  packChipOn: {
+    borderColor: "var(--accent)",
+    background: "var(--tint-accent-soft)",
+    color: "var(--text)",
+  },
   settingsRow: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" },
   settingLabel: {
     display: "inline-flex",
