@@ -633,7 +633,9 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
   const phase = game?.phase ?? "lobby";
   const isDrawer = !!game && game.drawerId === you?.id;
   const youAreHost = players.some((p) => p.id === you?.id && p.isHost);
-  const humans = players.filter((p) => !isAI(p.id));
+  const humans = players.filter((p) => !isAI(p.id) && !p.spectator);
+  const watching = players.filter((p) => p.spectator);
+  const youAreWatching = watching.some((p) => p.id === you?.id);
   const readyCount = humans.filter((p) => p.ready).length;
   const youAreReady = humans.some((p) => p.id === you?.id && p.ready);
   const canDraw = phase === "playing" && isDrawer;
@@ -1015,6 +1017,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                   <span style={styles.nameText}>{p.name}</span>
                   {me ? <span style={styles.youTag}>you</span> : null}
                   {p.isHost ? <span title="host">👑</span> : null}
+                  {p.spectator ? <span title="watching">👀</span> : null}
                   {drawer ? <span title="drawing">✏️</span> : null}
                   {guessed ? <span title="guessed">✅</span> : null}
                 </span>
@@ -1044,8 +1047,11 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
           {phase === "lobby" && (
             <>
               <span style={styles.bannerText}>
-                {!soloWaiting
-                  ? `lowkey waiting · ${readyCount}/${humans.length} ready`
+                {youAreWatching
+                  ? "room's full, so you're watching. you're in the next game."
+                  : !soloWaiting
+                  ? `lowkey waiting · ${readyCount}/${humans.length} ready` +
+                    (watching.length ? ` · ${watching.length} watching` : "")
                   : isAIMode
                     ? "it's you vs the 🤖 AI. hit send it whenever you're ready."
                     : "just you so far. classic needs someone to guess, so hit 🔗 invite the squad."}
@@ -1146,13 +1152,15 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                   </select>
                 </label>
               </span>
-              <button
-                className="lift"
-                style={{ ...styles.ghostButton, ...(youAreReady ? styles.readyOn : null) }}
-                onClick={() => setReady(!youAreReady)}
-              >
-                {youAreReady ? "✅ ready" : "i'm ready"}
-              </button>
+              {!youAreWatching && (
+                <button
+                  className="lift"
+                  style={{ ...styles.ghostButton, ...(youAreReady ? styles.readyOn : null) }}
+                  onClick={() => setReady(!youAreReady)}
+                >
+                  {youAreReady ? "✅ ready" : "i'm ready"}
+                </button>
+              )}
               <button
                 className="lift pulse-cta"
                 style={{ ...styles.button, marginLeft: "auto", ...(youAreHost ? null : styles.disabled) }}

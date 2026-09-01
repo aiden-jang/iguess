@@ -17,7 +17,6 @@ const TEASE_MS = 1_300; // beat between the wrong shout and the answer
 const TEASE_CHANCE = 0.6;
 const BUSY_OPS = 45;
 const STEADY_OPS = 12;
-const MAX_GUESSES = 4; // cost cap per turn
 
 // How good the AI is allowed to be. "easy" doesn't fake wrong answers: it looks later, looks
 // less often, and sometimes goes with its second thought instead of its first.

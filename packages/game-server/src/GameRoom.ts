@@ -11,7 +11,14 @@ import { DuelMode } from './modes/DuelMode.ts';
 import type { GameMode, PlayerRef } from './modes/GameMode.ts';
 import { requestAIGuess, type AIGuess } from './services/aiWorkerClient.ts';
 import { shouldResetRoom } from './roomReset.ts';
-import { atCapacity, CLOSE_ROOM_FULL, CLOSE_KICKED, MAX_PLAYERS_PER_ROOM } from './limits.ts';
+import {
+  atCapacity,
+  roomIsFull,
+  CLOSE_ROOM_FULL,
+  CLOSE_KICKED,
+  MAX_PLAYERS_PER_ROOM,
+  MAX_SPECTATORS_PER_ROOM,
+} from './limits.ts';
 import type { Env } from './env.ts';
 
 // One Durable Object per room — the single authority for that room's game. Because we use
@@ -48,6 +55,8 @@ interface Conn {
   ws: WebSocket;
   player: PlayerInfo;
   rate: { count: number; windowStart: number };
+  // Watching only: never drawn to, never scored, chat is never read as a guess.
+  spectator: boolean;
 }
 
 export class GameRoom {
@@ -95,10 +104,16 @@ export class GameRoom {
     // Refuse a genuinely-new joiner once the room is full (reconnects always get back in — they
     // reclaim an existing/pending slot). We still complete the upgrade, then immediately close with
     // a terminal code + human-readable reason the client shows instead of auto-reconnecting.
-    if (atCapacity(this.conns.size, isReconnect)) {
+    // A full room takes extras as spectators. Closing the socket on the 9th friend is a worse
+    // answer than letting them watch until a seat frees up.
+    const spectating = atCapacity(this.playerCount(), isReconnect);
+    if (roomIsFull(this.playerCount(), this.spectatorCount(), isReconnect)) {
       const pair = new WebSocketPair();
       pair[1].accept();
-      pair[1].close(CLOSE_ROOM_FULL, `this room is full (up to ${MAX_PLAYERS_PER_ROOM} players). try another room name.`);
+      pair[1].close(
+        CLOSE_ROOM_FULL,
+        `this room is full (${MAX_PLAYERS_PER_ROOM} playing, ${MAX_SPECTATORS_PER_ROOM} watching). try another room.`
+      );
       return new Response(null, { status: 101, webSocket: pair[0] });
     }
 
@@ -112,7 +127,7 @@ export class GameRoom {
     const client = pair[0];
     const server = pair[1];
     server.accept(); // standard WebSocket — keeps this DO isolate alive while connected
-    const conn: Conn = { ws: server, player, rate: { count: 0, windowStart: Date.now() } };
+    const conn: Conn = { ws: server, player, spectator: spectating, rate: { count: 0, windowStart: Date.now() } };
     this.conns.add(conn);
 
     const modeBefore = this.mode;
@@ -164,10 +179,12 @@ export class GameRoom {
     if (msg.type === 'chat') {
       const text = msg.text.slice(0, 500).trim();
       if (!text) return;
-      // The game inspects it first: a correct guess is consumed (scored, suppressed) here.
-      const consumed = game.handleChat(player.id, text);
+      // A spectator's chat is only ever chat: reading it as a guess would score someone who
+      // isn't in the game and put them on the scoreboard.
+      const consumed = conn.spectator ? false : game.handleChat(player.id, text);
       if (!consumed) this.broadcast({ type: 'chat', from: player, text });
     } else if (msg.type === 'draw') {
+      if (conn.spectator) return;
       if (!game.canDraw(player.id)) return; // authoritative: only the drawer draws
       if (msg.op.kind === 'undo') {
         const strokeId = this.undoLastStroke();
@@ -183,7 +200,9 @@ export class GameRoom {
     } else if (msg.type === 'start_game') {
       if (!this.isHost(player.id)) return;
       this.readyIds.clear(); // the lobby's ready flags mean nothing once a game is running
-      game.startGame([...this.conns].map((c) => c.player.id));
+      // A new game is where spectators get promoted, if seats have opened since they arrived.
+      this.seatSpectators();
+      game.startGame([...this.conns].filter((c) => !c.spectator).map((c) => c.player.id));
     } else if (msg.type === 'choose_word') {
       game.handleChooseWord(player.id, msg.word);
     } else if (msg.type === 'skip_word') {
@@ -347,6 +366,24 @@ export class GameRoom {
     for (const c of this.conns) if (c !== except) this.send(c.ws, msg);
   }
 
+  /** Live players, not counting spectators. */
+  private playerCount(): number {
+    return [...this.conns].filter((c) => !c.spectator).length;
+  }
+
+  private spectatorCount(): number {
+    return [...this.conns].filter((c) => c.spectator).length;
+  }
+
+  /** Move waiting spectators into free seats, oldest first. */
+  private seatSpectators(): void {
+    for (const c of this.conns) {
+      if (!c.spectator) continue;
+      if (this.playerCount() >= MAX_PLAYERS_PER_ROOM) break;
+      c.spectator = false;
+    }
+  }
+
   private presenceList(): PlayerInfo[] {
     const humans = new Map<string, PlayerInfo>();
     for (const c of this.conns)
@@ -354,6 +391,7 @@ export class GameRoom {
         ...c.player,
         isHost: c.player.id === this.hostId,
         ready: this.readyIds.has(c.player.id),
+        spectator: c.spectator,
       });
     return [...humans.values(), ...this.virtualPlayers.values()];
   }
@@ -361,7 +399,7 @@ export class GameRoom {
   /** Longest-present connection holds the room. Called whenever the roster changes. */
   private ensureHost(): void {
     if (this.hostId && this.findConn(this.hostId)) return;
-    this.hostId = [...this.conns][0]?.player.id ?? null;
+    this.hostId = [...this.conns].find((c) => !c.spectator)?.player.id ?? null;
   }
 
   private isHost(playerId: string): boolean {
