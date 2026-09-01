@@ -2,6 +2,7 @@ import type { DrawOp } from '@iguess/shared';
 import type { Env } from './env.ts';
 import { selectProviders, guessWithFallback } from './visionProviders.ts';
 import { opsToPngBase64 } from './strokeRender.ts';
+import { ogPng } from './ogCard.ts';
 
 // The worker sees the pixels (a rasterized PNG of the strokes) and the masked hint every human
 // guesser already has ("_ u _ t a _"), never the secret word — so it can't cheat.
@@ -10,6 +11,25 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const providers = selectProviders(env);
+
+    // Unauthenticated on purpose: it renders nothing but the room code it was handed, and a
+    // link preview is fetched by a scraper that can't carry our shared secret.
+    if (url.pathname === '/og') {
+      const room = (url.searchParams.get('room') ?? 'lobby').slice(0, 32);
+      const mode = (url.searchParams.get('mode') ?? '').slice(0, 32);
+      try {
+        const png = await ogPng(room, mode);
+        return new Response(png.buffer as ArrayBuffer, {
+          headers: {
+            'Content-Type': 'image/png',
+            'Cache-Control': 'public, max-age=86400',
+          },
+        });
+      } catch (err) {
+        console.error('og render failed:', err instanceof Error ? err.message : err);
+        return new Response('og unavailable', { status: 500 });
+      }
+    }
 
     if (url.pathname === '/health') {
       return Response.json({ ok: true, provider: providers[0]?.name ?? 'mock' });

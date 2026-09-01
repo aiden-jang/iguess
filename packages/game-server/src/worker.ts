@@ -1,6 +1,7 @@
 import type { Env } from './env.ts';
 import { GameRoom } from './GameRoom.ts';
 import { withSecurityHeaders } from './harden.ts';
+import { rewriteInviteMeta } from './inviteMeta.ts';
 
 // The room id maps 1:1 to a Durable Object instance (idFromName), so all of a room's players
 // land on the same object — the single authority for that game.
@@ -33,6 +34,24 @@ export default {
       url.searchParams.set('room', roomId); // the DO echoes this back in `welcome`
       const stub = env.GAME_ROOM.get(env.GAME_ROOM.idFromName(roomId));
       return stub.fetch(new Request(url.toString(), request));
+    }
+
+    // /r/:room is an invite. The room has to be in the PATH, not the hash, for any of this to
+    // work: a hash never leaves the browser, so a scraper fetching an invite link would only
+    // ever see the generic card.
+    const invite = url.pathname.match(/^\/r\/([^/]+)\/?$/);
+    if (invite) {
+      const room = decodeURIComponent(invite[1]!).slice(0, 32);
+      const mode = (url.searchParams.get('mode') ?? '').slice(0, 32);
+      const shell = await env.ASSETS.fetch(new Request(new URL('/', url), request));
+      if (!shell.ok) return withSecurityHeaders(shell);
+      const html = await shell.text();
+      return withSecurityHeaders(
+        new Response(rewriteInviteMeta(html, room, mode, env.AI_WORKER_URL), {
+          status: 200,
+          headers: { 'content-type': 'text/html; charset=utf-8' },
+        }),
+      );
     }
 
     // Everything else is the client SPA (real files + index.html fallback for client routes).
