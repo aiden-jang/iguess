@@ -120,18 +120,43 @@ test("a canvas nobody is touching does not burn guesses", () => {
   assert.ok(nextGuessDelay(0) >= 15_000, "an idle canvas should wait a long time");
 });
 
-test("a stopped loop stays stopped", async () => {
+test("stopping the loop mid-turn ends it for good", async () => {
+  // Wrong guesses and a slow-enough cadence that the per-turn cap (4) is nowhere near hit,
+  // so the only thing that can end this loop is stop() itself.
   const { ctx, turn } = loopHarness("guitar");
   let calls = 0;
   const stop = startGuessLoop(turn, ctx, {
     aiId: "ai", aiName: "AI",
-    requestGuess: async () => { calls++; return { guess: "guitar", alternatives: [] }; },
+    requestGuess: async () => { calls++; return { guess: "horse", alternatives: [] }; },
     onCorrect: () => {},
-    firstGuessMs: 1, intervalMs: 1,
+    firstGuessMs: 1, intervalMs: 12,
   });
-  await new Promise((r) => setTimeout(r, 40));
+  await new Promise((r) => setTimeout(r, 30));
   stop();
   const settled = calls;
-  await new Promise((r) => setTimeout(r, 40));
+  assert.ok(settled >= 1 && settled < 4, `expected a live loop under the cap, got ${settled}`);
+  await new Promise((r) => setTimeout(r, 60));
   assert.equal(calls, settled, "the loop re-armed after being stopped");
+});
+
+test("a turn ending while the AI is mid-request does not re-arm the loop", async () => {
+  // A real vision call takes seconds. The turn can end inside that window, and the loop is
+  // re-scheduled off the resolved promise — so stop() has to survive an in-flight request.
+  const { ctx, turn } = loopHarness("guitar");
+  let calls = 0;
+  const stop = startGuessLoop(turn, ctx, {
+    aiId: "ai", aiName: "AI",
+    requestGuess: async () => {
+      calls++;
+      await new Promise((r) => setTimeout(r, 40));
+      return { guess: "horse", alternatives: [] };
+    },
+    onCorrect: () => {},
+    firstGuessMs: 1, intervalMs: 5,
+  });
+  await new Promise((r) => setTimeout(r, 15)); // inside the first request
+  stop();
+  assert.equal(calls, 1);
+  await new Promise((r) => setTimeout(r, 120));
+  assert.equal(calls, 1, "the loop kept guessing after the turn ended");
 });
