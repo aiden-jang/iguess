@@ -543,6 +543,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
     skipWord,
     settings,
     updateSettings,
+    kick,
     turnEnd,
     chooseWord,
   } = useGameSocket(room, name, mode);
@@ -630,6 +631,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
 
   const phase = game?.phase ?? "lobby";
   const isDrawer = !!game && game.drawerId === you?.id;
+  const youAreHost = players.some((p) => p.id === you?.id && p.isHost);
   const canDraw = phase === "playing" && isDrawer;
   const inGame = phase === "playing" || phase === "intermission";
   useWakeLock(inGame || phase === "choosing");
@@ -1008,9 +1010,20 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                   {isAI(p.id) ? <span style={styles.aiBadge}>AI</span> : null}
                   <span style={styles.nameText}>{p.name}</span>
                   {me ? <span style={styles.youTag}>you</span> : null}
+                  {p.isHost ? <span title="host">👑</span> : null}
                   {drawer ? <span title="drawing">✏️</span> : null}
                   {guessed ? <span title="guessed">✅</span> : null}
                 </span>
+                {youAreHost && !me && !isAI(p.id) && (
+                  <button
+                    style={styles.kickButton}
+                    title={`remove ${p.name}`}
+                    aria-label={`remove ${p.name}`}
+                    onClick={() => kick(p.id)}
+                  >
+                    ✕
+                  </button>
+                )}
                 <strong style={styles.scoreNum}>{game?.scores[p.id] ?? 0}</strong>
               </li>
             );
@@ -1043,6 +1056,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                         className="lift"
                         style={{ ...styles.packChip, ...(on ? styles.packChipOn : null) }}
                         aria-pressed={on}
+                        disabled={!youAreHost}
                         onClick={() =>
                           updateSettings({
                             packs: on ? settings.packs.filter((x) => x !== p) : [...settings.packs, p],
@@ -1058,6 +1072,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                   ours
                   <input
                     style={{ ...styles.settingSelect, width: 150 }}
+                    disabled={!youAreHost}
                     placeholder="your own words, comma separated"
                     defaultValue={settings.customWords.join(", ")}
                     onBlur={(e) => updateSettings({ customWords: e.target.value.split(",") })}
@@ -1068,6 +1083,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                   round
                   <select
                     style={styles.settingSelect}
+                    disabled={!youAreHost}
                     value={settings.turnSeconds}
                     onChange={(e) => updateSettings({ turnSeconds: Number(e.target.value) })}
                   >
@@ -1081,6 +1097,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                     ai
                     <select
                       style={styles.settingSelect}
+                      disabled={!youAreHost}
                       value={settings.aiSkill}
                       onChange={(e) => updateSettings({ aiSkill: e.target.value as typeof settings.aiSkill })}
                     >
@@ -1094,6 +1111,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                   ours
                   <input
                     style={{ ...styles.settingSelect, width: 150 }}
+                    disabled={!youAreHost}
                     placeholder="your own words, comma separated"
                     defaultValue={settings.customWords.join(", ")}
                     onBlur={(e) => updateSettings({ customWords: e.target.value.split(",") })}
@@ -1104,6 +1122,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                   ends
                   <select
                     style={styles.settingSelect}
+                    disabled={!youAreHost}
                     value={settings.scoreTarget > 0 ? `t${settings.scoreTarget}` : `r${settings.rounds}`}
                     onChange={(e) => {
                       const v = e.target.value;
@@ -1123,8 +1142,14 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
                   </select>
                 </label>
               </span>
-              <button className="lift pulse-cta" style={{ ...styles.button, marginLeft: "auto" }} onClick={startGame}>
-                send it
+              <button
+                className="lift pulse-cta"
+                style={{ ...styles.button, marginLeft: "auto", ...(youAreHost ? null : styles.disabled) }}
+                onClick={startGame}
+                disabled={!youAreHost}
+                title={youAreHost ? undefined : "only the host can start"}
+              >
+                {youAreHost ? "send it" : "waiting on the host"}
               </button>
             </>
           )}
@@ -1844,6 +1869,16 @@ const styles: Record<string, React.CSSProperties> = {
     color: "var(--muted)",
   },
   tiles: { display: "flex", gap: 5 },
+  disabled: { opacity: 0.5, cursor: "not-allowed" },
+  kickButton: {
+    border: "none",
+    background: "transparent",
+    color: "var(--muted)",
+    cursor: "pointer",
+    fontSize: 12,
+    lineHeight: 1,
+    padding: "2px 4px",
+  },
   packRow: { display: "flex", gap: 5, flexWrap: "wrap" },
   packChip: {
     padding: "3px 9px",

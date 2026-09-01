@@ -11,7 +11,7 @@ import { DuelMode } from './modes/DuelMode.ts';
 import type { GameMode, PlayerRef } from './modes/GameMode.ts';
 import { requestAIGuess, type AIGuess } from './services/aiWorkerClient.ts';
 import { shouldResetRoom } from './roomReset.ts';
-import { atCapacity, CLOSE_ROOM_FULL, MAX_PLAYERS_PER_ROOM } from './limits.ts';
+import { atCapacity, CLOSE_ROOM_FULL, CLOSE_KICKED, MAX_PLAYERS_PER_ROOM } from './limits.ts';
 import type { Env } from './env.ts';
 
 // One Durable Object per room — the single authority for that room's game. Because we use
@@ -62,6 +62,7 @@ export class GameRoom {
   // Outlives individual games so an evening in one room stops recycling the same words.
   private wordMemory = new WordMemory();
   private settings: RoomSettings = DEFAULT_SETTINGS;
+  private hostId: string | null = null;
   private roomId = 'lobby';
   // The room's canonical mode, fixed by the first joiner (who creates the engine). Late joiners
   // are told this in `welcome`, not their own requested mode, so their UI label is correct.
@@ -121,6 +122,7 @@ export class GameRoom {
     this.send(server, { type: 'welcome', you: player, roomId: this.roomId, mode: this.mode, settings: this.settings });
     this.send(server, { type: 'canvas_sync', ops: this.strokes });
     game.sendStateTo(player.id); // catch the joiner up (re-delivers word if they're the drawer)
+    this.ensureHost();
     this.broadcastPresence();
     if (wasReset) {
       // The room restarted (finished game, or a lobby mode re-pick). Resync everyone already here to
@@ -178,13 +180,21 @@ export class GameRoom {
       this.persist(msg.op);
       this.broadcastExcept(conn, { type: 'draw', op: msg.op });
     } else if (msg.type === 'start_game') {
+      if (!this.isHost(player.id)) return;
       game.startGame([...this.conns].map((c) => c.player.id));
     } else if (msg.type === 'choose_word') {
       game.handleChooseWord(player.id, msg.word);
     } else if (msg.type === 'skip_word') {
       game.handleSkipWord(player.id);
+    } else if (msg.type === 'kick') {
+      if (!this.isHost(player.id) || msg.playerId === player.id) return;
+      const target = this.findConn(msg.playerId);
+      if (!target) return;
+      this.broadcast({ type: 'system', text: `${target.player.name} was removed by the host` });
+      target.ws.close(CLOSE_KICKED, 'removed by host');
     } else if (msg.type === 'set_settings') {
       // Lobby only: changing the clock or the round count mid-game would move goalposts.
+      if (!this.isHost(player.id)) return;
       if (game.currentPhase !== 'lobby' && game.currentPhase !== 'ended') return;
       this.settings = sanitizeSettings({ ...this.settings, ...msg.settings });
       game.applySettings(this.settings);
@@ -210,6 +220,7 @@ export class GameRoom {
         this.pendingLeaves.delete(id);
         if (this.findConn(id)) return; // reconnected during the grace window
         this.engine?.onPlayerLeave(id);
+        this.ensureHost();
         this.broadcastPresence();
         this.broadcast({ type: 'system', text: `${name} left` });
         // Room truly empty now (no live sockets, nobody else mid-grace): free it.
@@ -332,8 +343,18 @@ export class GameRoom {
 
   private presenceList(): PlayerInfo[] {
     const humans = new Map<string, PlayerInfo>();
-    for (const c of this.conns) humans.set(c.player.id, c.player);
+    for (const c of this.conns) humans.set(c.player.id, { ...c.player, isHost: c.player.id === this.hostId });
     return [...humans.values(), ...this.virtualPlayers.values()];
+  }
+
+  /** Longest-present connection holds the room. Called whenever the roster changes. */
+  private ensureHost(): void {
+    if (this.hostId && this.findConn(this.hostId)) return;
+    this.hostId = [...this.conns][0]?.player.id ?? null;
+  }
+
+  private isHost(playerId: string): boolean {
+    return this.hostId === playerId;
   }
 
   private broadcastPresence(): void {

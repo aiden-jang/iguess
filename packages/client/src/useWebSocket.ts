@@ -70,6 +70,8 @@ export interface ChatLine {
 // Server WS close code for a full room (see game-server/src/limits.ts). Terminal: reconnecting
 // won't un-fill the room, so the client stops retrying and surfaces the reason instead.
 const CLOSE_ROOM_FULL = 4009;
+// Removed by the host. Terminal for the same reason: reconnecting walks straight back in.
+const CLOSE_KICKED = 4010;
 
 // Owns the single persistent WebSocket connection and the derived view
 // state (who you are, the roster, the message log). The component just
@@ -127,6 +129,11 @@ export function useGameSocket(room: string, name: string, mode: string) {
         if (e.code === CLOSE_ROOM_FULL) {
           alive = false;
           setFatal(e.reason || "this room is full. try another room name.");
+          return;
+        }
+        if (e.code === CLOSE_KICKED) {
+          alive = false;
+          setFatal("the host removed you from this room.");
           return;
         }
         attempt += 1;
@@ -252,6 +259,13 @@ export function useGameSocket(room: string, name: string, mode: string) {
     }
   }, []);
 
+  const kick = useCallback((playerId: string) => {
+    const ws = wsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "kick", playerId } satisfies ClientMessage));
+    }
+  }, []);
+
   const skipWord = useCallback(() => {
     const ws = wsRef.current;
     if (ws?.readyState === WebSocket.OPEN) {
@@ -282,6 +296,7 @@ export function useGameSocket(room: string, name: string, mode: string) {
     skipWord,
     settings,
     updateSettings,
+    kick,
     sendDraw,
     subscribeDraw,
     clearBoard,
