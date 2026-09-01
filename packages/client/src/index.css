@@ -257,3 +257,16 @@ input:focus-visible { outline-offset: 0; }
   z-index: 3;
   animation: reactionFloat 2.2s ease-out forwards;
 }
+
+/* Cross-fade the whole board on a phase change rather than snapping between screens. */
+@view-transition { navigation: auto; }
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}
