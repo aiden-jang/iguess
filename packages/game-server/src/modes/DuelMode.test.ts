@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ServerMessage } from "@iguess/shared";
+import { sanitizeSettings } from "@iguess/shared";
 import type { EngineContext, PlayerRef } from "./GameMode.ts";
 import { DuelMode } from "./DuelMode.ts";
 import { DOODLE_WORDS } from "../doodles.ts";
@@ -115,4 +116,18 @@ test("the end verdict reflects who out-scored whom", () => {
   const last = broadcasts.at(-1);
   assert.equal(last?.type, "system");
   assert.match((last as { text: string }).text, /you beat the machine, 220-130/);
+});
+
+test("the room's round count sets the length of a duel", () => {
+  const { mode, ctx } = configured();
+  mode.useSettings(sanitizeSettings({ rounds: 5 }));
+  const { totalTurns, turnsPerRound } = mode.configure([{ id: "you", name: "you" }], ctx);
+  assert.equal(turnsPerRound, 2, "a duel round is one draw each");
+  assert.equal(totalTurns, 10, "5 rounds should be 10 turns, not a hardcoded 6");
+});
+
+test("the default duel is unchanged at three rounds each", () => {
+  const { mode, ctx } = configured();
+  mode.useSettings(sanitizeSettings({}));
+  assert.equal(mode.configure([{ id: "you", name: "you" }], ctx).totalTurns, 6);
 });

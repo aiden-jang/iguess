@@ -10,7 +10,6 @@ import type { AiSkill, RoomSettings } from "@iguess/shared";
 
 const AI_ID = "ai-duel";
 
-const TOTAL_TURNS = 6; // alternates you / AI / you / AI / you / AI — three draws each
 
 // Head-to-head "you vs the machine". Unlike TeamBattleMode (a first-to-guess RACE where only the
 // winning side scores and the AI never earns drawer points), Duel uses ClassicMode's real
@@ -49,7 +48,8 @@ export class DuelMode extends ClassicMode {
     this.usedDoodles.clear();
     ctx.addParticipant({ id: AI_ID, name: AI_NAME, isAI: true });
     // A "round" is one human turn + one AI turn, so the round counter reads 1..3.
-    return { totalTurns: TOTAL_TURNS, turnsPerRound: 2 };
+    // A round is one draw each, so the room's round count doubles into turns.
+    return { totalTurns: this.rounds * 2, turnsPerRound: 2 };
   }
 
   private isAITurn(turnIndex: number): boolean {
