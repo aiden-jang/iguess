@@ -4,12 +4,24 @@ import type { AiBinding, Env } from './env.ts';
 // game server. Keys/config come from the Worker env (not process.env — this runs on Workers).
 export interface VisionProvider {
   readonly name: string;
-  guess(pngBase64: string): Promise<string>;
+  guess(pngBase64: string, hint?: string): Promise<string>;
 }
 
-const PROMPT =
+const BASE_PROMPT =
   'This is a doodle from a Pictionary-style game. In ONE lowercase word, ' +
   'what is the single object being drawn? Reply with only that word, no punctuation.';
+
+// The hint is the masked word every human guesser can already see ("_ u _ t a _"), never the
+// answer. Without it the AI was playing blind against players who get letters for free.
+function promptFor(hint?: string): string {
+  const shape = hint?.trim();
+  if (!shape) return BASE_PROMPT;
+  const letters = shape.replace(/\s+/g, '').length;
+  return (
+    `${BASE_PROMPT} The answer has ${letters} letters and looks like "${shape}", ` +
+    'where _ is a letter you have to work out. Your word must fit that pattern.'
+  );
+}
 
 const COMMON = [
   'cat', 'dog', 'house', 'tree', 'car', 'sun', 'fish', 'star', 'boat',
@@ -34,8 +46,12 @@ function normalize(s: string): string {
 // sees the word), but it proves the pipeline: ops → PNG → provider → guess → chat.
 export class MockProvider implements VisionProvider {
   readonly name = 'mock';
-  async guess(_pngBase64: string): Promise<string> {
-    return COMMON[Math.floor(Math.random() * COMMON.length)]!;
+  async guess(_pngBase64: string, hint?: string): Promise<string> {
+    // Even the mock respects the hint's length, so a hinted run looks plausible end to end.
+    const shape = hint?.replace(/\s+/g, '') ?? '';
+    const fits = shape ? COMMON.filter((w) => w.length === shape.length) : COMMON;
+    const pool = fits.length ? fits : COMMON;
+    return pool[Math.floor(Math.random() * pool.length)]!;
   }
 }
 
@@ -45,7 +61,7 @@ export class OpenAIProvider implements VisionProvider {
     private apiKey: string,
     private model: string,
   ) {}
-  async guess(pngBase64: string): Promise<string> {
+  async guess(pngBase64: string, hint?: string): Promise<string> {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
@@ -56,7 +72,7 @@ export class OpenAIProvider implements VisionProvider {
           {
             role: 'user',
             content: [
-              { type: 'text', text: PROMPT },
+              { type: 'text', text: promptFor(hint) },
               { type: 'image_url', image_url: { url: `data:image/png;base64,${pngBase64}` } },
             ],
           },
@@ -75,7 +91,7 @@ export class AnthropicProvider implements VisionProvider {
     private apiKey: string,
     private model: string,
   ) {}
-  async guess(pngBase64: string): Promise<string> {
+  async guess(pngBase64: string, hint?: string): Promise<string> {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -91,7 +107,7 @@ export class AnthropicProvider implements VisionProvider {
             role: 'user',
             content: [
               { type: 'image', source: { type: 'base64', media_type: 'image/png', data: pngBase64 } },
-              { type: 'text', text: PROMPT },
+              { type: 'text', text: promptFor(hint) },
             ],
           },
         ],
@@ -125,8 +141,8 @@ export class WorkersAIProvider implements VisionProvider {
     private ai: AiBinding,
     private model: string,
   ) {}
-  async guess(pngBase64: string): Promise<string> {
-    const inputs = { image: base64ToBytes(pngBase64), prompt: PROMPT, max_tokens: 12 };
+  async guess(pngBase64: string, hint?: string): Promise<string> {
+    const inputs = { image: base64ToBytes(pngBase64), prompt: promptFor(hint), max_tokens: 12 };
     try {
       const res = await this.ai.run(this.model, inputs);
       // LLaVA answers on `description`, the llama vision-instruct models on `response`.
@@ -190,11 +206,12 @@ export function selectProvider(env: Env): VisionProvider {
 export async function guessWithFallback(
   providers: VisionProvider[],
   png: string,
+  hint?: string,
 ): Promise<{ guess: string; provider: string } | null> {
   for (const p of providers) {
     if (p.name !== 'mock' && !png) continue; // no image to send a vision model
     try {
-      return { guess: await p.guess(png), provider: p.name };
+      return { guess: await p.guess(png, hint), provider: p.name };
     } catch (err) {
       console.error(`vision provider ${p.name} failed:`, err instanceof Error ? err.message : err);
     }

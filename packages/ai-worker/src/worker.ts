@@ -3,8 +3,9 @@ import type { Env } from './env.ts';
 import { selectProviders, guessWithFallback } from './visionProviders.ts';
 import { opsToPngBase64 } from './strokeRender.ts';
 
-// The worker only ever sees the pixels (a rasterized PNG of the strokes), never the secret word —
-// so it can't cheat. Providers are tried best-first with fallbacks (see selectProviders).
+// The worker sees the pixels (a rasterized PNG of the strokes) and the masked hint every human
+// guesser already has ("_ u _ t a _"), never the secret word — so it can't cheat.
+// Providers are tried best-first with fallbacks (see selectProviders).
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -20,8 +21,10 @@ export default {
       if (env.AI_SHARED_SECRET && request.headers.get('Authorization') !== `Bearer ${env.AI_SHARED_SECRET}`) {
         return Response.json({ guess: '', error: 'unauthorized' }, { status: 401 });
       }
-      const body = (await request.json().catch(() => null)) as { ops?: DrawOp[] } | null;
+      const body = (await request.json().catch(() => null)) as { ops?: DrawOp[]; hint?: string } | null;
       const ops = Array.isArray(body?.ops) ? body.ops : [];
+      // Guard against a caller ever sending the answer itself: a hint with no blanks is not a hint.
+      const hint = typeof body?.hint === 'string' && body.hint.includes('_') ? body.hint : undefined;
       if (ops.length === 0) return Response.json({ guess: '', provider: providers[0]?.name });
 
       // Rasterize once, only if a real vision model will use it (mock needs no image).
@@ -36,7 +39,7 @@ export default {
 
       // Try each provider in turn; the first non-throwing guess wins. A rate-limited/broken paid
       // key (e.g. OpenAI 429) thus falls through to free Workers AI, then the mock — never a dead AI.
-      const result = await guessWithFallback(providers, png);
+      const result = await guessWithFallback(providers, png, hint);
       if (result) return Response.json(result);
       return Response.json({ guess: '', error: 'vision_failed' }, { status: 502 });
     }
