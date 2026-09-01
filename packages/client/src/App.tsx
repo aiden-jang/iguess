@@ -1385,7 +1385,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   title: {
     margin: 0,
-    fontFamily: "'Fredoka', sans-serif",
+    fontFamily: "'Fredoka Variable', 'Fredoka', sans-serif",
     fontSize: 32,
     fontWeight: 700,
     letterSpacing: "-0.02em",
@@ -1553,7 +1553,7 @@ const styles: Record<string, React.CSSProperties> = {
   roomHead: { display: "flex", alignItems: "center", gap: 10 },
   roomMark: { fontSize: 26 },
   roomName: {
-    fontFamily: "'Fredoka', sans-serif",
+    fontFamily: "'Fredoka Variable', 'Fredoka', sans-serif",
     fontSize: 20,
     fontWeight: 600,
     overflow: "hidden",
