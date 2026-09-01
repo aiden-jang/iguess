@@ -93,6 +93,9 @@ export interface PlayerInfo {
   // Lobby only. Advisory, not a gate: the host can still start, so one AFK player
   // can't hold the room hostage.
   ready?: boolean;
+  // Watching, not playing. A full room takes extras as spectators rather than turning them
+  // away; they join the next game if a seat has opened by then.
+  spectator?: boolean;
 }
 
 // ---- Drawing ----
