@@ -1,4 +1,5 @@
 import type { ServerMessage, DrawOp } from "@iguess/shared";
+import type { WordMemory } from "../wordMemory.ts";
 
 // A participant in a game — a human (backed by a socket) or a virtual player
 // such as the AI. The engine treats them uniformly for turn order + scoring.
@@ -64,6 +65,9 @@ export interface EngineContext {
 // The strategy a game mode implements. The engine drives the timeline and
 // calls these hooks; the mode supplies all the game-specific decisions.
 export interface GameMode {
+  // The room hands every mode its cross-game word memory, if the mode wants one.
+  useWordMemory?(memory: WordMemory): void;
+
   readonly id: string;
 
   // The fewest human players this mode needs to start. Classic needs 2 (someone

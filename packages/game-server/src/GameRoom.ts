@@ -1,4 +1,5 @@
 import type { ClientMessage, ServerMessage, PlayerInfo, DrawOp, GameModeName } from '@iguess/shared';
+import { WordMemory } from './wordMemory.ts';
 import { GameEngine } from './engine.ts';
 import { ClassicMode } from './modes/ClassicMode.ts';
 import { AIGuesserMode } from './modes/AIGuesserMode.ts';
@@ -56,6 +57,8 @@ export class GameRoom {
   // clears it (silent), the timer firing turns into an actual leave.
   private pendingLeaves = new Map<string, ReturnType<typeof setTimeout>>();
   private aiCallCount = 0;
+  // Outlives individual games so an evening in one room stops recycling the same words.
+  private wordMemory = new WordMemory();
   private roomId = 'lobby';
   // The room's canonical mode, fixed by the first joiner (who creates the engine). Late joiners
   // are told this in `welcome`, not their own requested mode, so their UI label is correct.
@@ -254,6 +257,12 @@ export class GameRoom {
   }
 
   private makeMode(name: GameModeName): GameMode {
+    const mode = this.buildMode(name);
+    mode.useWordMemory?.(this.wordMemory);
+    return mode;
+  }
+
+  private buildMode(name: GameModeName): GameMode {
     // Hard per-room budget on paid AI calls so a single room (via "run it back" restarts) can't
     // burn unbounded vision requests. Beyond it, the AI simply stops guessing.
     const aiGuess = (): Promise<string> => {
