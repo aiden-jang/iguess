@@ -96,6 +96,18 @@ export interface PlayerInfo {
   // Watching, not playing. A full room takes extras as spectators rather than turning them
   // away; they join the next game if a seat has opened by then.
   spectator?: boolean;
+  // One emoji, chosen by the player and remembered locally. Validated server-side against a
+  // fixed set: a free-text field here renders arbitrary strings in everyone's roster.
+  avatar?: string;
+}
+
+export const AVATARS = [
+  "🐶", "🐱", "🦊", "🐸", "🐼", "🐧", "🦁", "🐙",
+  "👽", "🤠", "🧛", "🥷", "🍕", "🌵", "⚡", "💀",
+] as const;
+
+export function isAvatar(s: unknown): s is string {
+  return typeof s === "string" && (AVATARS as readonly string[]).includes(s);
 }
 
 // ---- Drawing ----

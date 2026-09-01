@@ -6,7 +6,7 @@ import { useWakeLock } from "./useWakeLock";
 import type { WordTier } from "@iguess/shared";
 import { newRoomCode } from "@iguess/shared/roomCode";
 import { PACK_NAMES } from "@iguess/shared/words";
-import { REACTIONS } from "@iguess/shared";
+import { REACTIONS, AVATARS } from "@iguess/shared";
 import type { DrawOp } from "@iguess/shared";
 import { Replay } from "./Replay";
 
@@ -60,12 +60,46 @@ function randomName(): string {
 
 // ---- Win streak (localStorage) ----
 const STREAK_KEY = "iguess_streak";
+const AVATAR_KEY = "iguess_avatar";
+const STATS_KEY = "iguess_stats";
+
 function getStreak(): number {
   return Number(localStorage.getItem(STREAK_KEY) || 0) || 0;
 }
+
+export interface LifetimeStats {
+  games: number;
+  wins: number;
+  bestStreak: number;
+}
+
+// Kept locally rather than on the server: there are no accounts, and a number that survives a
+// reload is the whole point. A corrupt or absent blob reads as a fresh player.
+export function lifetimeStats(): LifetimeStats {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STATS_KEY) ?? "");
+    return {
+      games: Number(raw?.games) || 0,
+      wins: Number(raw?.wins) || 0,
+      bestStreak: Number(raw?.bestStreak) || 0,
+    };
+  } catch {
+    return { games: 0, wins: 0, bestStreak: 0 };
+  }
+}
+
 function bumpStreak(won: boolean): number {
   const next = won ? getStreak() + 1 : 0;
   localStorage.setItem(STREAK_KEY, String(next));
+  const s = lifetimeStats();
+  localStorage.setItem(
+    STATS_KEY,
+    JSON.stringify({
+      games: s.games + 1,
+      wins: s.wins + (won ? 1 : 0),
+      bestStreak: Math.max(s.bestStreak, next),
+    })
+  );
   return next;
 }
 
@@ -318,6 +352,10 @@ export function App() {
     invite.room ?? localStorage.getItem("iguess_room") ?? newRoomCode()
   );
   const [draftMode, setDraftMode] = useState(invite.mode ?? "ai");
+  const [avatar, setAvatar] = useState(
+    () => localStorage.getItem(AVATAR_KEY) ?? AVATARS[Math.floor(Math.random() * AVATARS.length)]!
+  );
+  const stats = lifetimeStats();
   const [joined, setJoined] = useState<{
     name: string;
     room: string;
@@ -338,6 +376,7 @@ export function App() {
     const room = draftRoom.trim() || newRoomCode();
     localStorage.setItem("iguess_name", name);
     localStorage.setItem("iguess_room", room);
+    localStorage.setItem(AVATAR_KEY, avatar);
     // Reflect the room in the URL so the address bar (and a copy-paste) points at THIS room, not the
     // bare origin. Matches the invite-link format, so a reload lands on the same room's join screen.
     const q = new URLSearchParams({ room, mode: draftMode });
@@ -402,6 +441,28 @@ export function App() {
               🎲
             </button>
           </div>
+
+          <label style={styles.fieldLabel}>You</label>
+          <div style={styles.avatarGrid}>
+            {AVATARS.map((a) => (
+              <button
+                key={a}
+                type="button"
+                className="lift"
+                style={{ ...styles.avatarChip, ...(a === avatar ? styles.avatarChipOn : null) }}
+                aria-pressed={a === avatar}
+                aria-label={`avatar ${a}`}
+                onClick={() => setAvatar(a)}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+          {stats.games > 0 && (
+            <p style={styles.statsLine}>
+              {stats.games} games · {stats.wins} wins · best streak {stats.bestStreak}
+            </p>
+          )}
 
           <label style={styles.fieldLabel}>Room</label>
           <div style={styles.nameRow}>
@@ -486,7 +547,15 @@ pull up →
     );
   }
 
-  return <Room name={joined.name} room={joined.room} mode={joined.mode} onLeave={leaveRoom} />;
+  return (
+    <Room
+      name={joined.name}
+      room={joined.room}
+      mode={joined.mode}
+      avatar={avatar}
+      onLeave={leaveRoom}
+    />
+  );
 }
 
 // Server turn length — mirrors TURN_MS in engine.ts. Only used to size the
@@ -532,7 +601,19 @@ function Countdown({ endsAt }: { endsAt: number | null }) {
   );
 }
 
-function Room({ name, room, mode, onLeave }: { name: string; room: string; mode: string; onLeave: () => void }) {
+function Room({
+  name,
+  room,
+  mode,
+  avatar,
+  onLeave,
+}: {
+  name: string;
+  room: string;
+  mode: string;
+  avatar: string;
+  onLeave: () => void;
+}) {
   const {
     connected,
     fatal,
@@ -559,7 +640,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
     react,
     turnEnd,
     chooseWord,
-  } = useGameSocket(room, name, mode);
+  } = useGameSocket(room, name, mode, avatar);
   // Show the room's real mode once the server confirms it; the requested mode is just the
   // placeholder shown for the split second before `welcome` arrives.
   const effectiveMode = serverMode ?? mode;
@@ -1032,7 +1113,11 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
               >
                 <span style={styles.rank}>{i + 1}</span>
                 <span style={styles.playerName}>
-                  {isAI(p.id) ? <span style={styles.aiBadge}>AI</span> : null}
+                  {isAI(p.id) ? (
+                    <span style={styles.aiBadge}>AI</span>
+                  ) : p.avatar ? (
+                    <span aria-hidden>{p.avatar}</span>
+                  ) : null}
                   <span style={styles.nameText}>{p.name}</span>
                   {me ? <span style={styles.youTag}>you</span> : null}
                   {p.isHost ? <span title="host">👑</span> : null}
@@ -1968,6 +2053,18 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: 1,
     padding: "2px 4px",
   },
+  avatarGrid: { display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4 },
+  avatarChip: {
+    padding: "5px 0",
+    fontSize: 16,
+    lineHeight: 1,
+    borderRadius: 9,
+    border: "1px solid var(--line)",
+    background: "var(--panel-2)",
+    cursor: "pointer",
+  },
+  avatarChipOn: { borderColor: "var(--accent)", background: "var(--tint-accent-soft)" },
+  statsLine: { margin: "8px 0 0", fontSize: 11, color: "var(--muted)" },
   packRow: { display: "flex", gap: 5, flexWrap: "wrap" },
   packChip: {
     padding: "3px 9px",
