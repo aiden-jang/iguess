@@ -200,6 +200,12 @@ export type ClientMessage =
       // Lobby only: "I'm at my keyboard".
       type: "ready";
       ready: boolean;
+    }
+  | {
+      // Where the drawer's pen is hovering. Never persisted to the stroke log — it is a
+      // liveness cue, not part of the drawing, and a late joiner must not replay it.
+      type: "cursor";
+      point: Point | null;
     };
 
 // ---- Server → Client ----
@@ -218,6 +224,12 @@ export type ServerMessage =
       // Broadcast whenever the room's settings change, so every lobby stays in step.
       type: "settings";
       settings: RoomSettings;
+    }
+  | {
+      // The drawer's pen position, relayed to everyone else. null means it left the canvas.
+      type: "cursor";
+      playerId: string;
+      point: Point | null;
     }
   | {
       // Current roster of the room. Re-sent whenever it changes.

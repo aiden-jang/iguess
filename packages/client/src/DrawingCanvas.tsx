@@ -9,6 +9,8 @@ interface Props {
   width: number;
   erasing: boolean;
   filling: boolean;
+  onCursor?: (p: Point | null) => void;
+  peerCursor?: Point | null;
   canDraw: boolean; // only the current drawer may paint
   // Hands the underlying <canvas> element up so the parent can snapshot it.
   onCanvas?: (el: HTMLCanvasElement | null) => void;
@@ -94,6 +96,8 @@ export function DrawingCanvas({
   width,
   erasing,
   filling,
+  onCursor,
+  peerCursor,
   canDraw,
   onCanvas,
 }: Props) {
@@ -332,6 +336,8 @@ export function DrawingCanvas({
   }
 
   function onPointerMove(e: React.PointerEvent) {
+    // Hovering counts: the point of showing the pen is the pause before the line.
+    if (canDraw) onCursor?.(toNorm(e));
     if (!drawing.current) return;
     const p = toNorm(e);
     buffer.current.push(p);
@@ -340,6 +346,11 @@ export function DrawingCanvas({
       rafPending.current = true;
       requestAnimationFrame(flush);
     }
+  }
+
+  function onPointerLeave() {
+    if (canDraw) onCursor?.(null);
+    onPointerUp();
   }
 
   function onPointerUp() {
@@ -367,12 +378,33 @@ export function DrawingCanvas({
   const brushCursor = `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${half} ${half}, crosshair`;
 
   return (
+    <>
+      {peerCursor && !canDraw && (
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: `${peerCursor.x * 100}%`,
+            top: `${peerCursor.y * 100}%`,
+            width: 10,
+            height: 10,
+            marginLeft: -5,
+            marginTop: -5,
+            borderRadius: "50%",
+            border: "2px solid var(--accent)",
+            background: "var(--accent-2)",
+            pointerEvents: "none",
+            transition: "left .07s linear, top .07s linear",
+            zIndex: 2,
+          }}
+        />
+      )}
     <canvas
       ref={canvasRef}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerLeave={onPointerUp}
+      onPointerLeave={onPointerLeave}
       style={{
         width: "100%",
         height: "100%",
@@ -385,5 +417,6 @@ export function DrawingCanvas({
         background: "white",
       }}
     />
+    </>
   );
 }
