@@ -1,6 +1,7 @@
+import type { WordTier } from '@iguess/shared';
 import wordsByTier from './words.json';
 
-export type Tier = 'easy' | 'medium' | 'hard';
+export type Tier = WordTier;
 
 export const TIERS: Tier[] = ['easy', 'medium', 'hard'];
 

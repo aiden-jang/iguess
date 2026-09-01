@@ -1,4 +1,5 @@
 import type { ServerMessage, PublicGameState, GamePhase, DrawOp } from "@iguess/shared";
+import { tierOf } from "./words.ts";
 import type { GameMode, EngineContext, PlayerRef, TurnContext } from "./modes/GameMode.ts";
 
 const TURN_MS = 60_000;
@@ -77,7 +78,7 @@ export class GameEngine {
     // If the drawer reconnects/refreshes mid-"choosing", re-send the options — otherwise their
     // client lost them and they're stuck on "someone is picking…" (about themselves) until auto-pick.
     if (this.phase === "choosing" && playerId === this.drawerId && this.pendingChoices) {
-      this.deps.sendToPlayer(playerId, { type: "word_choices", words: this.pendingChoices });
+      this.deps.sendToPlayer(playerId, { type: "word_choices", words: this.pendingChoices, tiers: this.pendingChoices.map(tierOf) });
     }
   }
 
@@ -176,7 +177,7 @@ export class GameEngine {
     this.pendingChoices = choices;
 
     void this.deps.clearCanvas();
-    this.deps.sendToPlayer(drawerId, { type: "word_choices", words: choices });
+    this.deps.sendToPlayer(drawerId, { type: "word_choices", words: choices, tiers: choices.map(tierOf) });
     this.broadcastState();
 
     if (this.chooseTimer) clearTimeout(this.chooseTimer); // never leak a prior choose-timer

@@ -6,7 +6,10 @@ import type {
   DrawOp,
   PublicGameState,
   GameModeName,
+  WordTier,
 } from "@iguess/shared";
+
+export type WordChoice = { word: string; tier: WordTier };
 
 // Draw ops bypass React state on purpose: re-rendering a component on every
 // pointer-move would be wasteful. Instead the canvas registers a listener and
@@ -86,7 +89,7 @@ export function useGameSocket(room: string, name: string, mode: string) {
   // turn begins (or any non-choosing state arrives).
   /** The most recent turn's revealed word, so the client can keep the drawing that went with it. */
   const [turnEnd, setTurnEnd] = useState<{ word: string; at: number } | null>(null);
-  const [wordChoices, setWordChoices] = useState<string[] | null>(null);
+  const [wordChoices, setWordChoices] = useState<WordChoice[] | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const drawListeners = useRef<Set<DrawListener>>(new Set());
 
@@ -167,7 +170,7 @@ export function useGameSocket(room: string, name: string, mode: string) {
           if (msg.state.phase !== "choosing") setWordChoices(null);
           break;
         case "word_choices":
-          setWordChoices(msg.words);
+          setWordChoices(msg.words.map((word, i) => ({ word, tier: msg.tiers[i] ?? "easy" })));
           break;
         case "your_word":
           setMyWord(msg.word);

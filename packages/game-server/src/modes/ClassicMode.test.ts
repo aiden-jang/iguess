@@ -1,0 +1,71 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import type { ServerMessage } from "@iguess/shared";
+import type { EngineContext, PlayerRef } from "./GameMode.ts";
+import { ClassicMode } from "./ClassicMode.ts";
+import { TIERS, WORDS_BY_TIER, tierOf } from "../words.ts";
+
+function makeCtx(frac: number, word: string) {
+  const scores: Record<string, number> = {};
+  const guessed = new Set<string>();
+  const roster = new Map<string, PlayerRef>([
+    ["drawer", { id: "drawer", name: "drawer" }],
+    ["you", { id: "you", name: "you" }],
+    ["other", { id: "other", name: "other" }],
+  ]);
+  const ctx = {
+    participants: () => [...roster.values()],
+    getName: (id: string) => id,
+    broadcast: (_m: ServerMessage) => {},
+    sendToPlayer: () => {},
+    draw: () => {},
+    clearCanvas: () => {},
+    awardPoints: (id: string, pts: number) => (scores[id] = (scores[id] ?? 0) + pts),
+    scores: () => scores,
+    markGuessed: (id: string) => guessed.add(id),
+    guessedIds: () => [...guessed],
+    hasGuessed: (id: string) => guessed.has(id),
+    addParticipant: (p: PlayerRef) => roster.set(p.id, p),
+    removeParticipant: (id: string) => roster.delete(id),
+    currentDrawerId: () => "drawer",
+    currentWord: () => word,
+    turnFractionRemaining: () => frac,
+    syncState: () => {},
+    endTurn: () => {},
+  } as unknown as EngineContext;
+  return { ctx, scores };
+}
+
+function scoreFor(word: string) {
+  const mode = new ClassicMode();
+  const { ctx, scores } = makeCtx(1, word);
+  mode.onChat("you", word, ctx);
+  return scores["you"] ?? 0;
+}
+
+test("a harder word pays more for the same guess speed", () => {
+  const easy = scoreFor(WORDS_BY_TIER.easy[0]!);
+  const medium = scoreFor(WORDS_BY_TIER.medium[0]!);
+  const hard = scoreFor(WORDS_BY_TIER.hard[0]!);
+  assert.ok(easy < medium, `expected easy ${easy} < medium ${medium}`);
+  assert.ok(medium < hard, `expected medium ${medium} < hard ${hard}`);
+});
+
+test("the drawer is offered one word from each tier", () => {
+  const mode = new ClassicMode();
+  const { ctx } = makeCtx(1, "apple");
+  const choices = mode.pickWordChoices!(ctx)!;
+  assert.deepEqual(choices.map(tierOf), TIERS);
+});
+
+test("no word is offered twice in one game", () => {
+  const mode = new ClassicMode();
+  const { ctx } = makeCtx(1, "apple");
+  const seen = new Set<string>();
+  for (let turn = 0; turn < 40; turn++) {
+    for (const w of mode.pickWordChoices!(ctx)!) {
+      assert.ok(!seen.has(w), `${w} was offered twice`);
+      seen.add(w);
+    }
+  }
+});

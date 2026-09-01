@@ -5,6 +5,9 @@
 
 // ---- Domain types ----
 
+// Word difficulty. Drives both which pool a word comes from and what it pays.
+export type WordTier = "easy" | "medium" | "hard";
+
 export interface PlayerInfo {
   id: string;
   name: string;
@@ -136,6 +139,9 @@ export type ServerMessage =
       // ONLY to the drawer; they reply with `choose_word`.
       type: "word_choices";
       words: string[];
+      // Parallel to `words`: the tier of each option, so the drawer can see what
+      // the harder pick is worth before committing to drawing it.
+      tiers: WordTier[];
     }
   | {
       // The secret word — sent ONLY to the current drawer at turn start.
