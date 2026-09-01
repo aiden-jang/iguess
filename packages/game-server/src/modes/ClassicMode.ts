@@ -119,6 +119,21 @@ export class ClassicMode implements GameMode {
     ctx.sendToPlayer(turn.drawerId, { type: "your_word", word: turn.word });
   }
 
+  /**
+   * "?dog" is a call on what the machine will say next, not a guess at the word. Every mode
+   * that overrides onChat must run this FIRST: normalizeGuess strips the "?", so an unhandled
+   * call is scored as a plain answer and wins the round outright.
+   */
+  protected takeCall(playerId: string, text: string, ctx: EngineContext): boolean {
+    if (!text.trimStart().startsWith("?")) return false;
+    const call = normalizeGuess(text.trimStart().slice(1));
+    if (call) {
+      this.bets.set(playerId, call);
+      ctx.sendToPlayer(playerId, { type: "system", text: `📞 called it: the machine says "${call}"` });
+    }
+    return true; // consumed either way: a bare "?" is not chat worth broadcasting
+  }
+
   /** Settle calls against what the AI actually said. Every call is spent, right or wrong. */
   protected settleBets(said: string, ctx: EngineContext): void {
     const heard = normalizeGuess(said);
@@ -137,15 +152,7 @@ export class ClassicMode implements GameMode {
   onChat(playerId: string, text: string, ctx: EngineContext): boolean {
     const word = ctx.currentWord();
     if (!word) return false; // not in a live turn → normal chat
-    // "?dog" is a call on what the machine will say next, not a guess at the word. Checked
-    // before the guess path: normalizeGuess would strip the "?" and score it as an answer.
-    if (text.trimStart().startsWith("?")) {
-      const call = normalizeGuess(text.trimStart().slice(1));
-      if (!call) return true;
-      this.bets.set(playerId, call);
-      ctx.sendToPlayer(playerId, { type: "system", text: `📞 called it: the machine says "${call}"` });
-      return true;
-    }
+    if (this.takeCall(playerId, text, ctx)) return true;
     if (playerId === ctx.currentDrawerId()) return true; // hide drawer chat
     if (ctx.hasGuessed(playerId)) return true; // already done → stay quiet
     // Normalize both sides so punctuation, accents, casing and stray spaces

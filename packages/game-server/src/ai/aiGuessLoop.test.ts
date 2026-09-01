@@ -76,6 +76,7 @@ function loopHarness(word: string) {
     currentWord: () => word,
     hasGuessed: () => guessed,
     canvasOpCount: () => 0,
+    hintsRevealed: () => 0,
     broadcast: (m: { type: string; text?: string }) => { if (m.type === "chat") chats.push(m.text ?? ""); },
   } as unknown as EngineContext;
   return { chats, ctx, turn: { word } as TurnContext, markCorrect: () => { guessed = true; } };

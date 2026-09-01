@@ -25,6 +25,8 @@ function makeCtx(word: string, drawerId: string) {
     addParticipant: () => {},
     currentDrawerId: () => drawerId,
     currentWord: () => word,
+    hintsRevealed: () => 0,
+    canvasOpCount: () => 0,
     syncState: () => {},
     endTurn: () => { ended = true; },
   } as unknown as EngineContext;
@@ -68,4 +70,14 @@ test("after the round is decided, further guesses pass through as chat", () => {
   const { mode, ctx } = humanDrawTurn("dog");
   mode.onChat("g", "dog", ctx); // wins, round decided
   assert.equal(mode.onChat("g2", "dog", ctx), false);
+});
+
+test("a call on the AI is not a free guess", () => {
+  const { mode, ctx, scores, isEnded } = humanDrawTurn("dog");
+  // "?dog" is a call on what the machine will say next. normalizeGuess strips the "?", so
+  // without explicit handling the call wins the round outright.
+  const handled = mode.onChat("g", "?dog", ctx);
+  assert.equal(scores["g"] ?? 0, 0, "a call must not score the round");
+  assert.ok(!isEnded(), "a call must not end the round");
+  assert.equal(handled, true, "a call is consumed, not echoed as chat");
 });
