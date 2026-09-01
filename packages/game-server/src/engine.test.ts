@@ -148,9 +148,10 @@ test("a correct guess scores the guesser and the drawer, and ends the turn", () 
   engine.handleChat("b", word); // bob guesses correctly
 
   const st = latestState(broadcasts);
-  // Guesser: 50..100 by speed; drawer: +25 bonus.
-  assert.ok(st.scores["b"]! >= 50 && st.scores["b"]! <= 100, `guesser=${st.scores["b"]}`);
-  assert.equal(st.scores["a"], 25);
+  // Guesser: 50..100 by speed (times the word's tier); drawer: 10..50, also by that speed.
+  assert.ok(st.scores["b"]! >= 50, `guesser=${st.scores["b"]}`);
+  assert.ok(st.scores["a"]! >= 10 && st.scores["a"]! <= 80, `drawer=${st.scores["a"]}`);
+  assert.ok(st.scores["a"]! < st.scores["b"]!, "the guesser should out-earn the drawer");
   assert.deepEqual(st.guessedIds, ["b"]);
   // All non-drawers guessed → turn ends → intermission.
   assert.equal(st.phase, "intermission");

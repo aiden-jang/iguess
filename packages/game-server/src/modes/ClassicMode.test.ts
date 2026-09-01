@@ -69,3 +69,20 @@ test("no word is offered twice in one game", () => {
     }
   }
 });
+
+function drawerScoreFor(frac: number) {
+  const mode = new ClassicMode();
+  const { ctx, scores } = makeCtx(frac, "apple");
+  mode.onChat("you", "apple", ctx);
+  return scores["drawer"] ?? 0;
+}
+
+test("drawing well pays the drawer more than drawing badly", () => {
+  const quick = drawerScoreFor(0.9);
+  const slow = drawerScoreFor(0.1);
+  assert.ok(quick > slow * 2, `fast ${quick} should clearly beat slow ${slow}`);
+});
+
+test("the drawer is still paid when nobody is quick", () => {
+  assert.ok(drawerScoreFor(0) > 0);
+});
