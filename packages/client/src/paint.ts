@@ -1,10 +1,9 @@
 import type { DrawOp, Point } from "@iguess/shared";
 
-// Tolerance is generous because strokes are antialiased: an exact match would stop at the
-// soft edge of a line and leave a halo of unfilled pixels around everything.
+// Deliberately loose. Lines have soft edges, and an exact colour match stops at that soft
+// edge, leaving an unfilled halo around everything.
 const FILL_TOLERANCE = 60;
 
-/** Scanline flood fill from a normalized point. Operates on the backing store, not CSS pixels. */
 function floodFill(ctx: CanvasRenderingContext2D, at: Point, hex: string): void {
   const canvas = ctx.canvas;
   const w = canvas.width;
@@ -38,8 +37,8 @@ function floodFill(ctx: CanvasRenderingContext2D, at: Point, hex: string): void 
     px[i + 3] = 255;
   };
 
-  // Scanline rather than per-pixel recursion: a full-canvas fill is ~2M pixels, and a
-  // four-way stack blows both the call stack and the frame budget.
+  // Fill a whole row at a time. Going pixel by pixel over two million pixels runs out of
+  // stack and drops frames.
   const stack: [number, number][] = [[sx, sy]];
   while (stack.length) {
     const [x0, y] = stack.pop()!;
@@ -57,21 +56,19 @@ function floodFill(ctx: CanvasRenderingContext2D, at: Point, hex: string): void 
       spanBelow = below;
     }
   }
-  // putImageData ignores the DPR transform, so write at device pixels and let the existing
-  // transform keep applying to everything drawn afterwards.
+  // putImageData ignores the canvas scaling, so this writes raw pixels on purpose.
   ctx.putImageData(img, 0, 0);
 }
 
 interface StrokeState {
   last: Point;
   erase: boolean;
-  // Midpoint the last drawn curve ended on. The smoothing anchors here, not on `last`.
+  // Where the last curve ended. Smoothing starts from here, not from `last`.
   mid: Point;
   color: string;
   width: number;
 }
 
-/** Per-stroke state the incremental renderer carries between ops. */
 export interface StrokeStates {
   map: Map<string, StrokeState>;
 }
@@ -80,10 +77,6 @@ export function newStrokeStates(): StrokeStates {
   return { map: new Map() };
 }
 
-/**
- * Paint one op. Pure rendering, no recording, so it is shared by the live board, remote
- * replay, a resize re-render, and the end-of-game replay of a finished round.
- */
 export function paintOp(
   ctx: CanvasRenderingContext2D,
   op: DrawOp | { kind: "reset" },
@@ -110,21 +103,19 @@ export function paintOp(
       case "move": {
         const s = strokes.get(op.strokeId);
         if (!s) return;
-        // destination-out cuts ink back out to transparency. Painting white would leave white
-        // pixels that the fill tool reads as a distinct region.
+        // Cut the ink away rather than painting white over it. White pixels are an area the
+        // fill bucket would happily flood.
         ctx.globalCompositeOperation = s.erase ? "destination-out" : "source-over";
         ctx.strokeStyle = s.color;
         ctx.lineWidth = s.width;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
-        // Curve through the midpoints instead of joining raw samples: a fast stroke samples
-        // sparsely, and straight segments between those samples look visibly polygonal.
-        // Each chunk redraws from the last midpoint, so the half-segment overlap is repainted
-        // in the same colour and never shows.
+        // Curve between the halfway points instead of joining the raw samples. A fast stroke
+        // gives few samples, and straight lines between them look obviously angular.
         let prev = s.last;
         let mid = s.mid;
-        // lineWidth applies to a whole path, so a tapering stroke needs one path per segment.
-        // Uniform strokes stay a single path.
+        // A line can only have one thickness, so a tapering stroke needs a separate line per
+        // segment. An even stroke stays as one.
         if (op.widths) {
           op.points.forEach((p, i) => {
             const next = { x: (prev.x + p.x) / 2, y: (prev.y + p.y) / 2 };
@@ -145,8 +136,8 @@ export function paintOp(
             ctx.quadraticCurveTo(prev.x * W, prev.y * H, mid.x * W, mid.y * H);
             prev = p;
           }
-          // The final sample has no successor yet, so run to it straight; the next chunk
-          // replaces this tip with the real curve.
+          // Nothing after the last point yet, so go straight to it. The next batch redraws
+          // this tip as a proper curve.
           ctx.lineTo(prev.x * W, prev.y * H);
           ctx.stroke();
         }
@@ -163,7 +154,6 @@ export function paintOp(
         ctx.globalCompositeOperation = "source-over";
         break;
       case "undo":
-        // Handled in applyOp by rebuilding the log; nothing to paint directly.
         break;
     }
 }

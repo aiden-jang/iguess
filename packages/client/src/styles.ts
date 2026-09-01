@@ -1,9 +1,6 @@
 import type React from "react";
 
-// Inline style objects, lifted out of App.tsx: they were more than a third of the file and
-// nothing in them is component logic.
 export const styles: Record<string, React.CSSProperties> = {
-  // ---- Join gate ----
   gate: {
     minHeight: "100%",
     display: "flex",
@@ -80,8 +77,7 @@ export const styles: Record<string, React.CSSProperties> = {
     gap: 2,
     padding: "12px 14px",
     borderRadius: 12,
-    // Longhand (not the `border` shorthand) so modeCardActive can override borderColor alone without
-    // React warning about mixing shorthand + longhand for the same property across re-renders.
+    // Longhand on purpose. React warns if one style sets `border` and another sets `borderColor`.
     borderWidth: 1,
     borderStyle: "solid",
     borderColor: "var(--line)",
@@ -192,16 +188,13 @@ export const styles: Record<string, React.CSSProperties> = {
     color: "var(--muted)",
   },
 
-  // ---- Layout ----
   layout: {
     display: "grid",
     gridTemplateColumns: "240px minmax(0,1fr) 320px",
-    // A single row bounded to the viewport (minmax(0,1fr), not the default content-sized auto row)
-    // so the flex:1 canvas fills the height instead of growing unbounded and overflowing the page.
+    // minmax(0,1fr), not auto: an auto row grows to fit the canvas and overflows the page.
     gridTemplateRows: "minmax(0, 1fr)",
-    // dvh, not vh: mobile Safari counts the URL bar inside 100vh, so the board would be taller
-    // than the screen and shift as the bar hides. A style object cannot carry a vh fallback line,
-    // and dvh is supported by every browser that can run the canvas anyway.
+    // dvh, not vh. Safari counts its URL bar inside 100vh, so the board ends up taller than the
+    // screen and jumps about as the bar hides.
     height: "100dvh",
     gap: 1,
     background: "var(--line)",
@@ -303,7 +296,6 @@ export const styles: Record<string, React.CSSProperties> = {
   scoreNum: { fontVariantNumeric: "tabular-nums", fontSize: 15 },
   emptyRoster: { color: "var(--muted)", fontSize: 13, padding: 8 },
 
-  // ---- Canvas pane ----
   galleryHead: {
     display: "flex",
     alignItems: "center",
@@ -314,8 +306,8 @@ export const styles: Record<string, React.CSSProperties> = {
   gallery: {
     marginTop: 12,
   },
-  // Horizontal scroll rather than a wrap: eight turns wrapped into rows pushes the whole end
-  // screen off the fold, and a strip you drag through reads as a filmstrip, which is what it is.
+  // Scrolls sideways instead of wrapping. Eight drawings wrapped into rows push the rest of the
+  // end screen off the bottom of the page.
   galleryStrip: {
     display: "flex",
     gap: 10,
@@ -334,7 +326,6 @@ export const styles: Record<string, React.CSSProperties> = {
     border: "1px solid var(--hair)",
     background: "#fff",
   },
-  // Tighter and dimmer than the word: the word is what it was, the guess is the aside.
   galleryGuess: {
     margin: "2px 0 0",
     fontSize: 11.5,
@@ -567,7 +558,6 @@ export const styles: Record<string, React.CSSProperties> = {
     pointerEvents: "none",
   },
 
-  // ---- Chat ----
   main: {
     display: "flex",
     flexDirection: "column",
@@ -625,8 +615,7 @@ export const styles: Record<string, React.CSSProperties> = {
     color: "white",
     background: "var(--grad)",
     boxShadow: "0 10px 30px rgba(168,85,247,0.5)",
-    // Compact pill that wraps instead of stretching a long line across the whole top of the screen;
-    // tappable to dismiss early (see onClick) so it never sits in the way.
+    // Wraps rather than stretching across the whole screen, and can be tapped away.
     maxWidth: "min(80vw, 340px)",
     textAlign: "center",
     cursor: "pointer",
@@ -637,7 +626,7 @@ export const styles: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     zIndex: 10001,
-    // Full-bleed yellow to the top edge (covers the notch), but pad the text below the safe area.
+    // Colour runs under the notch, but the text is padded down clear of it.
     padding: "calc(10px + env(safe-area-inset-top)) 16px 10px",
     textAlign: "center",
     fontWeight: 700,
@@ -658,7 +647,6 @@ export const styles: Record<string, React.CSSProperties> = {
     background: "var(--panel-2)",
   },
 
-  // ---- Shared controls ----
   input: {
     width: "100%",
     padding: "10px 12px",

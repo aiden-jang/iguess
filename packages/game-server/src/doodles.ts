@@ -1,20 +1,15 @@
 import type { DrawOp, Point } from "@iguess/shared";
 import { humanize, type Rng } from "./humanize.ts";
 
-// A tiny library of hand-coded vector doodles, one per word. Each doodle is a
-// list of STROKES (so AIDrawerMode can reveal them one at a time, making the
-// AI look like it's drawing). Coordinates are normalized 0..1 to match the
-// client's resolution-independent canvas.
+// Hand-drawn pictures the AI can produce, stored as lists of strokes so they can be revealed
+// gradually. Coordinates are 0..1, like everywhere else.
 //
-// Why a curated library instead of a model? It demos legibly, costs nothing,
-// and keeps the game loop testable. A real generator can slot in behind
-// AIDrawerMode's injected `requestDrawing` callback later, same as the vision
-// provider does for the guesser.
+// Hand-made rather than generated: it is legible, free, and testable. A real generator drops in
+// behind AIDrawerMode's `requestDrawing` without touching anything here.
 
 let idCounter = 0;
 const nextId = () => `ai-draw-${Date.now()}-${idCounter++}`;
 
-// Build one stroke (start + move + end) from a polyline of points.
 function stroke(points: Point[], color = "#222", width = 4): DrawOp[] {
   if (points.length === 0) return [];
   const strokeId = nextId();
@@ -75,7 +70,6 @@ function starPath(cx: number, cy: number, outer: number, inner: number): Point[]
   return pts;
 }
 
-// Each entry returns a fresh list of strokes (fresh stroke ids per turn).
 export const DOODLES: Record<string, () => DrawOp[][]> = {
   house: () => [
     stroke([
@@ -127,7 +121,7 @@ export const DOODLES: Record<string, () => DrawOp[][]> = {
     return [circle(0.5, 0.5, 0.15), ...rays];
   },
   flower: () => {
-    // Petals as one scalloped ring: five separate circles read as a bunch of grapes.
+    // One wavy ring, not five circles. Five circles look like a bunch of grapes.
     const ring: Point[] = [];
     for (let i = 0; i <= 60; i++) {
       const a = -Math.PI / 2 + (i / 60) * Math.PI * 2;
@@ -157,7 +151,7 @@ export const DOODLES: Record<string, () => DrawOp[][]> = {
     circle(0.4, 0.47, 0.014),
   ],
   cloud: () => [
-    // One scalloped outline. Overlapping circles just read as overlapping circles.
+    // One bumpy outline. Overlapping circles just look like overlapping circles.
     stroke([
       { x: 0.28, y: 0.62 }, { x: 0.24, y: 0.55 }, { x: 0.28, y: 0.47 }, { x: 0.36, y: 0.45 },
       { x: 0.38, y: 0.37 }, { x: 0.48, y: 0.33 }, { x: 0.57, y: 0.36 }, { x: 0.62, y: 0.42 },
@@ -212,7 +206,8 @@ export const DOODLES: Record<string, () => DrawOp[][]> = {
     stroke([{ x: 0.32, y: 0.24 }, { x: 0.7, y: 0.32 }, { x: 0.32, y: 0.46 }]),
   ],
   hat: () => [
-    // A cap, not a top hat: the peak off to one side is what stops it reading as a box.
+    // A cap, not a top hat. The peak sticking out to one side is what stops it looking
+    // like a plain box.
     arc(0.46, 0.58, 0.22, Math.PI, Math.PI * 2),
     stroke([{ x: 0.24, y: 0.58 }, { x: 0.68, y: 0.58 }]),
     stroke([{ x: 0.68, y: 0.57 }, { x: 0.82, y: 0.6 }, { x: 0.8, y: 0.66 }, { x: 0.66, y: 0.63 }]),
@@ -352,7 +347,7 @@ export const DOODLES: Record<string, () => DrawOp[][]> = {
 
 export const DOODLE_WORDS = Object.keys(DOODLES);
 
-/** The drawing the AI actually makes: the library shape, redrawn by a shaky hand. */
+// What the AI actually draws: the stored shape, redrawn by a shaky hand.
 export function doodleFor(word: string, rng?: Rng): DrawOp[][] {
   const strokes = DOODLES[word]?.();
   return strokes ? humanize(strokes, rng) : [];

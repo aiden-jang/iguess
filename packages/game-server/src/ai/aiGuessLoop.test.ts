@@ -3,8 +3,6 @@ import assert from "node:assert/strict";
 import { matchesWord, phraseGuess, startGuessLoop, nextGuessDelay } from "./aiGuessLoop.ts";
 import type { EngineContext, TurnContext } from "../modes/GameMode.ts";
 
-// ---- matchesWord: the lenient match the scoring path depends on ----
-
 test("matchesWord accepts exact and case-insensitive matches", () => {
   assert.ok(matchesWord("dog", "dog"));
   assert.ok(matchesWord("DOG", "dog"));
@@ -27,11 +25,6 @@ test("matchesWord forgives accents and punctuation like a human guess", () => {
   assert.ok(matchesWord("a piñata 🎉", "pinata"));
 });
 
-// ---- phraseGuess: personality must never change what gets matched ----
-// This is the invariant that lets the bot have a voice without affecting
-// scoring: the displayed text is decorated, but matching runs on the raw
-// guess. If someone later matches against the displayed text, these guard it.
-
 test("phraseGuess always embeds the raw guess verbatim", () => {
   for (let i = 0; i < 200; i++) {
     const out = phraseGuess("elephant");
@@ -40,9 +33,7 @@ test("phraseGuess always embeds the raw guess verbatim", () => {
 });
 
 test("a phrased guess still matches the secret word", () => {
-  // Whatever decoration we add, the raw guess remains matchable — proving
-  // phrasing and matching are independent (we match on the raw guess, not
-  // the decorated string, but this asserts the decoration can't *prevent* it).
+  // Personality must never change whether a guess counts.
   for (let i = 0; i < 200; i++) {
     const phrased = phraseGuess("dog");
     assert.ok(matchesWord(phrased, "dog"), `phrasing broke matching: "${phrased}"`);
@@ -137,8 +128,7 @@ test("a canvas nobody is touching does not burn guesses", () => {
 });
 
 test("stopping the loop mid-turn ends it for good", async () => {
-  // Wrong guesses and a slow-enough cadence that the per-turn cap (4) is nowhere near hit,
-  // so the only thing that can end this loop is stop() itself.
+  // Slow enough that the per-turn cap can't end the loop, so only stop() can.
   const { ctx, turn } = loopHarness("guitar");
   let calls = 0;
   const stop = startGuessLoop(turn, ctx, {
@@ -156,8 +146,7 @@ test("stopping the loop mid-turn ends it for good", async () => {
 });
 
 test("a turn ending while the AI is mid-request does not re-arm the loop", async () => {
-  // A real vision call takes seconds. The turn can end inside that window, and the loop is
-  // re-scheduled off the resolved promise — so stop() has to survive an in-flight request.
+  // A real vision call takes seconds, and the turn can end inside that window.
   const { ctx, turn } = loopHarness("guitar");
   let calls = 0;
   const stop = startGuessLoop(turn, ctx, {

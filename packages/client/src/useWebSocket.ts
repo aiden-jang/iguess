@@ -16,15 +16,14 @@ import { DEFAULT_SETTINGS } from "@iguess/shared";
 export type WordChoice = { word: string; tier: WordTier };
 export type Choices = { options: WordChoice[]; canSkip: boolean };
 
-// Draw ops bypass React state on purpose: re-rendering a component on every
-// pointer-move would be wasteful. Instead the canvas registers a listener and
-// paints imperatively. `null` op signals a full reset before a canvas_sync.
+// Strokes deliberately skip React state. Re-rendering on every pointer move would be far too
+// slow, so the canvas listens here and paints itself.
 type DrawListener = (op: DrawOp | { kind: "reset" }) => void;
 
 let nextReactionId = 1;
 
-// The game server (the room's Durable Object) is same-origin: the Worker serves this SPA and
-// the /rooms/:id/ws endpoint on one host. In dev, Vite proxies /rooms to the local wrangler dev.
+// Same origin in production: one Worker serves both this app and the socket. In dev, Vite
+// proxies /rooms across to wrangler.
 function socketUrl(room: string, name: string, mode: string, pid: string, avatar: string): string {
   const proto = window.location.protocol === "https:" ? "wss" : "ws";
   const q = new URLSearchParams({ name, mode, pid, avatar });
@@ -39,20 +38,11 @@ function newPid(): string {
     : Math.random().toString(36).slice(2, 14);
 }
 
-/**
- * The id that says "this is the same player".
- *
- * The server keys its whole reconnect path on this: a returning pid inside the 8s grace window is
- * silent and keeps your score, your place in the draw order, and your turn if you were the one
- * drawing. It used to be generated inside the socket effect, which made it stable across a dropped
- * socket but new on every mount — so the single most common way anyone reconnects, hitting refresh,
- * was read as a stranger arriving. The chat said "Aiden joined" and "Aiden left" about one person
- * pressing F5, and their score went with it.
- *
- * sessionStorage, not localStorage: it survives a reload, which is the case that was broken, and
- * stays per-tab, so two tabs on one device remain two players the way they do today. Private mode
- * throwing here just puts us back on the old per-mount behaviour, which is no worse than before.
- */
+// The id that says "this is the same player". A returning pid inside the grace window keeps
+// your score, your place in the drawing order, and your turn.
+//
+// sessionStorage, NOT localStorage: it has to survive a refresh, but two tabs on one machine
+// must stay two players. If storage throws, a fresh id is no worse than having none.
 function stablePid(): string {
   try {
     const existing = sessionStorage.getItem(PID_KEY);
@@ -71,39 +61,26 @@ export interface ChatLine {
   text: string;
 }
 
-// Server WS close code for a full room (see game-server/src/limits.ts). Terminal: reconnecting
-// won't un-fill the room, so the client stops retrying and surfaces the reason instead.
+// Both of these are final. Retrying is pointless: a full room won't empty because you asked
+// again, and a kick just kicks you again.
 const CLOSE_ROOM_FULL = 4009;
-// Removed by the host. Terminal for the same reason: reconnecting walks straight back in.
 const CLOSE_KICKED = 4010;
 
-// Owns the single persistent WebSocket connection and the derived view
-// state (who you are, the roster, the message log). The component just
-// renders this and calls `sendChat`.
 export function useGameSocket(room: string, name: string, mode: string, avatar: string) {
   const [connected, setConnected] = useState(false);
-  // A terminal rejection from the server (e.g. the room is full). Non-null → stop reconnecting and
-  // show this instead of the game; the room screen renders it as a dead-end notice.
+  // Set means: stop reconnecting and show this instead of the game.
   const [fatal, setFatal] = useState<string | null>(null);
   const [you, setYou] = useState<PlayerInfo | null>(null);
-  // The room's ACTUAL mode, echoed by the server. May differ from the mode this
-  // client requested if it joined a room someone else already created.
   const [serverMode, setServerMode] = useState<GameModeName | null>(null);
   const [players, setPlayers] = useState<PlayerInfo[]>([]);
   const [log, setLog] = useState<ChatLine[]>([]);
   const [game, setGame] = useState<PublicGameState | null>(null);
-  // The secret word, set only when WE are the drawer; cleared each turn end.
   const [myWord, setMyWord] = useState<string | null>(null);
-  // Word options offered to US during the "choosing" phase; cleared once the
-  // turn begins (or any non-choosing state arrives).
-  /** The most recent turn's revealed word, so the client can keep the drawing that went with it. */
   const [turnEnd, setTurnEnd] = useState<{ word: string; at: number } | null>(null);
   const [wordChoices, setWordChoices] = useState<Choices | null>(null);
   const [settings, setSettings] = useState<RoomSettings>(DEFAULT_SETTINGS);
-  // Not React state: it moves at pointer rate and only the canvas overlay cares.
   const [peerCursor, setPeerCursor] = useState<Point | null>(null);
   const phaseRef = useRef<string | null>(null);
-  // Transient: each reaction lives just long enough to float up the canvas and vanish.
   const [reactions, setReactions] = useState<{ id: number; emoji: string; at: number }[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const drawListeners = useRef<Set<DrawListener>>(new Set());
@@ -116,9 +93,8 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
     if (!room || !name) return;
     const url = socketUrl(room, name, mode, stablePid(), avatar);
 
-    // `alive` distinguishes an intentional unmount (no reconnect) from a
-    // dropped connection (reconnect with capped backoff). The server replays
-    // full state on every connect, so reconnecting is enough to recover.
+    // `alive` tells "we closed this on purpose" apart from "the network dropped". The server
+    // resends everything on connect, so simply reconnecting is a full recovery.
     let alive = true;
     let attempt = 0;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -134,7 +110,6 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
       ws.onclose = (e) => {
         setConnected(false);
         if (!alive) return;
-        // A terminal rejection (full room): don't reconnect — it would just get closed again.
         if (e.code === CLOSE_ROOM_FULL) {
           alive = false;
           setFatal(e.reason || "this room is full. try another room name.");
@@ -184,14 +159,12 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
           for (const op of msg.ops) emitDraw(op);
           break;
         case "game_state": {
-          // Only the phase change is worth a transition; scores tick constantly.
+          // Only animate a phase change. Scores tick constantly and would animate forever.
           const changedPhase = msg.state.phase !== phaseRef.current;
           phaseRef.current = msg.state.phase;
           if (changedPhase) withTransition(() => setGame(msg.state));
           else setGame(msg.state);
-          // If we're no longer the drawer, forget any word we held.
           setMyWord((w) => (msg.state.phase === "playing" ? w : null));
-          // Choices are only relevant during our own "choosing" phase.
           if (msg.state.phase !== "choosing") setWordChoices(null);
           break;
         }
@@ -219,8 +192,7 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
           break;
         case "turn_end":
           setMyWord(null);
-          // Stamped, so a repeat of the same word later in the game is still a new event to react
-          // to. Without the timestamp a second turn on the same word would look like no change.
+          // Timestamped, or the same word coming round twice looks like nothing changed.
           setTurnEnd({ word: msg.word, at: Date.now() });
           setLog((l) => [
             ...l,
@@ -232,8 +204,7 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
 
     connect();
 
-    // Backoff alone means coming out of a tunnel, or back to the tab, costs up to five more
-    // seconds of staring at a frozen board. Both events say the network is worth another try.
+    // Without this, coming out of a tunnel costs another five seconds of frozen board.
     const retryNow = () => {
       if (!alive) return;
       if (document.visibilityState !== "visible") return;
@@ -271,14 +242,12 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
     }
   }, []);
 
-  // Canvas subscribes here to receive remote ops; returns an unsubscribe.
   const subscribeDraw = useCallback((fn: DrawListener) => {
     drawListeners.current.add(fn);
     return () => drawListeners.current.delete(fn);
   }, []);
 
-  // Clear: tell the server (it wipes the log + relays) AND reset our own
-  // canvas, since the server never echoes our own ops back to us.
+  // Reset our own canvas too: the server never sends our own strokes back to us.
   const clearBoard = useCallback(() => {
     sendDraw({ kind: "clear" });
     emitDraw({ kind: "reset" });
@@ -298,7 +267,7 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
     }
   }, []);
 
-  // Throttled to ~15/s: it is a hint about where the pen is, not a second stroke channel.
+  // Throttled. This is a hint about where the pen is, not a second way to send strokes.
   const lastCursorAt = useRef(0);
   const sendCursor = useCallback((point: Point | null) => {
     const ws = wsRef.current;
@@ -309,8 +278,7 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
     ws.send(JSON.stringify({ type: "cursor", point } satisfies ClientMessage));
   }, []);
 
-  // Bytes the socket has accepted but not yet put on the wire. A rising number means the
-  // link can't keep up with a stroke a frame, and the drawer should batch harder.
+  // Bytes queued but not yet sent. Climbing means the connection can't keep up.
   const socketBacklog = useCallback(() => wsRef.current?.bufferedAmount ?? 0, []);
 
   const react = useCallback((emoji: string) => {

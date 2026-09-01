@@ -22,28 +22,26 @@ import {
 import { seatSpectators, pickHost } from './hosting.ts';
 import type { Env } from './env.ts';
 
-// One Durable Object per room — the single authority for that room's game. Because we use
-// standard (pinned, non-hibernation) WebSockets, the isolate stays alive while any player is
-// connected, so the engine's setTimeout/setInterval timing works unchanged. Redis is gone: the
-// roster + stroke history live in this object's memory (evicted only once the room fully empties).
+// One of these per room, and it is the only thing allowed to change that room's game.
+// Don't switch to hibernating WebSockets: hibernation throws away pending timers, and the
+// whole game runs on a turn timer.
 
 const MSG_LIMIT_PER_SEC = 200; // coarse per-connection flood guard
-// A dropped socket has this long to reconnect (same pid) before we announce a leave and remove the
-// player from the game. Absorbs network blips so a reconnect is silent and keeps score/turn.
+// How long a dropped player has to come back before we treat it as leaving. Covers a brief
+// blip so they keep their score and their place in the drawing order.
 const RECONNECT_GRACE_MS = 8000;
 
-// Hard ceiling on paid AI vision calls per room (its whole DO lifetime), so restarts can't run up
-// an unbounded bill. ~4 guesses/turn, so this covers dozens of turns before the AI goes quiet.
+// Total paid AI calls this room may ever make, so replaying it over and over can't run up a
+// bill. Past this the AI just stops guessing.
 const MAX_AI_CALLS_PER_ROOM = 240;
 
-// Map the client-asserted mode query param to a known mode (defaulting to classic). Keeping this
-// beside the DO ensures the label sent in `welcome` and the engine built in `makeMode` never diverge.
+// The client can send any mode string, so map it to a known one. Keep this next to makeMode
+// or the label we announce and the engine we build can drift apart.
 function normalizeMode(name: string | null): GameModeName {
   if (name === 'ai' || name === 'ai-drawer' || name === 'team-battle' || name === 'duel') return name;
   return 'classic';
 }
 
-// Friendly labels for the "mode switched to …" system message (matches the join-screen names).
 const MODE_LABELS: Record<GameModeName, string> = {
   classic: 'Classic',
   ai: 'AI Guesser',
@@ -56,7 +54,6 @@ interface Conn {
   ws: WebSocket;
   player: PlayerInfo;
   rate: { count: number; windowStart: number };
-  // Watching only: never drawn to, never scored, chat is never read as a guess.
   spectator: boolean;
 }
 
@@ -65,18 +62,16 @@ export class GameRoom {
   private engine: GameEngine | null = null;
   private virtualPlayers = new Map<string, PlayerInfo>();
   private strokes: DrawOp[] = [];
-  // pid -> pending "leave" timer. A dropped player sits here during the grace window; a reconnect
-  // clears it (silent), the timer firing turns into an actual leave.
+  // People who dropped and might still come back. If the timer fires, they really left.
   private pendingLeaves = new Map<string, ReturnType<typeof setTimeout>>();
   private aiCallCount = 0;
-  // Outlives individual games so an evening in one room stops recycling the same words.
+  // Survives between games, so a night in one room stops serving the same words over.
   private wordMemory = new WordMemory();
   private settings: RoomSettings = DEFAULT_SETTINGS;
   private hostId: string | null = null;
   private readyIds = new Set<string>();
   private roomId = 'lobby';
-  // The room's canonical mode, fixed by the first joiner (who creates the engine). Late joiners
-  // are told this in `welcome`, not their own requested mode, so their UI label is correct.
+  // Set by whoever arrived first. Everyone else is told this, not the mode they asked for.
   private mode: GameModeName = 'classic';
 
   constructor(
@@ -94,21 +89,16 @@ export class GameRoom {
     const rawAvatar = url.searchParams.get('avatar');
     const avatar = isAvatar(rawAvatar) ? rawAvatar : undefined;
     const modeName = url.searchParams.get('mode');
-    // Client-asserted stable id so a reconnect keeps identity (score, draw order, drawer role).
+      // The client claims this id, and it is how a reconnect keeps its score and turn.
     const pid = url.searchParams.get('pid');
     const id = pid ? pid.slice(0, 12) : crypto.randomUUID().slice(0, 8);
     const player: PlayerInfo = { id, name, avatar };
 
-    // A reconnect is either an overlap (old socket still open) or a return within the grace window
-    // (a pending leave for this pid). Either way it's silent: no "joined" line, and we cancel the
-    // pending leave so their game slot is never dropped.
+    // Either their old socket is still open, or they are inside the grace window. Both are
+    // silent: no "joined" message, and their seat is never given away.
     const isReconnect = !!this.findConn(id) || this.pendingLeaves.has(id);
 
-    // Refuse a genuinely-new joiner once the room is full (reconnects always get back in — they
-    // reclaim an existing/pending slot). We still complete the upgrade, then immediately close with
-    // a terminal code + human-readable reason the client shows instead of auto-reconnecting.
-    // A full room takes extras as spectators. Closing the socket on the 9th friend is a worse
-    // answer than letting them watch until a seat frees up.
+    // A full room takes extra arrivals as watchers rather than slamming the door on them.
     const spectating = atCapacity(this.playerCount(), isReconnect);
     if (roomIsFull(this.playerCount(), this.spectatorCount(), isReconnect)) {
       const pair = new WebSocketPair();
@@ -144,8 +134,7 @@ export class GameRoom {
     this.ensureHost();
     this.broadcastPresence();
     if (wasReset) {
-      // The room restarted (finished game, or a lobby mode re-pick). Resync everyone already here to
-      // the fresh lobby: welcome (idempotent — sets `you` + mode), a canvas clear, and current state.
+      // The room just restarted, so everyone already here needs resending to the fresh lobby.
       for (const c of this.conns) {
         if (c === conn) continue;
         this.send(c.ws, { type: 'welcome', you: c.player, roomId: this.roomId, mode: this.mode, settings: this.settings });
@@ -182,8 +171,8 @@ export class GameRoom {
     if (msg.type === 'chat') {
       const text = msg.text.slice(0, 500).trim();
       if (!text) return;
-      // A spectator's chat is only ever chat: reading it as a guess would score someone who
-      // isn't in the game and put them on the scoreboard.
+      // A watcher's message is only ever chat. Scoring it would put someone who isn't playing
+      // on the scoreboard.
       const consumed = conn.spectator ? false : game.handleChat(player.id, text);
       if (!consumed) this.broadcast({ type: 'chat', from: player, text });
     } else if (msg.type === 'draw') {
@@ -192,9 +181,8 @@ export class GameRoom {
       if (msg.op.kind === 'undo') {
         const strokeId = this.undoLastStroke();
         if (!strokeId) return; // nothing drawn yet
-        // Name the stroke instead of resending the canvas: every client holds the same op log,
-        // so they can drop that one stroke and repaint. Undo used to be the largest message
-        // the room sent, fired by the button players press most.
+        // Send the stroke's id, not the canvas. Everyone holds the same list of strokes, so
+        // they can drop that one themselves. This used to be the biggest message we ever sent.
         this.broadcast({ type: 'draw', op: { kind: 'undo', strokeId } });
         return;
       }
@@ -203,7 +191,6 @@ export class GameRoom {
     } else if (msg.type === 'start_game') {
       if (!this.isHost(player.id)) return;
       this.readyIds.clear(); // the lobby's ready flags mean nothing once a game is running
-      // A new game is where spectators get promoted, if seats have opened since they arrived.
       this.seatSpectators();
       game.startGame([...this.conns].filter((c) => !c.spectator).map((c) => c.player.id));
     } else if (msg.type === 'choose_word') {
@@ -214,7 +201,6 @@ export class GameRoom {
       if (!isReaction(msg.emoji)) return;
       this.broadcast({ type: 'react', emoji: msg.emoji, at: Math.random() });
     } else if (msg.type === 'cursor') {
-      // Only the live drawer, and never written to the stroke log.
       if (conn.spectator || !game.canDraw(player.id)) return;
       this.broadcastExcept(conn, { type: 'cursor', playerId: player.id, point: msg.point });
     } else if (msg.type === 'ready') {
@@ -228,7 +214,7 @@ export class GameRoom {
       this.broadcast({ type: 'system', text: `${target.player.name} was removed by the host` });
       target.ws.close(CLOSE_KICKED, 'removed by host');
     } else if (msg.type === 'set_settings') {
-      // Lobby only: changing the clock or the round count mid-game would move goalposts.
+      // Lobby only. Changing the clock mid-game moves a deadline people can already see.
       if (!this.isHost(player.id)) return;
       if (game.currentPhase !== 'lobby' && game.currentPhase !== 'ended') return;
       this.settings = sanitizeSettings({ ...this.settings, ...msg.settings });
@@ -240,12 +226,11 @@ export class GameRoom {
   private onClose(conn: Conn): void {
     if (!this.conns.has(conn)) return; // close + error can both fire
     this.conns.delete(conn);
-    // Reconnect overlap: another live socket already holds this id → the player didn't leave.
+    // Another socket already has this id, so they didn't really leave.
     if (this.findConn(conn.player.id)) return;
 
-    // Give every leaver a grace window to reconnect before dropping them from the game — including a
-    // sole player (the common case in solo AI modes), whose blip previously tore the whole game down
-    // instantly and reset them to lobby. A reconnect within the window cancels this (see fetch).
+    // Wait before really removing anyone, including a lone player. Without this, one blip in a
+    // solo game tore the whole thing down and dumped them back in the lobby.
     const { id, name } = conn.player;
     const existing = this.pendingLeaves.get(id);
     if (existing) clearTimeout(existing);
@@ -258,7 +243,6 @@ export class GameRoom {
         this.ensureHost();
         this.broadcastPresence();
         this.broadcast({ type: 'system', text: `${name} left` });
-        // Room truly empty now (no live sockets, nobody else mid-grace): free it.
         if (this.conns.size === 0 && this.pendingLeaves.size === 0) {
           this.engine = null;
           this.strokes = [];
@@ -268,16 +252,10 @@ export class GameRoom {
     );
   }
 
-  // --- engine wiring -------------------------------------------------------
-
   private gameFor(modeName: string | null): GameEngine {
     const requested = normalizeMode(modeName);
-    // A (re)join to an IDLE room starts it fresh:
-    //  - a finished game ("round over — run it back") shouldn't strand the next joiner on the old
-    //    results screen; landing on the same name should give a clean lobby.
-    //  - a lobby re-pick with a different mode should actually switch the mode (not silently keep it).
-    // A game in progress is left untouched — you're joining IT. (Run-it-back from the ended screen is
-    // a start_game on the existing connection, not a join, so this doesn't disturb that flow.)
+    // Joining a room that is sitting idle gives you a clean lobby, so you don't land on the
+    // last game's results screen. Joining a game already running leaves it alone: you join it.
     if (this.engine && shouldResetRoom(this.engine.currentPhase, requested, this.mode)) {
       this.engine = null;
       this.virtualPlayers.clear();
@@ -324,8 +302,6 @@ export class GameRoom {
   }
 
   private buildMode(name: GameModeName): GameMode {
-    // Hard per-room budget on paid AI calls so a single room (via "run it back" restarts) can't
-    // burn unbounded vision requests. Beyond it, the AI simply stops guessing.
     const aiGuess = (): Promise<AIGuess> => {
       if (this.aiCallCount >= MAX_AI_CALLS_PER_ROOM) return Promise.resolve({ guess: '', alternatives: [] });
       this.aiCallCount += 1;
@@ -343,16 +319,12 @@ export class GameRoom {
     return new ClassicMode();
   }
 
-  // --- socket helpers ------------------------------------------------------
-
   private persist(op: DrawOp): void {
     if (op.kind === 'clear') this.strokes = [];
     else this.strokes.push(op);
   }
 
-  // Drop the last stroke's ops (its trailing start...move...end). A single drawer draws
-  // sequentially, so the last stroke is the suffix from the final "start".
-  /** Drop the last stroke and return its id, or null if there was nothing to drop. */
+  // Returns the id of what it removed, or null if there was nothing to remove.
   private undoLastStroke(): string | null {
     const id = lastStrokeId(this.strokes);
     if (!id) { this.strokes = []; return null; }
@@ -364,7 +336,7 @@ export class GameRoom {
     try {
       ws.send(JSON.stringify(msg));
     } catch {
-      // socket is closing — drop it
+      // The socket is already closing. Nothing to do, and nothing worth logging.
     }
   }
 
@@ -376,7 +348,6 @@ export class GameRoom {
     for (const c of this.conns) if (c !== except) this.send(c.ws, msg);
   }
 
-  /** Live players, not counting spectators. */
   private playerCount(): number {
     return [...this.conns].filter((c) => !c.spectator).length;
   }
@@ -385,7 +356,6 @@ export class GameRoom {
     return [...this.conns].filter((c) => c.spectator).length;
   }
 
-  /** Move waiting spectators into free seats, oldest first. */
   private seatSpectators(): void {
     const seated = seatSpectators([...this.conns].map((c) => ({ id: c.player.id, spectator: c.spectator })));
     const byId = new Map(seated.map((s) => [s.id, s.spectator]));
@@ -404,10 +374,10 @@ export class GameRoom {
     return [...humans.values(), ...this.virtualPlayers.values()];
   }
 
-  /** Longest-present connection holds the room. Called whenever the roster changes. */
   private ensureHost(): void {
     const seats = () => [...this.conns].map((c) => ({ id: c.player.id, spectator: c.spectator }));
-    // Nobody playing but somebody watching: seat them, or the room can never start again.
+    // Everyone playing has left but people are still watching. Seat them, or nobody can ever
+    // start a game in this room again.
     if (this.conns.size > 0 && this.playerCount() === 0) this.seatSpectators();
     this.hostId = pickHost(seats(), this.hostId);
   }

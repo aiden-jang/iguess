@@ -1,10 +1,5 @@
-// Generic text helpers for comparing guesses to words. Mode-agnostic and
-// transport-agnostic so any mode (or the AI guess loop) can share one
-// canonicalization rule rather than each rolling its own.
 
-// Canonicalize a guess/word for comparison: lowercase, strip diacritics
-// (café → cafe), drop punctuation, and collapse whitespace. This makes
-// matching forgiving without accepting anything that isn't really the word.
+// Tidy a word so two of them can be compared: lowercase, accents off, punctuation gone.
 export function normalizeGuess(s: string): string {
   return s
     .normalize("NFD")
@@ -15,17 +10,14 @@ export function normalizeGuess(s: string): string {
     .trim();
 }
 
-// A guess is "close" when it's within one edit (insert/delete/substitute) of
-// the answer — a single typo or missing letter. Gated to words of length >= 4
-// so short words ("cat"/"hat") don't trigger a nudge on every near-miss, and
-// the guess itself must have some length so empty/spam chat is ignored.
+// "Close" means one letter out: a typo or a missing letter. Only for words of 4 letters or
+// more, or "cat" and "hat" would set it off constantly.
 export function isClose(guess: string, word: string): boolean {
   if (guess === word) return false; // exact is a win, not "close"
   if (word.length < 4 || guess.length < 2) return false;
   return levenshtein(guess, word) === 1;
 }
 
-// Standard iterative Levenshtein edit distance (single-row, O(n) space).
 function levenshtein(a: string, b: string): number {
   const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
   for (let i = 1; i <= a.length; i++) {

@@ -1,9 +1,8 @@
 import { initWasm, Resvg } from '@resvg/resvg-wasm';
 import resvgWasm from '@resvg/resvg-wasm/index_bg.wasm';
 
-// An invite dropped into a group chat unfurls with the same static picture every time. A card
-// naming the room is the difference between "a link" and "your room". Rendered here because
-// this is the worker that already carries the SVG rasterizer.
+// A link preview naming the actual room, instead of the same picture for every invite. It lives
+// in this worker because this is the one with the SVG-to-PNG converter already in it.
 
 const W = 1200;
 const H = 630;
@@ -14,7 +13,7 @@ function ensureWasm(): Promise<void> {
   return wasmReady;
 }
 
-// Room codes are [a-z-] plus digits, but this renders whatever it is handed, so escape it.
+// Room codes are tame, but this draws whatever it is given, so escape it anyway.
 function esc(s: string): string {
   return s.replace(/[<>&'"]/g, (c) =>
     ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' })[c]!

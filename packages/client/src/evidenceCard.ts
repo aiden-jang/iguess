@@ -1,14 +1,7 @@
-/**
- * Renders a game's drawings, their words, and what the AI thought they were into one PNG.
- *
- * Sharing was already there, as text: a Wordle-style block grid of the scores. That travels well but
- * it is the least interesting thing the app produces. The drawings are the interesting thing, and
- * "guitar / 🤖 is it... circle?" is the joke, so the shareable artifact should be that.
- *
- * Drawn on a canvas rather than assembled from DOM: the thumbnails are already PNG data URLs, the
- * layout is a grid of fixed-size cells, and rasterizing the live DOM would need a whole library to
- * do worse. Colours are lifted from index.html so the card looks like the app it came from.
- */
+// One shareable PNG of every drawing, its word, and what the AI thought it was.
+// Drawn on a canvas rather than screenshotting the page: the thumbnails are already images and
+// the layout is a plain grid, so turning the real DOM into a picture would need a whole library
+// to do a worse job.
 
 const BG = "#0b0a12";
 const PANEL = "#1d1a2b";
@@ -24,15 +17,12 @@ export interface EvidenceItem {
   right: boolean;
 }
 
-/** Per-cell geometry. The thumbnail is square; the text block below it is a fixed height so every
- *  row lines up whether or not the AI said anything. */
 const PAD = 44;
 const CELL = 260;
 const GAP = 20;
 const CAPTION_H = 96;
 const PER_ROW = 4;
 
-/** Wrap `text` to lines that fit `maxWidth`, hard-capped at `maxLines` with an ellipsis. */
 function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, maxLines: number): string[] {
   const words = text.split(/\s+/);
   const lines: string[] = [];
@@ -49,7 +39,7 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, max
   }
   if (lines.length < maxLines && line) lines.push(line);
   if (lines.length === maxLines) {
-    // Trim the last line until the ellipsis fits, so a long guess never bleeds out of its cell.
+    // Keep trimming until the "…" fits, or a long guess spills out of its cell.
     let last = lines[maxLines - 1]!;
     while (last && ctx.measureText(`${last}…`).width > maxWidth) last = last.slice(0, -1);
     lines[maxLines - 1] = words.join(" ") === lines.join(" ") ? last : `${last}…`;
@@ -66,12 +56,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-/**
- * Compose the card. Returns a PNG blob.
- *
- * `subtitle` is the one-line result ("you 4 · 🤖 6"), passed in rather than computed here so this
- * file never needs to know how scoring works.
- */
+// `subtitle` is passed in already built, so this file never has to know how scoring works.
 export async function renderEvidencePng(
   items: EvidenceItem[],
   subtitle: string,
@@ -82,8 +67,7 @@ export async function renderEvidencePng(
   const rows = Math.ceil(shown.length / cols);
 
   const width = PAD * 2 + cols * CELL + (cols - 1) * GAP;
-  // The awards are the punchline of the card, so they get their own band under the header
-  // rather than being squeezed into the subtitle line.
+  // Awards get their own band, not a squeeze into the subtitle.
   const awardsH = awards.length ? 26 + awards.length * 30 : 0;
   const headerH = 150 + awardsH;
   const height = headerH + rows * (CELL + CAPTION_H) + (rows - 1) * GAP + PAD;
@@ -132,8 +116,8 @@ export async function renderEvidencePng(
     const x = PAD + col * (CELL + GAP);
     const y = headerH + row * (CELL + CAPTION_H + GAP);
 
-    // The thumbnail is drawn on white because the board is transparent, then framed so it reads as
-    // a picture rather than a hole in the card.
+    // White behind it first: the board is see-through, and a transparent picture on a dark
+    // card just looks like a hole.
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(x, y, CELL, CELL);
     const img = images[i]!;

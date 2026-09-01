@@ -12,16 +12,12 @@ interface Props {
   filling: boolean;
   onCursor?: (p: Point | null) => void;
   peerCursor?: Point | null;
-  // Live handle on this round's op log, so the results screen can replay the round.
   opsRef?: React.MutableRefObject<DrawOp[]>;
   socketBacklog?: () => number;
   canDraw: boolean; // only the current drawer may paint
-  // Hands the underlying <canvas> element up so the parent can snapshot it.
   onCanvas?: (el: HTMLCanvasElement | null) => void;
 }
 
-// Per-stroke render state, keyed by strokeId, so interleaved remote strokes
-// each remember their own last point + style during replay.
 export function DrawingCanvas({
   sendDraw,
   subscribeDraw,
@@ -39,32 +35,25 @@ export function DrawingCanvas({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const strokes = useRef(newStrokeStates());
-  // CSS-pixel size (the drawing context is transformed by devicePixelRatio, so all coordinate math
-  // stays in logical pixels regardless of screen density).
+  // In CSS pixels. The canvas is scaled for screen density, so the maths here stays simple.
   const dims = useRef({ w: 0, h: 0 });
-  // Every op this round, so we can re-render after a resize (resizing a canvas clears its buffer).
-  // Cleared on clear/reset. Bounded by a single round's drawing.
+  // Resizing a canvas wipes it, so keep every stroke and paint them all again afterwards.
   const opLog = useRef<DrawOp[]>([]);
 
-  // Latest brush settings, read at pointer-down time without re-subscribing.
   const brush = useRef({ color, width, erasing, filling });
   brush.current = { color, width, erasing, filling };
 
-  // Paint one op. Pure rendering — no recording — so it's reused for live draws, remote replay,
-  // and re-rendering the whole log after a resize.
   function render(op: DrawOp | { kind: "reset" }) {
     const ctx = ctxRef.current;
     if (!ctx) return;
     paintOp(ctx, op, strokes.current, dims.current.w, dims.current.h);
   }
 
-  // Record then render, so the op-log can rebuild the canvas after a resize.
   function applyOp(op: DrawOp | { kind: "reset" }) {
     if (op.kind === "reset" || op.kind === "clear") {
       opLog.current = [];
     } else if (op.kind === "undo") {
-      // The server names the stroke it dropped; drop the same one here and repaint from the
-      // remaining log, rather than being shipped the whole canvas back.
+      // The server tells us which stroke it dropped. Drop the same one and repaint.
       if (!op.strokeId) return;
       opLog.current = dropStroke(opLog.current, op.strokeId);
       render({ kind: "reset" });
@@ -74,15 +63,13 @@ export function DrawingCanvas({
     } else {
       opLog.current.push(op);
     }
-    // Kept in step with every mutation, including undo: a replay that still shows a stroke
-    // the drawer took back is worse than no replay.
+    // Update this on undo too, or the replay shows a stroke the drawer took back.
     if (opsRef) opsRef.current = opLog.current;
     render(op);
   }
 
-  // Size the backing store to the displayed size × devicePixelRatio (crisp on retina/phones),
-  // transform to logical pixels so coord math is unchanged, then re-render the round's op-log
-  // (a canvas resize wipes its buffer). Runs on mount and on every layout/rotation change.
+  // Match the canvas to the screen's pixel density so it looks sharp, then repaint everything,
+  // because changing a canvas's size erases it.
   function resizeCanvas() {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -115,7 +102,6 @@ export function DrawingCanvas({
     };
   }, [subscribeDraw]);
 
-  // ----- Local drawing -----
   const drawing = useRef(false);
   const strokeId = useRef<string | null>(null);
   const buffer = useRef<Point[]>([]);
@@ -123,8 +109,8 @@ export function DrawingCanvas({
   const lastSample = useRef<Point | null>(null);
   const rafPending = useRef(false);
 
-  // Rounded to 3 decimals: full doubles serialize to ~18 characters each and stream at
-  // pointer rate to every player in the room. 1/1000 of a canvas is well under one pixel.
+  // Round hard. Full precision is about 18 characters per number, sent constantly to everyone
+  // in the room, and a thousandth of a canvas is smaller than one pixel anyway.
   function toNorm(e: React.PointerEvent): Point {
     const rect = canvasRef.current!.getBoundingClientRect();
     return {
@@ -133,8 +119,8 @@ export function DrawingCanvas({
     };
   }
 
-  // Ink width for one sample. A stylus reports real pressure; a mouse always reports 0.5 and
-  // touch usually reports 0, so those fall back to speed — fast strokes thin out, like a pen.
+  // A stylus reports real pressure. A mouse always says 0.5 and a finger usually says 0, so
+  // those fall back to speed: move fast, get a thinner line, like a real pen.
   function widthAt(e: React.PointerEvent, p: Point): number {
     const base = brush.current.width;
     const usable = e.pointerType === "pen" && e.pressure > 0 && e.pressure !== 0.5;
@@ -150,8 +136,6 @@ export function DrawingCanvas({
     return Math.round(Math.max(1, base * scale) * 10) / 10;
   }
 
-  // Coalesce buffered points into one "move" op per animation frame. This
-  // caps message rate (~60/s) instead of firing on every pointermove event.
   // A stroke message a frame is fine on wifi and far too many on a bad link. When the socket
   // is already backed up, hold the points and send one larger message later — the drawing is
   // identical either way, and the alternative is a queue that never drains.

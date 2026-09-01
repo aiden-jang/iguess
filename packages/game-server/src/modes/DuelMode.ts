@@ -10,22 +10,16 @@ import type { AiSkill, RoomSettings } from "@iguess/shared";
 
 const AI_ID = "ai-duel";
 
-
-// Head-to-head "you vs the machine". Unlike TeamBattleMode (a first-to-guess RACE where only the
-// winning side scores and the AI never earns drawer points), Duel uses ClassicMode's real
-// cumulative scoring: every turn BOTH the guesser and the drawer are paid, and you and the AI take
-// turns in each role. So the AI racks up guesser points when it reads your drawing AND drawer
-// points when you read its doodle — a genuine points ladder on one shared scoreboard. Built on
-// ClassicMode + the shared AI loops; no core-engine change.
+// You and the machine swap roles every turn, and both of you are paid for guessing AND for
+// drawing. Team Battle is the other shape: a race where only the winning side scores.
 export class DuelMode extends ClassicMode {
   override readonly id = "duel";
 
-  // You alone take on the AI — one human is enough.
   override readonly minHumans = 1;
 
   private humans: string[] = [];
   private aiDrawsThisTurn = false;
-  // Doodle words the AI has already drawn this game, so its turns don't repeat one. Reset per game.
+  // Doodles the AI has already drawn this game, so it doesn't repeat itself.
   private usedDoodles = new Set<string>();
   private stopLoop: (() => void) | null = null;
 
@@ -47,8 +41,7 @@ export class DuelMode extends ClassicMode {
     this.humans = humans.map((h) => h.id);
     this.usedDoodles.clear();
     ctx.addParticipant({ id: AI_ID, name: AI_NAME, isAI: true });
-    // A "round" is one human turn + one AI turn, so the round counter reads 1..3.
-    // A round is one draw each, so the room's round count doubles into turns.
+    // A round is one draw each, so the room's round count is doubled to get turns.
     return { totalTurns: this.rounds * 2, turnsPerRound: 2 };
   }
 
@@ -56,8 +49,6 @@ export class DuelMode extends ClassicMode {
     return turnIndex % 2 === 1; // odd turns: the AI draws
   }
 
-  // pickDrawer runs first each turn (engine.startTurn), so we latch whose turn it is here and read
-  // it back in pickWord/pickWordChoices/canDraw/onTurnStart.
   override pickDrawer(turnIndex: number): string {
     this.aiDrawsThisTurn = this.isAITurn(turnIndex);
     if (this.aiDrawsThisTurn) return AI_ID;
@@ -66,7 +57,7 @@ export class DuelMode extends ClassicMode {
 
   override pickWord(ctx: EngineContext): string {
     if (!this.aiDrawsThisTurn) return super.pickWord(ctx); // you draw a normal word
-    // The AI can only draw words the doodle library renders — and not one already drawn this game.
+    // The AI can only draw words it has a doodle for.
     if (this.usedDoodles.size >= DOODLE_WORDS.length) this.usedDoodles.clear();
     const pool = DOODLE_WORDS.filter((w) => !this.usedDoodles.has(w));
     const word = pool[Math.floor(Math.random() * pool.length)]!;
@@ -74,14 +65,12 @@ export class DuelMode extends ClassicMode {
     return word;
   }
 
-  // Only you (the human drawer) get a choosing phase. On AI-draw turns the AI picks its own
-  // doodle-renderable word, so skip choosing.
+  // Only a human gets to choose. The AI picks its own word, so skip choosing on its turns.
   override pickWordChoices(ctx: EngineContext): string[] | null {
     return this.aiDrawsThisTurn ? null : super.pickWordChoices(ctx);
   }
 
   override canDraw(playerId: string, ctx: EngineContext): boolean {
-    // Only you draw by hand; the AI draws through the draw loop, not a socket.
     return !this.aiDrawsThisTurn && playerId === ctx.currentDrawerId();
   }
 
@@ -89,12 +78,9 @@ export class DuelMode extends ClassicMode {
     this.stopLoop?.();
 
     if (this.aiDrawsThisTurn) {
-      // 🤖 draws; you guess through normal chat (ClassicMode.onChat scores you + the AI drawer).
       ctx.broadcast({ type: "system", text: "🤖 the machine is drawing. read it and call it 👀" });
       this.stopLoop = startDrawLoop(turn, ctx, { requestDrawing: this.requestDrawing });
     } else {
-      // You draw; the AI races to read your canvas. A correct read pays the AI (guesser) AND you
-      // (drawer, +25) via the shared acceptGuess path.
       ctx.broadcast({ type: "system", text: "your turn. make the machine guess it 🎨" });
       super.onTurnStart(turn, ctx); // deliver the secret word to you, the drawer
       this.stopLoop = startGuessLoop(turn, ctx, {
@@ -119,13 +105,11 @@ export class DuelMode extends ClassicMode {
     super.onTurnEnd(turn, ctx); // "nobody got it" line when a turn whiffs
   }
 
-  // A human left — drop them from the rotation so a later human turn never indexes an absent player.
+  // Out of the rotation, or a later turn picks someone who has gone.
   override onPlayerLeave(playerId: string): void {
     this.humans = this.humans.filter((id) => id !== playerId);
   }
 
-  // Final scoreboard reduced to a you-vs-machine verdict. The AI is one id; the human side is the
-  // best-scoring human (this mode is built for one human, but reads sensibly if more join).
   override onGameEnd(ctx: EngineContext): void {
     const scores = ctx.scores();
     const ai = scores[AI_ID] ?? 0;
