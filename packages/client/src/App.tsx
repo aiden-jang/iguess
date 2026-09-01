@@ -3,6 +3,7 @@ import { useGameSocket } from "./useWebSocket";
 import { DrawingCanvas } from "./DrawingCanvas";
 import { renderEvidencePng } from "./evidenceCard";
 import { useWakeLock } from "./useWakeLock";
+import { useAppBadge } from "./useAppBadge";
 import type { WordTier } from "@iguess/shared";
 import { newRoomCode } from "@iguess/shared/roomCode";
 import { PACK_NAMES } from "@iguess/shared/words";
@@ -316,7 +317,12 @@ function inviteLink(room: string, mode: string): string {
 
 // Read room/mode/name from the URL hash so an invite link pre-fills the gate.
 function readInvite(): { room?: string; mode?: string; name?: string } {
-  const raw = window.location.hash.replace(/^#/, "");
+  // An invite can arrive two ways: the hash on a link someone sent, or the query string when
+  // the OS share sheet hands us a link that was shared INTO the installed app (share_target).
+  const shared = new URLSearchParams(window.location.search);
+  const sharedLink = shared.get("url") ?? shared.get("text") ?? "";
+  const fromShare = sharedLink.includes("#") ? sharedLink.slice(sharedLink.indexOf("#") + 1) : "";
+  const raw = window.location.hash.replace(/^#/, "") || fromShare;
   if (!raw) return {};
   const q = new URLSearchParams(raw);
   return {
@@ -742,6 +748,8 @@ function Room({
   const canDraw = phase === "playing" && isDrawer;
   const inGame = phase === "playing" || phase === "intermission";
   useWakeLock(inGame || phase === "choosing");
+  // One badge when the game is waiting on you specifically.
+  useAppBadge(canDraw || (phase === "choosing" && isDrawer) ? 1 : 0);
 
   // Why the canvas is inert right now, so a disabled board never just reads as "broken".
   const drawDisabledReason: string | null = canDraw

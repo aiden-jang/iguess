@@ -7,15 +7,40 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "categories": ["games", "entertainment", "social"],
-  "launch_handler": { "client_mode": "focus-existing" },
+  "categories": [
+    "games",
+    "entertainment",
+    "social"
+  ],
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
   "background_color": "#0b0a12",
   "theme_color": "#0b0a12",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
   ],
   "shortcuts": [
     {
@@ -32,8 +57,35 @@
     }
   ],
   "screenshots": [
-    { "src": "/screenshots/join.png", "sizes": "1280x820", "type": "image/png", "form_factor": "wide", "label": "Pick a name, a room and a mode" },
-    { "src": "/screenshots/gameplay.png", "sizes": "1280x820", "type": "image/png", "form_factor": "wide", "label": "Drawing, with the AI guessing in chat" },
-    { "src": "/screenshots/gameplay-guesser.png", "sizes": "1280x820", "type": "image/png", "form_factor": "wide", "label": "Guessing against the clock" }
-  ]
+    {
+      "src": "/screenshots/join.png",
+      "sizes": "1280x820",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Pick a name, a room and a mode"
+    },
+    {
+      "src": "/screenshots/gameplay.png",
+      "sizes": "1280x820",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Drawing, with the AI guessing in chat"
+    },
+    {
+      "src": "/screenshots/gameplay-guesser.png",
+      "sizes": "1280x820",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Guessing against the clock"
+    }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }
