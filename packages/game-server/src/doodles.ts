@@ -1,4 +1,5 @@
 import type { DrawOp, Point } from "@iguess/shared";
+import { humanize, type Rng } from "./humanize.ts";
 
 // A tiny library of hand-coded vector doodles, one per word. Each doodle is a
 // list of STROKES (so AIDrawerMode can reveal them one at a time, making the
@@ -138,3 +139,9 @@ export const DOODLES: Record<string, () => DrawOp[][]> = {
 };
 
 export const DOODLE_WORDS = Object.keys(DOODLES);
+
+/** The drawing the AI actually makes: the library shape, redrawn by a shaky hand. */
+export function doodleFor(word: string, rng?: Rng): DrawOp[][] {
+  const strokes = DOODLES[word]?.();
+  return strokes ? humanize(strokes, rng) : [];
+}

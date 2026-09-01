@@ -1,6 +1,6 @@
 import type { DrawOp } from "@iguess/shared";
 import type { EngineContext, TurnContext } from "../modes/GameMode.ts";
-import { DOODLES } from "../doodles.ts";
+import { doodleFor } from "../doodles.ts";
 
 // Extracted from AIDrawerMode so any mode can have an AI participant draw
 // progressively. Mode policy (reveal cadence), not core-engine concern.
@@ -33,7 +33,7 @@ export function startDrawLoop(
         // fall through to the library
       }
     }
-    return DOODLES[turn.word]?.() ?? [];
+    return doodleFor(turn.word);
   };
 
   void (async () => {
