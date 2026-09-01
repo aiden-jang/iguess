@@ -3,6 +3,7 @@ import type { EngineContext, PlayerRef, TurnContext } from "./GameMode.ts";
 import { ClassicMode } from "./ClassicMode.ts";
 import { startDrawLoop } from "../ai/aiDrawLoop.ts";
 import { DOODLE_WORDS } from "../doodles.ts";
+import type { WordMemory } from "../wordMemory.ts";
 
 const AI_ID = "ai-drawer";
 const AI_NAME = "🤖 AI";
@@ -20,6 +21,11 @@ export class AIDrawerMode extends ClassicMode {
   private stop: (() => void) | null = null;
   // Doodle words already drawn this game, so consecutive turns don't repeat one. Reset per game.
   private usedDoodles = new Set<string>();
+  private wordMemory?: WordMemory;
+
+  override useWordMemory(memory: WordMemory): void {
+    this.wordMemory = memory;
+  }
 
   // Optional injected generator (a future model). Falls back to the doodle
   // library inside the draw loop.
@@ -42,9 +48,12 @@ export class AIDrawerMode extends ClassicMode {
   // guessing the same doodle turn after turn. When the pool is exhausted, start it over.
   override pickWord(): string {
     if (this.usedDoodles.size >= DOODLE_WORDS.length) this.usedDoodles.clear();
-    const pool = DOODLE_WORDS.filter((w) => !this.usedDoodles.has(w));
+    const avoid = new Set([...this.usedDoodles, ...(this.wordMemory?.avoidFor(DOODLE_WORDS) ?? [])]);
+    let pool = DOODLE_WORDS.filter((w) => !avoid.has(w));
+    if (pool.length === 0) pool = DOODLE_WORDS.filter((w) => !this.usedDoodles.has(w));
     const word = pool[Math.floor(Math.random() * pool.length)]!;
     this.usedDoodles.add(word);
+    this.wordMemory?.remember(word);
     return word;
   }
 

@@ -1,6 +1,7 @@
 import type { GameMode, EngineContext, PlayerRef, TurnContext } from "./GameMode.ts";
 import { WORDS, WORDS_BY_TIER, TIERS, TIER_MULTIPLIER, randomWord, tierOf, type Tier } from "../words.ts";
 import { normalizeGuess, isClose } from "../text.ts";
+import type { WordMemory } from "../wordMemory.ts";
 
 export { WORDS }; // re-export so AIGuesserMode's fallback can reuse it
 
@@ -24,9 +25,14 @@ export class ClassicMode implements GameMode {
   // Words already used this game — so the 3 rounds don't recycle the same
   // prompt. Reset each game in configure().
   private usedWords = new Set<string>();
+  private memory?: WordMemory;
 
   constructor(rounds = 3) {
     this.rounds = Math.max(1, rounds);
+  }
+
+  useWordMemory(memory: WordMemory): void {
+    this.memory = memory;
   }
 
   configure(
@@ -76,11 +82,13 @@ export class ClassicMode implements GameMode {
     // Reset against the pool actually being drawn from: with tiers, easy can run dry
     // while the combined used-set is still far from the full list.
     if (pool.every((w) => this.usedWords.has(w))) this.usedWords.clear();
+    const avoid = new Set([...this.usedWords, ...(this.memory?.avoidFor(pool) ?? [])]);
     let word = randomWord(tier);
-    for (let i = 0; i < 20 && this.usedWords.has(word); i++) word = randomWord(tier);
-    if (this.usedWords.has(word)) {
-      word = pool.find((w) => !this.usedWords.has(w)) ?? word;
+    for (let i = 0; i < 20 && avoid.has(word); i++) word = randomWord(tier);
+    if (avoid.has(word)) {
+      word = pool.find((w) => !avoid.has(w)) ?? pool.find((w) => !this.usedWords.has(w)) ?? word;
     }
+    this.memory?.remember(word);
     return word;
   }
 
