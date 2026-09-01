@@ -15,11 +15,10 @@ import { styles } from "./styles";
 import { blip, buzz, MUTE_KEY } from "./feedback";
 import { saveCanvasPng, thumbnailOf } from "./canvasExport";
 
-// What each tier pays, mirroring TIER_MULTIPLIER on the server.
 const TIER_LABEL: Record<WordTier, string> = { easy: "1x", medium: "1.25x", hard: "1.6x" };
 
-// Ink colours. Fixed hexes, not theme tokens: a drawing has to look the same to everyone
-// regardless of which theme each player is using.
+// Real hex codes, not theme variables. A drawing must look the same to everyone, whichever
+// theme each person happens to be using.
 const COLORS = [
   "#111111", "#6b7280", "#ffffff",
   "#e11d48", "#f97316", "#f59e0b",
@@ -27,9 +26,8 @@ const COLORS = [
   "#7c3aed", "#db2777", "#92400e",
 ];
 
-// `needsTwo` mirrors each mode's `minHumans` on the server (see packages/game-server/src/modes).
-// Classic is the only one that can't run alone, so first-time visitors start in AI Guesser: the
-// app's hook is immediately playable by one person rather than leading with a dead-end room.
+// `needsTwo` has to match `minHumans` on the server. Classic is the only mode that needs a
+// second person, so a first-time visitor lands on AI Guesser and can play alone right away.
 const MODES = [
   { value: "classic", label: "Classic", blurb: "you draw, humans guess", icon: "🎨", needsTwo: true },
   { value: "ai", label: "AI Guesser", blurb: "you draw, an AI races to guess it", icon: "🔍", needsTwo: false },
@@ -40,7 +38,6 @@ const MODES = [
 
 const isAI = (id?: string | null) => !!id && id.startsWith("ai-");
 
-// Rotating join-screen taglines — keeps the landing feeling alive.
 const TAGLINES = [
   "probably not. draw it anyway, no cap.",
   "your art skills? questionable. your vibes? immaculate.",
@@ -54,7 +51,6 @@ const TAGLINES = [
   "the gworls are doodling. casually.",
 ];
 
-// Funny throwaway handles for the dice button.
 const NAME_ADJ = ["sleepy", "feral", "based", "soggy", "spicy", "chaotic", "lowkey", "sus", "gigarad", "unhinged", "moist", "elite"];
 const NAME_NOUN = ["goblin", "pigeon", "raccoon", "doodler", "gamer", "wizard", "shrimp", "menace", "legend", "noodle", "gremlin", "duck"];
 function randomName(): string {
@@ -63,7 +59,6 @@ function randomName(): string {
   return `${a}_${n}${Math.floor(Math.random() * 90 + 10)}`;
 }
 
-// ---- Win streak (localStorage) ----
 const STREAK_KEY = "iguess_streak";
 const AVATAR_KEY = "iguess_avatar";
 const STATS_KEY = "iguess_stats";
@@ -78,8 +73,8 @@ export interface LifetimeStats {
   bestStreak: number;
 }
 
-// Kept locally rather than on the server: there are no accounts, and a number that survives a
-// reload is the whole point. A corrupt or absent blob reads as a fresh player.
+// There are no accounts, so this lives in the browser. Unreadable or missing means a brand
+// new player, never an error.
 export function lifetimeStats(): LifetimeStats {
   try {
     const raw = JSON.parse(localStorage.getItem(STATS_KEY) ?? "");
@@ -113,13 +108,11 @@ function shareToX(text: string) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
-// The stylesheet hides confetti under prefers-reduced-motion, but hidden pieces are still
-// built and mounted — up to 160 nodes for someone who asked for no motion. Skip the work.
+// The stylesheet already hides confetti for people who asked for less motion, but hidden
+// pieces still get built. Don't make 160 of them for someone who won't see any.
 const stillPlease = () =>
   typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// Lightweight emoji confetti — no deps. Renders a burst of falling emoji that
-// auto-clears after the animation. Fired on a win.
 function Confetti({ go, count = 48 }: { go: boolean; count?: number }) {
   const [pieces, setPieces] = useState<
     { id: number; left: number; delay: number; dur: number; emoji: string }[]
@@ -158,7 +151,6 @@ function Confetti({ go, count = 48 }: { go: boolean; count?: number }) {
   );
 }
 
-// Randomized end-of-game stings so the payoff hits different every time.
 const WIN_LINES = [
   "🏆 you ate that up",
   "🏆 no crumbs left. devoured.",
@@ -173,7 +165,6 @@ const LOSS_LINES = [
 ];
 const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]!;
 
-// Animated "…" — three bouncing dots for live status text.
 function Dots() {
   return (
     <span aria-hidden>
@@ -184,8 +175,7 @@ function Dots() {
   );
 }
 
-// Copy text to the clipboard with a graceful fallback for older/insecure
-// contexts (clipboard API needs https or localhost).
+// The clipboard API only exists on https and localhost, so there is a fallback path.
 async function copyText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
@@ -207,21 +197,16 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-// Build a shareable deep link that drops a friend straight into this room +
-// mode. Name is left out so they pick their own.
-// The room goes in the PATH, not the hash: a hash never reaches the server, so a link
-// preview would only ever show the generic card. /r/:room lets the worker name the room.
+// Put the room in the path, not after a #. A # never gets sent to the server, so link
+// previews could only ever show the same generic picture.
 function inviteLink(room: string, mode: string): string {
   const q = new URLSearchParams({ mode });
   return `${window.location.origin}/r/${encodeURIComponent(room)}?${q.toString()}`;
 }
 
-// Read room/mode/name from the URL hash so an invite link pre-fills the gate.
 function readInvite(): { room?: string; mode?: string; name?: string } {
-  // An invite can arrive two ways: the hash on a link someone sent, or the query string when
-  // the OS share sheet hands us a link that was shared INTO the installed app (share_target).
-  // A /r/:room path is the current invite shape. The hash form is still read, because links
-  // people already sent each other are out in the world and should keep working.
+  // Three ways in: a /r/room link, an older #room=… link, or a link someone shared into the
+  // installed app. The old # form still works because those links are already out there.
   const path = window.location.pathname.match(/^\/r\/([^/]+)\/?$/);
   if (path) {
     const q = new URLSearchParams(window.location.search);
@@ -260,16 +245,13 @@ function widthDot(w: number, c: string, on: boolean): React.CSSProperties {
 }
 
 export function App() {
-  // An invite link (#room=…&mode=…) pre-fills the gate so a friend lands in the
-  // same room + mode and only has to type a name.
   const invite = readInvite();
   const invited = !!invite.room;
-  // Returning players skip the typing: remember the last name/room locally.
   const [draftName, setDraftName] = useState(
     invite.name ?? localStorage.getItem("iguess_name") ?? ""
   );
-  // A generated code rather than a shared default: two groups opening the site at once used
-  // to land in the same room. A returning player keeps the room they last used.
+  // Make up a code instead of defaulting to one shared name, or two unrelated groups opening
+  // the site at the same moment end up in each other's game.
   const [draftRoom, setDraftRoom] = useState(
     invite.room ?? localStorage.getItem("iguess_room") ?? newRoomCode()
   );
@@ -284,7 +266,6 @@ export function App() {
     mode: string;
   } | null>(null);
 
-  // Cycle taglines while sitting on the join screen.
   const [tagIdx, setTagIdx] = useState(() => Math.floor(Math.random() * TAGLINES.length));
   useEffect(() => {
     if (joined) return;
@@ -299,15 +280,13 @@ export function App() {
     localStorage.setItem("iguess_name", name);
     localStorage.setItem("iguess_room", room);
     localStorage.setItem(AVATAR_KEY, avatar);
-    // Reflect the room in the URL so the address bar (and a copy-paste) points at THIS room, not the
-    // bare origin. Matches the invite-link format, so a reload lands on the same room's join screen.
+    // Put the room in the address bar, so copying the URL shares this room and not the homepage.
     const q = new URLSearchParams({ room, mode: draftMode });
     window.history.pushState(null, "", `#${q.toString()}`);
     setJoined({ name, room, mode: draftMode });
   };
 
-  // Leave the room back to the join screen. Also strip any invite hash so a refresh doesn't drop
-  // you straight back in (setJoined(null) tears down the WebSocket via the effect that owns it).
+  // Clear the invite out of the URL too, or refreshing drops you straight back into the room.
   const leaveRoom = () => {
     setJoined(null);
     if (window.location.hash) {
@@ -480,8 +459,7 @@ pull up →
   );
 }
 
-// Server turn length — mirrors TURN_MS in engine.ts. Only used to size the
-// draining progress bar; the authoritative deadline is still turnEndsAt.
+// Only used to size the draining bar. The real deadline is always turnEndsAt from the server.
 const TURN_MS = 60_000;
 
 function Countdown({ endsAt }: { endsAt: number | null }) {
@@ -492,7 +470,6 @@ function Countdown({ endsAt }: { endsAt: number | null }) {
     const id = setInterval(() => setNow(Date.now()), 120);
     return () => clearInterval(id);
   }, [endsAt]);
-  // One buzz per turn as time runs out. Keyed on the deadline so a new turn re-arms it.
   useEffect(() => {
     if (!endsAt || buzzedAt.current === endsAt) return;
     if (endsAt - now <= 5_000) {
@@ -564,21 +541,16 @@ function Room({
     turnEnd,
     chooseWord,
   } = useGameSocket(room, name, mode, avatar);
-  // Show the room's real mode once the server confirms it; the requested mode is just the
-  // placeholder shown for the split second before `welcome` arrives.
   const effectiveMode = serverMode ?? mode;
-  // Every non-classic mode has a built-in AI opponent, so a lone player can start right away.
   const isAIMode = effectiveMode !== "classic";
 
-  // Track whether we've ever connected, so a mid-game drop shows a banner but the initial
-  // handshake doesn't flash one. The sidebar pill can be off-screen on mobile; this is always visible.
+  // So the very first connection doesn't flash a "lost connection" banner at you.
   const [everConnected, setEverConnected] = useState(false);
   useEffect(() => {
     if (connected) setEverConnected(true);
   }, [connected]);
-  // On mobile the layout stacks (canvas, chat, sidebar), and the gate's autofocused name input can
-  // leave the page scrolled. Land at the top on entry so the banner and its "send it" button are
-  // the first thing you see, not a blank canvas. No-op on desktop (the grid is a fixed 100vh).
+  // On a phone the join screen's focused input can leave the page scrolled down, so you arrive
+  // looking at a blank canvas instead of the start button. Does nothing on desktop.
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -589,8 +561,8 @@ function Room({
   const [filling, setFilling] = useState(false);
   const [replayIdx, setReplayIdx] = useState<number | null>(null);
   const roundOps = useRef<DrawOp[]>([]);
-  // Chat auto-scroll: follow the newest message while pinned to the bottom; if the user has scrolled
-  // up to read history, stop following and surface a "new messages" button instead of yanking them down.
+  // Only auto-scroll when they are already at the bottom. Someone reading back through the
+  // chat should not get yanked to the end every time a message arrives.
   const chatLogRef = useRef<HTMLDivElement>(null);
   const followChatRef = useRef(true);
   const [hasNewChat, setHasNewChat] = useState(false);
@@ -615,40 +587,22 @@ function Room({
       setHasNewChat(true);
     }
   }, [log.length]);
-  // An invite should leave the game through the quickest native path. Most
-  // phones can hand it straight to Messages, Discord, or WhatsApp; older
-  // browsers still get the familiar copied-link fallback.
   const [inviteResult, setInviteResult] = useState<"copied" | "shared" | null>(null);
   const [flexed, setFlexed] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [muted, setMuted] = useState(() => localStorage.getItem(MUTE_KEY) === "1");
   const [burstKey, setBurstKey] = useState(0);
-  // The bot's most recent REAL guess, shown briefly in the canvas bubble then cleared to a
-  // "thinking" state. Driven by actual AI chat, not a canned-line timer.
   const [botGuess, setBotGuess] = useState<string | null>(null);
   const aiMsgCount = useRef(0);
   const [winConfetti, setWinConfetti] = useState(48);
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
 
-  /*
-   * Every drawing from this game, kept so the end screen can show them back.
-   *
-   * The funniest thing this app produces is the drawings, and until now every one of them was
-   * wiped the instant the turn ended. The score was already shareable as text; the actual artifact
-   * was thrown away. Client-side only: nobody else needs a copy, and a gallery that outlived the
-   * game would be an account feature in an app that deliberately has no accounts.
-   */
   const [savingEvidence, setSavingEvidence] = useState(false);
   const [gallery, setGallery] = useState<
     { word: string; png: string; guess: string | null; right: boolean; drawerId: string | null; ops: DrawOp[] }[]
   >([]);
-  /*
-   * The AI's last guess, held past the moment it's cleared from the canvas bubble.
-   *
-   * `botGuess` is deliberately transient: it flashes in the bubble and resets to "thinking", so by
-   * the time the turn ends it is usually already null. The gallery needs whatever it said *last*,
-   * which is the actual punchline: you drew a cactus, the machine said broccoli.
-   */
+  // `botGuess` clears itself after a few seconds, so by the end of a turn it is usually empty.
+  // The gallery needs whatever the machine said LAST, which is the whole joke.
   const lastGuess = useRef<{ guess: string | null; right: boolean }>({ guess: null, right: false });
   const prevGuessed = useRef<string[]>([]);
 
@@ -661,17 +615,15 @@ function Room({
   const youAreWatching = watching.some((p) => p.id === you?.id);
   const readyCount = humans.filter((p) => p.ready).length;
   const youAreReady = humans.some((p) => p.id === you?.id && p.ready);
-  // The lobby board is open to everyone; during a game only the drawer touches it.
   const canDraw = (phase === "playing" && isDrawer) || ((phase === "lobby" || phase === "ended") && !youAreWatching);
-  // Distinct from canDraw: the lobby board is open to everyone, but only a live drawer is
-  // told to stop typing. Gating chat on canDraw silenced the whole lobby.
+  // Not the same as canDraw. Everyone can scribble in the lobby, but only the person drawing
+  // in a live round is told to stop typing. Using canDraw here silenced the whole lobby.
   const drawingNow = phase === "playing" && isDrawer;
   const inGame = phase === "playing" || phase === "intermission";
   useWakeLock(inGame || phase === "choosing");
-  // One badge when the game is waiting on you specifically.
   useAppBadge(canDraw || (phase === "choosing" && isDrawer) ? 1 : 0);
 
-  // Why the canvas is inert right now, so a disabled board never just reads as "broken".
+  // Always say WHY the board is dead, or it just looks broken.
   const drawDisabledReason: string | null = canDraw
     ? null
     : youAreWatching
@@ -688,7 +640,6 @@ function Room({
             ? "🤖 the AI is cooking"
             : `${playerName(players, game?.drawerId ?? "")} is cooking 👨‍🍳`;
 
-  // Live tab title — nudges people back to the tab when it's their turn.
   useEffect(() => {
     document.title = canDraw
       ? "✏️ YOUR TURN · iguess"
@@ -700,7 +651,6 @@ function Room({
     };
   }, [canDraw, inGame]);
 
-  // Pop a transient toast the moment it becomes your turn to draw.
   useEffect(() => {
     if (canDraw) {
       setToast("🎨 you're up, cook!");
@@ -711,8 +661,6 @@ function Room({
     }
   }, [canDraw]);
 
-  // Celebrate correct guesses: a tick for anyone, a full burst + sting + toast
-  // when it's YOU who just nailed it.
   useEffect(() => {
     const cur = game?.guessedIds ?? [];
     const prev = prevGuessed.current;
@@ -732,7 +680,7 @@ function Room({
     }
   }, [game?.guessedIds]);
 
-  // Grab the board the moment the word is revealed, before the next turn clears it.
+  // Grab the picture now, before the next turn wipes the board.
   useEffect(() => {
     if (!turnEnd) return;
     const el = canvasElRef.current;
@@ -740,7 +688,7 @@ function Room({
     const png = thumbnailOf(el);
     if (!png) return;
     const { guess, right } = lastGuess.current;
-    // Snapshot the ops too: the still is for sharing, the ops are for replaying the round.
+    // Keep the strokes as well as the picture: one is for sharing, one is for the replay.
     setGallery((g) => [
       ...g,
       { word: turnEnd.word, png, guess, right, drawerId: game?.drawerId ?? null, ops: roundOps.current.slice() },
@@ -748,10 +696,9 @@ function Room({
     lastGuess.current = { guess: null, right: false };
   }, [turnEnd?.at]);
 
-  // A new game starts a new gallery. Keyed on ENTERING a live phase, not on turnIndex hitting
-  // zero: the game_state that follows turn_end still carries the old index, so a zero-check
-  // wiped the first round's drawing the moment it was captured. "run it back" goes
-  // ended → playing without passing through the lobby, which is why phase alone isn't enough.
+  // Clear the gallery when a game STARTS, not when the turn number is zero. The state update
+  // that arrives just after a turn ends still says zero, so a zero-check threw away the first
+  // round's drawing the instant it was saved.
   const wasLive = useRef(false);
   useEffect(() => {
     const live = phase === "choosing" || phase === "playing";
@@ -759,7 +706,6 @@ function Room({
     wasLive.current = live || phase === "intermission";
   }, [phase]);
 
-  // On game end: figure out if you won, update the streak, and play a sting.
   useEffect(() => {
     if (phase !== "ended") return;
     const won = ranked.length > 0 && ranked[0].id === you?.id;
@@ -779,16 +725,13 @@ function Room({
     return () => clearTimeout(t);
   }, [phase]);
 
-  // Word line: the drawer sees the real word; guessers see one tile per
-  // letter, with letters filling in as the server reveals hints over the turn
-  // ("_" → blank tile). Falls back to wordLength tiles before any hint lands.
+  // The drawer sees the word. Everyone else sees one tile per letter, filling in over time.
   const wordLetters = isDrawer
     ? (myWord ?? "").split("")
     : game?.hint
       ? game.hint.split("").map((ch) => (ch === "_" ? "" : ch))
       : Array.from({ length: game?.wordLength ?? 0 }, () => "");
 
-  // Players sorted by score for the scoreboard.
   const ranked = [...players].sort(
     (a, b) => (game?.scores[b.id] ?? 0) - (game?.scores[a.id] ?? 0)
   );
@@ -796,20 +739,16 @@ function Room({
   const modeMeta = MODES.find((m) => m.value === effectiveMode);
   const hasAI = players.some((p) => isAI(p.id));
   const aiGuessedRight = hasAI && (game?.guessedIds ?? []).some((id) => isAI(id));
-  // When it actually gets there, that is the fact worth keeping, not its last wrong stab.
+  // Keep the winning guess, not the last wrong one.
   if (aiGuessedRight) lastGuess.current = { ...lastGuess.current, right: true };
-  // Nobody to guess: it's just you, no AI in the room. Nudge toward inviting or an AI mode.
   const soloWaiting = !hasAI && players.filter((p) => !isAI(p.id)).length <= 1;
 
-  // Surface the bot's REAL guesses in the canvas bubble (the whole hook) — briefly, then fall back
-  // to a "thinking" state — instead of random canned lines that ignore what's on the canvas.
   useEffect(() => {
     const aiMsgs = log.filter((l) => isAI(l.from?.id));
     if (aiMsgs.length <= aiMsgCount.current) return;
     aiMsgCount.current = aiMsgs.length;
     const latest = aiMsgs[aiMsgs.length - 1]?.text ?? null;
     setBotGuess(latest);
-    // Remembered separately from the bubble, which clears itself after four seconds.
     if (latest) lastGuess.current = { guess: latest, right: false };
     const t = setTimeout(() => setBotGuess(null), 4200);
     return () => clearTimeout(t);
@@ -841,8 +780,7 @@ function Room({
         resetResult("shared");
         return;
       } catch (err) {
-        // Closing the share sheet is a completed choice, not a failed invite.
-        // Other errors fall through to copy so there is still a useful path.
+        // Closing the share sheet is a decision, not a failure. Real errors fall through to copy.
         if (err instanceof Error && err.name === "AbortError") return;
       }
     }
@@ -852,16 +790,6 @@ function Room({
     }
   };
 
-  // Wordle-style flex text: a copy-pasteable recap of how you stacked up. This
-  // is the share loop — text + a link is what actually spreads.
-  /**
-   * One PNG of the whole game: every drawing, its word, and what the AI thought it was.
-   *
-   * The text share (a block grid of scores) travels anywhere but shares the least interesting part.
-   * This shares the part people actually laugh at. On browsers that support
-   * file sharing, it opens the native sheet with the PNG attached; elsewhere
-   * it keeps the reliable download behavior.
-   */
   const saveEvidence = async () => {
     if (savingEvidence || gallery.length === 0) return;
     setSavingEvidence(true);
@@ -873,9 +801,8 @@ function Room({
       const blob = await renderEvidencePng(gallery, line, awardsFor(gallery, players));
       const filename = `iguess-evidence-${room}.png`;
       const file = new File([blob], filename, { type: "image/png" });
-      // `navigator.share` alone isn't enough: some browsers can share links
-      // but reject files. `canShare` asks about this exact attachment first,
-      // so a tap never opens a broken sheet.
+      // Some browsers can share a link but not a file. Ask about this exact file first, or the
+      // share sheet opens and then fails.
       if (
         typeof navigator.share === "function" &&
         typeof navigator.canShare === "function" &&
@@ -889,8 +816,7 @@ function Room({
           });
           return;
         } catch (err) {
-          // Cancel means the person chose not to share; don't surprise them
-          // with a download. A genuine share failure falls back below.
+          // They cancelled on purpose. Don't surprise them with a download instead.
           if (err instanceof Error && err.name === "AbortError") return;
         }
       }
@@ -918,9 +844,6 @@ function Room({
         Math.max(...ranked.filter((p) => isAI(p.id)).map((p) => game?.scores[p.id] ?? 0));
     const streak = getStreak();
 
-    // Wordle-style visual grid: each player is a row of blocks sized to their
-    // score (fixed-width emoji, so it stays aligned when pasted anywhere).
-    // 🟪 = you, 🤖 = the bot, ⬜ = everyone else. This is the shareable hook.
     const top = Math.max(1, ...ranked.map((p) => game?.scores[p.id] ?? 0));
     const medals = ["🥇", "🥈", "🥉"];
     const rows = ranked.slice(0, 4).map((p, i) => {
@@ -954,8 +877,7 @@ function Room({
     }
   };
 
-  // A terminal rejection (e.g. the room is full): dead-end card, not the game. The socket won't
-  // reconnect, so there's nothing to render but the reason and a way back to the gate.
+  // The socket gave up for good, so there is no game to show. Say why, and offer a way back.
   if (fatal) {
     return (
       <div style={styles.gate}>
@@ -994,7 +916,6 @@ function Room({
           ⚠ connection dropped. reconnecting<Dots />
         </div>
       )}
-      {/* ---- Sidebar: roster + scores ---- */}
       <aside className="glass" style={styles.sidebar}>
         <div style={styles.roomHead}>
           <span style={styles.roomMark}>✏️</span>
@@ -1085,7 +1006,6 @@ function Room({
         </ul>
       </aside>
 
-      {/* ---- Canvas pane ---- */}
       <section className="pane-canvas" style={styles.canvasPane}>
         <div className="glass play-banner" style={styles.banner}>
           {phase === "lobby" && (
@@ -1425,13 +1345,6 @@ function Room({
           )}
         </div>
 
-        {/*
-          The gallery. Only at the end, and only if anything was drawn.
-
-          Placed under the board rather than in the banner because it is the thing worth looking
-          at when the game is over: the score is two numbers, but nobody has seen these drawings
-          side by side before, and the joke is cumulative.
-        */}
         {phase === "ended" && gallery.length > 0 && (
           <div style={styles.gallery}>
             <div style={styles.galleryHead}>
@@ -1472,13 +1385,6 @@ function Room({
                     {replayIdx === i ? "◼ still" : "▶ replay"}
                   </button>
                   <figcaption style={styles.galleryCaption}>{g.word}</figcaption>
-                  {/*
-                    What the machine thought it was.
-                    This is the actual joke of the whole app and it was being thrown away every
-                    turn: the drawing alone is just a bad drawing, but "cactus / 🤖 broccoli" is the
-                    thing you screenshot. A correct guess gets said plainly rather than quoted,
-                    because being right is not funny and pretending it is would be smug.
-                  */}
                   {g.right ? (
                     <p style={{ ...styles.galleryGuess, color: "var(--on-good)" }}>🤖 got it</p>
                   ) : g.guess ? (
@@ -1493,7 +1399,6 @@ function Room({
         )}
       </section>
 
-      {/* ---- Chat ---- */}
       <main className="glass" style={styles.main}>
         <div style={styles.sectionLabel}>the group chat</div>
         <div style={styles.chatWrap}>

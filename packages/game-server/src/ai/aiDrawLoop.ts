@@ -2,18 +2,14 @@ import type { DrawOp, Point } from "@iguess/shared";
 import type { EngineContext, TurnContext } from "../modes/GameMode.ts";
 import { doodleFor } from "../doodles.ts";
 
-// Extracted from AIDrawerMode so any mode can have an AI participant draw
-// progressively. Mode policy (reveal cadence), not core-engine concern.
-
-// Every doodle is paced to land near this, so a one-stroke heart doesn't finish in two
-// seconds while a cat takes eight. Guessers get roughly the same window to watch either.
+// Every doodle is stretched or squeezed to take about this long, so a one-stroke heart and a
+// nine-stroke cat give guessers the same amount of time to watch.
 const TARGET_MS = 13_000;
 const MIN_TICK_MS = 45;
 const MAX_TICK_MS = 200;
 const PAUSE_TICKS = 4; // beat between strokes, where a person lifts the pen
 
 export interface DrawLoopOpts {
-  // A future model generator. Falls back to the curated doodle library.
   requestDrawing?: (word: string) => Promise<DrawOp[][]>;
   tickMs?: number;
 }

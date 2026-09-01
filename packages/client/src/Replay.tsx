@@ -2,8 +2,6 @@ import { useEffect, useRef } from "react";
 import type { DrawOp } from "@iguess/shared";
 import { paintOp, newStrokeStates } from "./paint";
 
-// Replaying the round is nearly free: the ops are already on the client for the resize
-// re-render, and watching a drawing appear is the most shareable moment the game produces.
 const STEP_MS = 22;
 const OPS_PER_STEP = 2;
 
@@ -24,7 +22,7 @@ export function Replay({ ops, size = 260 }: { ops: DrawOp[]; size?: number }) {
     let states = newStrokeStates();
     const tick = () => {
       if (i >= ops.length) {
-        // Loop, so a card left on screen keeps drawing itself.
+        // Loop, so a card left on screen keeps redrawing itself.
         i = 0;
         states = newStrokeStates();
         paintOp(ctx, { kind: "reset" }, states, size, size);

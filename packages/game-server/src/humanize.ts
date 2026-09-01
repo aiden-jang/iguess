@@ -2,9 +2,8 @@ import type { DrawOp, Point } from "@iguess/shared";
 
 export type Rng = () => number;
 
-// The doodle library is fixed vector art, so without this every "cat" the AI drew was the
-// same picture down to the pixel. This roughs each replay up: a hand that shakes, aims a
-// little off, and overshoots corners. Same subject, never the same drawing twice.
+// The stored doodles are exact, so without this every "cat" the AI draws is the same picture
+// down to the pixel. This adds a shaky hand: slightly off aim, wobbly lines, overshot corners.
 
 const WOBBLE = 0.006; // peak sideways waver, in canvas fractions
 const MAX_SEG = 0.02; // straight lines carry no wobble until they have points to wobble
@@ -13,7 +12,7 @@ function clamp01(n: number): number {
   return n < 0.02 ? 0.02 : n > 0.98 ? 0.98 : n;
 }
 
-// A long segment is two points, so jittering it just tilts the line. Split it first.
+// A long line is only two points, so wobbling those just tilts it. Add points first.
 function densify(points: Point[]): Point[] {
   if (points.length < 2) return points.slice();
   const out: Point[] = [points[0]!];
@@ -28,7 +27,7 @@ function densify(points: Point[]): Point[] {
   return out;
 }
 
-// Two sines beat white noise here: the line waves like a wrist instead of buzzing like static.
+// Two overlapping waves, not random noise. Random noise buzzes; this wanders like a wrist.
 function makeWaver(rng: Rng): (t: number) => number {
   const f1 = 4 + rng() * 5;
   const f2 = 11 + rng() * 9;
@@ -37,8 +36,8 @@ function makeWaver(rng: Rng): (t: number) => number {
   return (t) => Math.sin(t * f1 + p1) * 0.65 + Math.sin(t * f2 + p2) * 0.35;
 }
 
-// Humans run past the corner they were aiming at. Closed shapes get a visible cross-over.
-// Sized against the stroke itself: a fixed overshoot turns a smiley's eye into a letter "a".
+// People overshoot the corner they were aiming for. Scale it to the stroke: a fixed amount
+// turns a smiley's tiny eye into a letter "a".
 function overshoot(points: Point[], rng: Rng): Point[] {
   if (points.length < 2) return points;
   let total = 0;
@@ -58,7 +57,7 @@ function overshoot(points: Point[], rng: Rng): Point[] {
 function transformStroke(points: Point[], rng: Rng, g: Global): Point[] {
   const dense = overshoot(densify(points), rng);
   const waver = makeWaver(rng);
-  // Each stroke is placed by a hand that has already moved on, so it lands slightly off.
+  // Each stroke lands slightly off, like a hand that has already moved on.
   const ox = (rng() - 0.5) * 0.014;
   const oy = (rng() - 0.5) * 0.014;
   const amp = WOBBLE * (0.6 + rng() * 0.9);
@@ -70,12 +69,12 @@ function transformStroke(points: Point[], rng: Rng, g: Global): Point[] {
     const tx = nxt.x - prv.x;
     const ty = nxt.y - prv.y;
     const tl = Math.hypot(tx, ty) || 1;
-    // Push sideways to the direction of travel, so the line waves instead of stretching.
+    // Push sideways to the direction of travel, so the line waves rather than stretches.
     const w = waver(t) * amp;
     let x = p.x + (-ty / tl) * w + ox;
     let y = p.y + (tx / tl) * w + oy;
 
-    // Global tilt/scale last, about the canvas centre, so the whole doodle leans together.
+    // Tilt the whole thing last, so the picture leans as one rather than falling apart.
     const rx = x - 0.5;
     const ry = y - 0.5;
     x = 0.5 + (rx * g.cos - ry * g.sin) * g.scale + g.dx;
@@ -101,7 +100,7 @@ function pointsOf(ops: DrawOp[]): Point[] {
   return pts;
 }
 
-/** Re-draw a set of strokes as if by an unsteady hand. Stroke ids and order are preserved. */
+// Stroke ids and their order are kept exactly as they were.
 export function humanize(strokes: DrawOp[][], rng: Rng = Math.random): DrawOp[][] {
   const angle = (rng() - 0.5) * 0.14; // about +/- 4 degrees
   const g: Global = {

@@ -1,24 +1,20 @@
 import type { ServerMessage, DrawOp, RoomSettings } from "@iguess/shared";
 import type { WordMemory } from "../wordMemory.ts";
 
-// A participant in a game — a human (backed by a socket) or a virtual player
-// such as the AI. The engine treats them uniformly for turn order + scoring.
 export interface PlayerRef {
   id: string;
   name: string;
   isAI?: boolean;
 }
 
-// Context for the current turn, handed to per-turn mode hooks.
 export interface TurnContext {
   turnIndex: number;
   drawerId: string;
   word: string;
 }
 
-// The narrow surface a mode is allowed to use on the engine. The mode never
-// sees sockets or Redis — only these verbs. This is what keeps modes
-// swappable and the engine stable.
+// Everything a mode is allowed to do to the engine. Modes never touch sockets, which is
+// what lets you add a mode without changing the engine.
 export interface EngineContext {
   participants(): PlayerRef[];
   getName(id: string): string;
@@ -27,104 +23,79 @@ export interface EngineContext {
   sendToPlayer(id: string, msg: ServerMessage): void;
   clearCanvas(): void;
 
-  // Emit a draw op that ORIGINATES from the mode (e.g. an AI drawer), as
-  // opposed to a human socket. Persisted to the stroke log AND broadcast, so
-  // late joiners replay it correctly via canvas_sync. Symmetric with
-  // clearCanvas — the seam that lets strokes come from somewhere other than a
-  // socket.
+  // For strokes the MODE makes, like the AI drawing. Saved and sent on, so someone joining
+  // late still sees them.
   draw(op: DrawOp): void;
 
-  // Score ledger.
   awardPoints(id: string, points: number): void;
   scores(): Record<string, number>;
 
-  // Per-turn "who has completed their objective" set (e.g. guessed correctly).
-  // The engine owns the set for state-broadcasting; the mode decides WHEN to
-  // mark and when the turn should end.
+  // Who has finished this turn, usually by guessing right. The engine keeps the list; the
+  // mode decides who goes on it.
   markGuessed(id: string): void;
   guessedIds(): string[];
   hasGuessed(id: string): boolean;
 
-  // Roster mutation — how a mode injects/removes virtual players like the AI.
   addParticipant(p: PlayerRef): void;
   removeParticipant(id: string): void;
 
   currentDrawerId(): string | null;
   currentWord(): string | null;
 
-  // Fraction (0..1) of the turn timer remaining — used for speed scoring.
+  // 1 at the start of the turn, 0 at the end. This is how speed scoring works.
   turnFractionRemaining(): number;
 
-  // How many letters the engine has given away this turn. Lets a mode reward a guess
-  // made off the drawing alone.
+  // Letters given away so far this turn, so a mode can pay more for guessing without them.
   hintsRevealed(): number;
 
-  // Size of the current canvas in draw ops. A jump means the drawer added a lot.
+  // How much is on the canvas. A jump means a lot was just drawn.
   canvasOpCount(): number;
 
-  // Re-broadcast public game state (call after mutating scores/guessed).
   syncState(): void;
 
-  // Ask the engine to end the current turn now (e.g. everyone guessed).
   endTurn(): void;
 }
 
-// The strategy a game mode implements. The engine drives the timeline and
-// calls these hooks; the mode supplies all the game-specific decisions.
 export interface GameMode {
-  // The room hands every mode its cross-game word memory, if the mode wants one.
   useWordMemory?(memory: WordMemory): void;
 
-  // The room's settings, applied before configure(). Modes that ignore them keep their defaults.
+  // Applied before configure(). A mode that ignores this keeps its own defaults.
   useSettings?(settings: RoomSettings): void;
 
   readonly id: string;
 
-  // The fewest human players this mode needs to start. Classic needs 2 (someone
-  // has to guess), but the AI modes need only 1: the AI is the other player, so
-  // a lone visitor can play "you vs the AI" immediately.
+  // Classic needs 2, because somebody has to guess. AI modes need only 1: the AI is the
+  // other player.
   readonly minHumans: number;
 
-  // Called once at game start with the human players. Mode may add virtual
-  // participants (AI) via ctx here. Returns how many turns the game runs, and
-  // optionally how many turns make up one round (every drawer drawing once) so
-  // the engine can surface round progress. Defaults to one round when omitted.
+  // Add any AI players here. Return how many turns the game runs, and how many turns make
+  // up one round if that isn't the whole game.
   configure(
     humans: PlayerRef[],
     ctx: EngineContext
   ): { totalTurns: number; turnsPerRound?: number };
 
-  // Who draws on a given turn.
   pickDrawer(turnIndex: number, ctx: EngineContext): string;
 
-  // The prompt/word for the turn.
   pickWord(ctx: EngineContext): string;
 
-  // Optional: offer the drawer a few words to choose from. Return 2+ options to
-  // trigger a "choosing" phase (the engine sends them to the drawer and waits
-  // for a pick, auto-selecting on timeout). Return null/[] to skip choosing and
-  // use pickWord directly — e.g. when an AI is the drawer. Defaults to no
-  // choosing when the method is absent.
+  // Return 2 or more words to make the drawer choose one. Return null or nothing to skip
+  // straight to pickWord, which is what the AI drawer does.
   pickWordChoices?(ctx: EngineContext): string[] | null;
 
-  // Turn just began (drawer/word set, canvas cleared). Typically the mode
-  // delivers the secret word to whoever is allowed to know it.
   onTurnStart(turn: TurnContext, ctx: EngineContext): void;
 
-  // A chat line arrived. Return true if it was consumed as game input (e.g.
-  // a correct guess) and must NOT be broadcast as plain chat; false otherwise.
+  // Return true if you used the message as game input, which also stops it appearing in
+  // chat. A correct guess must never be echoed to the room.
   onChat(playerId: string, text: string, ctx: EngineContext): boolean;
 
-  // May this player draw right now?
   canDraw(playerId: string, ctx: EngineContext): boolean;
 
-  // Turn is ending — clean up any mode timers, award turn-end bonuses, etc.
   onTurnEnd(turn: TurnContext, ctx: EngineContext): void;
 
-  // Optional: game fully over.
   onGameEnd?(ctx: EngineContext): void;
 
-  // Optional: a player left mid-game. The mode should drop them from any rotation/order it holds
-  // (e.g. the draw order), so a later turn never picks an absent player and runs a blank turn.
+  // Take them out of the drawing order here, or a later turn hands the pen to someone who
+  // has gone and the whole turn is blank.
   onPlayerLeave?(playerId: string, ctx: EngineContext): void;
 }

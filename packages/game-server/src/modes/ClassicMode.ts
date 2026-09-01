@@ -8,30 +8,21 @@ const CALL_REWARD = 40;
 
 export { WORDS }; // re-export so AIGuesserMode's fallback can reuse it
 
-// Classic skribbl-style mode: humans take turns drawing, everyone else
-// guesses. Designed as the base class — AIGuesserMode extends it to add a
-// virtual AI guesser without touching the engine.
 export class ClassicMode implements GameMode {
   readonly id: string = "classic";
 
-  // Classic has no AI, so it needs at least two humans: one draws, the rest guess.
+  // No AI here, so two humans minimum: one draws, the other guesses.
   readonly minHumans: number = 2;
 
-  // Ordered list of player ids eligible to draw. Captured at configure.
   protected drawOrder: string[] = [];
 
-  // How many times the draw order repeats — each player draws once per round.
-  // skribbl's default is 3; pickDrawer already wraps via modulo so rotation
-  // continues correctly across rounds.
   protected rounds: number;
 
-  // Words already used this game — so the 3 rounds don't recycle the same
-  // prompt. Reset each game in configure().
+  // Words already used this game, so one game never serves the same word twice.
   private usedWords = new Set<string>();
   private memory?: WordMemory;
   private packs: string[] = [];
   private customWords: string[] = [];
-  // Live calls on the AI's next guess, one per player. Cleared each turn.
   protected bets = new Map<string, string>();
 
   constructor(rounds = 3) {
@@ -43,8 +34,8 @@ export class ClassicMode implements GameMode {
   }
 
   useSettings(settings: RoomSettings): void {
-    // Chasing a score means "however long it takes", so stretch to the round cap and let the
-    // engine end things when someone reaches the target.
+    // Chasing a score means "as long as it takes", so run to the round cap and let the engine
+    // stop it when somebody gets there.
     this.rounds = settings.scoreTarget > 0
       ? SETTINGS_LIMITS.rounds.max
       : Math.max(1, settings.rounds);
@@ -69,7 +60,7 @@ export class ClassicMode implements GameMode {
   }
 
   onPlayerLeave(playerId: string, _ctx: EngineContext): void {
-    // Drop them from the rotation so pickDrawer never selects an absent player (a blank dead turn).
+    // Out of the rotation, or a later turn picks someone who left and nothing gets drawn.
     this.drawOrder = this.drawOrder.filter((id) => id !== playerId);
   }
 
@@ -79,8 +70,7 @@ export class ClassicMode implements GameMode {
     return word;
   }
 
-  // One word per tier, so choosing is a real bet: harder words are worth more
-  // (see TIER_MULTIPLIER) but you have to be able to draw them.
+  // One word from each difficulty, so picking is a bet: harder pays more, if you can draw it.
   pickWordChoices(_ctx: EngineContext): string[] | null {
     const choices: string[] = [];
     for (const tier of TIERS) {
@@ -92,15 +82,14 @@ export class ClassicMode implements GameMode {
     return choices;
   }
 
-  // Pick one word not yet used this game (without marking it used — callers
-  // decide what to reserve). Resets the pool if exhausted so we never dead-end.
+  // Does NOT mark the word as used. The caller decides that.
   private freshWord(tier?: Tier): string {
-    // A room's own words go in the easy slot: they're the ones players actually want to draw,
-    // and nothing outside the built-in list has a tier to score by.
+    // A room's own words go in the easy slot. Nothing outside the built-in list has a
+    // difficulty, so there is nothing else to score them by.
     const base = tier ? poolFor(tier, this.packs) : WORDS;
     const pool = tier === "easy" && this.customWords.length ? [...this.customWords, ...base] : base;
-    // Reset against the pool actually being drawn from: with tiers, easy can run dry
-    // while the combined used-set is still far from the full list.
+    // Check the pool we are actually drawing from. Easy can run dry long before the full
+    // used-list looks anywhere near finished.
     if (pool.every((w) => this.usedWords.has(w))) this.usedWords.clear();
     const avoid = new Set([...this.usedWords, ...(this.memory?.avoidFor(pool) ?? [])]);
     const roll = () => pool[Math.floor(Math.random() * pool.length)]!;
@@ -115,15 +104,12 @@ export class ClassicMode implements GameMode {
 
   onTurnStart(turn: TurnContext, ctx: EngineContext): void {
     this.bets.clear();
-    // Secret word goes ONLY to the drawer.
     ctx.sendToPlayer(turn.drawerId, { type: "your_word", word: turn.word });
   }
 
-  /**
-   * "?dog" is a call on what the machine will say next, not a guess at the word. Every mode
-   * that overrides onChat must run this FIRST: normalizeGuess strips the "?", so an unhandled
-   * call is scored as a plain answer and wins the round outright.
-   */
+  // "?dog" bets on what the machine will say next. It is not a guess at the word.
+  // Any mode that writes its own onChat must call this FIRST: normalizeGuess throws the "?"
+  // away, so an unhandled call counts as a plain answer and wins the round.
   protected takeCall(playerId: string, text: string, ctx: EngineContext): boolean {
     if (!text.trimStart().startsWith("?")) return false;
     const call = normalizeGuess(text.trimStart().slice(1));
@@ -134,7 +120,7 @@ export class ClassicMode implements GameMode {
     return true; // consumed either way: a bare "?" is not chat worth broadcasting
   }
 
-  /** Settle calls against what the AI actually said. Every call is spent, right or wrong. */
+  // Every call is used up here, right or wrong.
   protected settleBets(said: string, ctx: EngineContext): void {
     const heard = normalizeGuess(said);
     for (const [playerId, call] of this.bets) {
@@ -155,13 +141,11 @@ export class ClassicMode implements GameMode {
     if (this.takeCall(playerId, text, ctx)) return true;
     if (playerId === ctx.currentDrawerId()) return true; // hide drawer chat
     if (ctx.hasGuessed(playerId)) return true; // already done → stay quiet
-    // Normalize both sides so punctuation, accents, casing and stray spaces
-    // don't stand between a guesser and an obviously-correct answer.
+    // Tidy up both sides, so capitals, accents and stray spaces never block a right answer.
     const guess = normalizeGuess(text);
     const target = normalizeGuess(word);
     if (guess !== target) {
-      // A near-miss? Privately nudge just this guesser so they lean in —
-      // the wrong guess still passes through to the public chat as normal.
+      // Tell only them they were close. The wrong guess still goes to the room as normal.
       if (isClose(guess, target)) {
         ctx.sendToPlayer(playerId, { type: "system", text: "🔥 so close!" });
       }
@@ -176,8 +160,7 @@ export class ClassicMode implements GameMode {
   }
 
   onTurnEnd(turn: TurnContext, ctx: EngineContext): void {
-    // A whiff: the turn ran out with no correct guesses. The word is already
-    // revealed in the turn_end message, so naming it here leaks nothing.
+    // Nobody got it. The word is already public in turn_end, so saying it here leaks nothing.
     if (ctx.guessedIds().length === 0) {
       ctx.broadcast({ type: "system", text: `oof, nobody got "${turn.word}" 💀` });
     }
@@ -187,22 +170,18 @@ export class ClassicMode implements GameMode {
     ctx.broadcast({ type: "system", text: winnerLine(ctx) });
   }
 
-  // ----- Shared scoring helpers (reused by subclasses) -----
-
-  /** Award a correct guesser + the drawer, announce it, maybe end the turn. */
   protected acceptGuess(playerId: string, ctx: EngineContext): void {
     const frac = ctx.turnFractionRemaining();
     const mult = TIER_MULTIPLIER[tierOf(ctx.currentWord() ?? "")];
     const base = (50 + frac * 50) * mult; // 50..100 by speed, then by difficulty
-    // Letters are handed out free on a timer, so the only way to make them cost anything is
-    // to pay for not needing them: read the drawing before the first one lands and earn more.
+    // Hints arrive free on a timer, so the only way to make them cost anything is to pay
+    // people who didn't need them.
     const unaided = ctx.hintsRevealed() === 0;
     const points = Math.round(base * comebackBonus(playerId, ctx) * (unaided ? 1.2 : 1));
     ctx.awardPoints(playerId, points);
     ctx.markGuessed(playerId);
 
-    // The drawer is paid by how fast this guesser got it, not a flat rate. A scribble that
-    // someone eventually decodes used to pay the same as a sketch people read instantly.
+    // Pay the drawer by how fast this person read it, so a clear sketch beats a scribble.
     const drawerId = ctx.currentDrawerId();
     if (drawerId) ctx.awardPoints(drawerId, Math.round((10 + frac * 40) * mult));
 
@@ -216,7 +195,6 @@ export class ClassicMode implements GameMode {
     this.maybeEndTurn(ctx);
   }
 
-  /** End the turn once every non-drawer participant has guessed. */
   protected maybeEndTurn(ctx: EngineContext): void {
     const drawerId = ctx.currentDrawerId();
     const expected = ctx
@@ -226,9 +204,8 @@ export class ClassicMode implements GameMode {
   }
 }
 
-// The end-of-game announcement: who won and with how many points. Handles a
-// Three-round games are decided early: fall behind in round one and the rest is a formality.
-// A trailing player earns more per guess, capped so it can never out-run playing well.
+// Short games are decided early: fall behind in round one and the rest is a formality. Whoever
+// is behind earns more per guess, capped so it can never beat just playing well.
 function comebackBonus(playerId: string, ctx: EngineContext): number {
   const scores = ctx.scores();
   const leader = Math.max(0, ...Object.values(scores));
@@ -238,8 +215,7 @@ function comebackBonus(playerId: string, ctx: EngineContext): number {
   return 1 + Math.min(0.35, (behind - 0.4) * 0.6);
 }
 
-// tie (multiple players sharing the top score) and the degenerate all-zero
-// game gracefully. Exported for testing.
+// Handles a tie, and a game where literally nobody scored.
 export function winnerLine(ctx: EngineContext): string {
   const scores = ctx.scores();
   const ids = ctx.participants().map((p) => p.id);

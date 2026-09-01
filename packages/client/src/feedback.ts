@@ -1,5 +1,3 @@
-// Sound and haptics. Two different channels for the same beat: audio can be muted, a buzz
-// is the discreet one and follows the platform convention of surviving silent mode.
 export const MUTE_KEY = "iguess_muted";
 let audioCtx: AudioContext | null = null;
 export function blip(freqs: number[], muted: boolean) {
@@ -10,18 +8,17 @@ export function blip(freqs: number[], muted: boolean) {
       (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     audioCtx = audioCtx ?? new Ctor();
     const ctx = audioCtx;
-    // A context built before the page has been interacted with starts suspended, and nothing here
-    // ever woke it: every cue would schedule correctly and play to nobody, for the whole session.
+    // Audio built before the first click starts paused. Nothing else wakes it, so without this
+    // every sound schedules perfectly and plays to nobody, all session.
     if (ctx.state === "suspended") void ctx.resume();
     freqs.forEach((f, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "triangle";
       osc.frequency.value = f;
-      // The 20ms offset is not spacing, it's headroom. The audio thread has already rendered up to
-      // currentTime by the time this runs, so the i=0 note booked at exactly currentTime lands in
-      // the past and the hardware skips what it missed — which eats the attack rather than the
-      // whole note, so it reads as "the first beep is quieter" instead of as a bug.
+      // The 20ms is headroom, not spacing. Booking a note at exactly "now" puts it very
+      // slightly in the past, and the start of it gets skipped. It sounds like a quiet first
+      // beep rather than an obvious fault, which is why it is easy to miss.
       const t = ctx.currentTime + 0.02 + i * 0.09;
       gain.gain.setValueAtTime(0.0001, t);
       gain.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
@@ -35,8 +32,8 @@ export function blip(freqs: number[], muted: boolean) {
   }
 }
 
-// Haptics run independently of the mute toggle: muting is about noise, and a buzz is the
-// discreet channel. Android-only in practice — iOS Safari has no Vibration API.
+// Mute is about noise, and a buzz makes none, so it ignores the mute setting. Android only:
+// iOS Safari has no vibration at all.
 export function buzz(pattern: number | number[]) {
   try {
     navigator.vibrate?.(pattern);

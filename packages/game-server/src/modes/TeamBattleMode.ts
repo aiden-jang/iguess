@@ -12,18 +12,14 @@ import type { AiSkill, RoomSettings } from "@iguess/shared";
 
 const AI_ID = "ai-team";
 
-
 type Team = "human" | "ai";
 
-// Humans vs AI — "guess race" interpretation. Each round has one drawer and
-// one shared drawing; the first correct guess wins the round for its side.
-// Most round-wins wins the game. Built entirely on ClassicMode + the shared
-// AI helpers; no core-engine change. Team standings ride on system messages
-// (deliberately NOT added to the shared PublicGameState contract).
+// A race: one drawing, and the first correct guess wins the round for that side. Team scores
+// travel as chat messages on purpose, rather than being added to the shared game state, because
+// no other mode has teams.
 export class TeamBattleMode extends ClassicMode {
   override readonly id = "team-battle";
 
-  // Humans vs AI: a single human can take on the AI, so one is enough to start.
   override readonly minHumans = 1;
 
   private humans: string[] = [];
@@ -50,7 +46,7 @@ export class TeamBattleMode extends ClassicMode {
     this.humans = humans.map((h) => h.id);
     this.wins = { human: 0, ai: 0 };
     ctx.addParticipant({ id: AI_ID, name: AI_NAME, isAI: true });
-    // A round is one human draw and one AI draw, so the room's count doubles into turns.
+    // A round is one human draw plus one AI draw, so the round count is doubled to get turns.
     return { totalTurns: this.rounds * 2, turnsPerRound: 2 };
   }
 
@@ -58,8 +54,6 @@ export class TeamBattleMode extends ClassicMode {
     return turnIndex % 2 === 1; // odd rounds: AI draws
   }
 
-  // pickDrawer runs first each turn (engine startTurn), so we latch whether
-  // the AI is drawing here and read it back in pickWord/canDraw.
   override pickDrawer(turnIndex: number): string {
     this.aiDrawsThisTurn = this.isAITurn(turnIndex);
     if (this.aiDrawsThisTurn) return AI_ID;
@@ -67,20 +61,17 @@ export class TeamBattleMode extends ClassicMode {
   }
 
   override pickWord(): string {
-    // AI-draw turns must use a word the doodle library can render.
     return this.aiDrawsThisTurn
       ? DOODLE_WORDS[Math.floor(Math.random() * DOODLE_WORDS.length)]
       : randomWord();
   }
 
-  // Only the human drawer chooses a word. On AI-draw turns the AI picks its own
-  // (doodle-renderable) word, so return null to skip the choosing phase.
+  // Only a human chooses. Return null on AI turns to skip the choosing step entirely.
   override pickWordChoices(ctx: EngineContext): string[] | null {
     return this.aiDrawsThisTurn ? null : super.pickWordChoices(ctx);
   }
 
   override canDraw(playerId: string, ctx: EngineContext): boolean {
-    // Only a human drawer draws by hand; the AI draws via the draw loop.
     return !this.aiDrawsThisTurn && playerId === ctx.currentDrawerId();
   }
 
@@ -89,14 +80,12 @@ export class TeamBattleMode extends ClassicMode {
     this.stopLoop?.();
 
     if (this.aiDrawsThisTurn) {
-      // 🤖 draws; only humans can win this round (the AI knows its own word).
       ctx.broadcast({
         type: "system",
         text: `Round ${turn.turnIndex + 1}: 🤖 Team AI is drawing. Team Human, guess!`,
       });
       this.stopLoop = startDrawLoop(turn, ctx, { requestDrawing: this.requestDrawing });
     } else {
-      // A human draws; the AI races the human team to guess the same canvas.
       ctx.broadcast({
         type: "system",
         text: `Round ${turn.turnIndex + 1}: Team Human is drawing. 🤖 AI is racing you to guess!`,
@@ -124,9 +113,7 @@ export class TeamBattleMode extends ClassicMode {
     if (playerId === ctx.currentDrawerId()) return true; // hide drawer chat
     if (this.takeCall(playerId, text, ctx)) return true;
     if (this.roundDecided) return false; // round already won → let chat through
-    // Match human guesses the same forgiving-but-strict way ClassicMode does
-    // (a sentence containing the word is NOT a win; the typed answer must be
-    // the word, modulo case/accents/punctuation).
+    // A sentence containing the word does NOT win. They have to actually type the word.
     if (normalizeGuess(text) === normalizeGuess(word)) {
       this.winRound("human", playerId, ctx);
       return true;
@@ -154,9 +141,8 @@ export class TeamBattleMode extends ClassicMode {
     ctx.endTurn();
   }
 
-  // NB: deliberately does NOT call super.onTurnEnd — this mode owns its own
-  // end-of-turn announcement (with team standings) for the no-guess case, so
-  // the base "nobody got it" line would just duplicate it.
+  // Deliberately does not call super. This mode writes its own end-of-turn message with the
+  // team scores in it, so the base "nobody got it" line would just repeat it.
   override onTurnEnd(_turn: TurnContext, ctx: EngineContext): void {
     this.stopLoop?.();
     this.stopLoop = null;
@@ -168,7 +154,6 @@ export class TeamBattleMode extends ClassicMode {
     }
   }
 
-  // Not on the ClassicMode base — declared optional on the GameMode interface.
   onGameEnd(ctx: EngineContext): void {
     const { human, ai } = this.wins;
     const verdict =

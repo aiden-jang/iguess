@@ -3,39 +3,29 @@ import { DEFAULT_SETTINGS } from "@iguess/shared";
 import { tierOf } from "@iguess/shared/words";
 import type { GameMode, EngineContext, PlayerRef, TurnContext } from "./modes/GameMode.ts";
 
-// Default turn length. A room can change it (see RoomSettings), so read this.turnMs, not
-// this constant, anywhere the live timer is involved.
+// Only the starting value. A room can change it, so read this.turnMs for the live clock.
 const TURN_MS = DEFAULT_SETTINGS.turnSeconds * 1000;
 const INTERMISSION_MS = 5_000;
-// How long the drawer has to pick a word before the engine auto-picks for them.
 const CHOOSE_MS = 15_000;
 
-// Transport-facing dependencies, injected by the WS layer. The engine never
-// imports ws or redis — it only knows these verbs.
+// Handed in by the socket layer. The engine knows these verbs and nothing about sockets.
 export interface EngineDeps {
   broadcast: (msg: ServerMessage) => void;
   sendToPlayer: (playerId: string, msg: ServerMessage) => void;
   clearCanvas: () => void | Promise<void>;
-  // Emit a mode-originated draw op: persist to the stroke log AND broadcast.
   drawOp: (op: DrawOp) => void | Promise<void>;
   getName: (playerId: string) => string;
-  // How many draw ops the canvas holds right now. The AI guess loop uses the delta to
-  // decide whether anything new is worth looking at.
+  // How much is on the canvas. The AI watches this number to know if anything changed.
   canvasOpCount: () => number;
-  // Reflect a virtual participant (AI) into room presence so it appears in
-  // the roster/scoreboard like any other player.
   addVirtualPlayer: (p: PlayerRef) => void;
   removeVirtualPlayer: (id: string) => void;
 }
 
-// The engine owns the game *timeline* and shared bookkeeping. All
-// game-specific decisions are delegated to the injected GameMode.
+// Owns the clock and the scoreboard. Every actual rule lives in a GameMode instead.
 export class GameEngine {
   private phase: GamePhase = "lobby";
   private turnIndex = 0;
   private totalTurns = 0;
-  // How many turns make up one round (every drawer drawing once). Reported by
-  // the mode; defaults to the whole game (one round) when not provided.
   private turnsPerRound = 1;
   private turnMs = TURN_MS;
   private settings: RoomSettings = DEFAULT_SETTINGS;
@@ -46,14 +36,9 @@ export class GameEngine {
   private scoreboard: Record<string, number> = {};
   private roster = new Map<string, PlayerRef>();
   private timer: ReturnType<typeof setTimeout> | null = null;
-  // Indices of the secret word already revealed to guessers this turn, plus
-  // the timers that reveal them. Both are reset every turn.
   private revealed = new Set<number>();
   private revealTimers: ReturnType<typeof setTimeout>[] = [];
-  // While in the "choosing" phase: the words offered to the drawer and the
-  // timer that auto-picks one if they dawdle. Cleared when the turn begins.
   private pendingChoices: string[] | null = null;
-  // One word-skip per player per game. Cleared with the rest of the game state in startGame.
   private skipsUsed = new Set<string>();
   private chooseTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -64,8 +49,7 @@ export class GameEngine {
   }
 
   canDraw(playerId: string): boolean {
-    // Between games the board belongs to everyone. It costs nothing, it is the cheapest fun
-    // in the app, and it gives a lobby something to do while it waits for the last person.
+    // Between games anyone can scribble, so a waiting lobby has something to do.
     if (this.phase === "lobby" || this.phase === "ended") return true;
     return this.mode.canDraw(playerId, this.ctx);
   }
@@ -79,8 +63,7 @@ export class GameEngine {
       type: "game_state",
       state: this.publicState(),
     });
-    // If the drawer reconnects mid-turn, re-deliver their secret word so they
-    // can keep drawing. Only the drawer ever receives it.
+    // A drawer who refreshes needs their word again, or they cannot carry on.
     if (
       this.phase === "playing" &&
       playerId === this.drawerId &&
@@ -88,8 +71,8 @@ export class GameEngine {
     ) {
       this.deps.sendToPlayer(playerId, { type: "your_word", word: this.word });
     }
-    // If the drawer reconnects/refreshes mid-"choosing", re-send the options — otherwise their
-    // client lost them and they're stuck on "someone is picking…" (about themselves) until auto-pick.
+    // Same if they refresh while choosing, or they sit watching "someone is picking a word"
+    // about themselves until the timer picks for them.
     if (this.phase === "choosing" && playerId === this.drawerId && this.pendingChoices) {
       this.deps.sendToPlayer(playerId, {
         type: "word_choices",
@@ -100,16 +83,14 @@ export class GameEngine {
     }
   }
 
-  /** Apply room settings. Lobby-only; the engine snapshots the turn length at game start. */
-  applySettings(settings: RoomSettings) {
+    applySettings(settings: RoomSettings) {
     this.settings = settings;
     this.mode.useSettings?.(settings);
   }
 
   startGame(humanIds: string[]) {
-    // Only start from a settled state. Without blocking "choosing" too, a double-click (the start
-    // button has no in-flight lock) fires two start_games: the first enters choosing, the second
-    // re-runs startGame and leaks the first choose-timer (which later fires a stray turn).
+    // Block "choosing" as well as "playing". Double-clicking start otherwise runs this twice
+    // and leaves an orphaned timer that later fires a turn out of nowhere.
     if (this.phase !== "lobby" && this.phase !== "ended") return;
     if (humanIds.length < this.mode.minHumans) {
       this.deps.broadcast({
@@ -119,29 +100,24 @@ export class GameEngine {
       return;
     }
 
-    // Drop any virtual players (e.g. an AI) left over from a previous game so
-    // they don't accumulate in presence across replays. The mode re-adds the
-    // ones it wants in configure().
+    // Clear out the last game's AI players, or they pile up every time you play again.
     for (const p of this.roster.values()) {
       if (p.isAI) this.deps.removeVirtualPlayer(p.id);
     }
 
-    // Reset and seed the roster with the human players.
     this.roster.clear();
     for (const id of humanIds) {
       this.roster.set(id, { id, name: this.deps.getName(id) });
     }
 
-    // Let the mode configure the game (and add virtual players like the AI).
     const { totalTurns, turnsPerRound } = this.mode.configure(
       humanIds.map((id) => this.roster.get(id)!),
       this.ctx
     );
 
     this.totalTurns = totalTurns;
-    // Fall back to a single round when the mode doesn't report a round size.
     this.turnsPerRound = Math.max(1, turnsPerRound ?? totalTurns);
-    // Snapshot at kick-off: changing the clock mid-turn would move a deadline players can see.
+    // Lock the clock in at kick-off. Changing it mid-turn would move a deadline people can see.
     this.turnMs = this.settings.turnSeconds * 1000;
     this.mode.useSettings?.(this.settings);
     this.turnIndex = 0;
@@ -154,19 +130,19 @@ export class GameEngine {
 
   onPlayerLeave(playerId: string) {
     const wasDrawer = playerId === this.drawerId;
-    // Drop them from the roster (so guess thresholds + presence reflect who's actually here) and
-    // from the mode's draw rotation (so a future turn never picks an absent player).
+    // Take them out of both the roster and the drawing rotation, or a later turn hands the
+    // pen to someone who left.
     this.roster.delete(playerId);
     this.mode.onPlayerLeave?.(playerId, this.ctx);
 
-    // Nobody left to play — let the room teardown handle it; don't pick a phantom drawer.
+    // Nobody left. Let the room clean itself up rather than picking a drawer who isn't here.
     if (this.roster.size === 0 || !wasDrawer) return;
 
     if (this.phase === "playing") {
       this.deps.broadcast({ type: "system", text: "the drawer left, ending the turn." });
       this.endTurn();
     } else if (this.phase === "choosing") {
-      // They never picked a word — cancel the auto-pick and re-deal this turn to a present player.
+      // They left without picking. Cancel the auto-pick and give the turn to someone here.
       if (this.chooseTimer) {
         clearTimeout(this.chooseTimer);
         this.chooseTimer = null;
@@ -176,14 +152,10 @@ export class GameEngine {
     }
   }
 
-  // ----- Turn lifecycle -----
 
   private startTurn() {
     const drawerId = this.mode.pickDrawer(this.turnIndex, this.ctx);
 
-    // Offer the drawer a few words to choose from, if the mode opts in. Two or
-    // more options trigger a "choosing" phase; anything less skips straight to
-    // the turn with a mode-picked word (e.g. when an AI is drawing).
     const choices = this.mode.pickWordChoices?.(this.ctx) ?? null;
     if (choices && choices.length >= 2) {
       this.startChoosing(drawerId, choices);
@@ -193,9 +165,6 @@ export class GameEngine {
     this.beginTurn(drawerId, this.mode.pickWord(this.ctx));
   }
 
-  // Enter the "choosing" phase: the drawer is known and the canvas is cleared,
-  // but no word is live yet. Only the drawer sees the options; everyone else
-  // sees a "choosing…" state. Auto-picks on timeout so a turn can't stall.
   private startChoosing(drawerId: string, choices: string[]) {
     this.phase = "choosing";
     this.drawerId = drawerId;
@@ -215,14 +184,11 @@ export class GameEngine {
 
     if (this.chooseTimer) clearTimeout(this.chooseTimer); // never leak a prior choose-timer
     this.chooseTimer = setTimeout(() => {
-      // Drawer didn't pick in time — choose at random for them.
       const pick = choices[Math.floor(Math.random() * choices.length)]!;
       this.beginTurn(drawerId, pick);
     }, CHOOSE_MS);
   }
 
-  // The drawer picked a word (or the choose-timeout fired). Validates the pick
-  // came from the right player and is one of the offered options.
   handleChooseWord(playerId: string, word: string) {
     if (this.phase !== "choosing") return;
     if (playerId !== this.drawerId) return;
@@ -230,7 +196,6 @@ export class GameEngine {
     this.beginTurn(this.drawerId, word);
   }
 
-  /** Swap all three options for three new ones. One skip per player per game. */
   handleSkipWord(playerId: string) {
     if (this.phase !== "choosing") return;
     if (playerId !== this.drawerId) return;
@@ -268,9 +233,8 @@ export class GameEngine {
     this.timer = setTimeout(() => this.endTurn(), this.turnMs);
   }
 
-  // Reveal a few letters over the course of the turn to keep guessers in it.
-  // Reveals are spread evenly across the clock and capped so we never give the
-  // whole word away (~a third, max 5). Index choice is random among letters.
+  // Give away about a third of the letters, five at most, spread across the clock. Never
+  // enough to hand over the whole word.
   private scheduleHints(word: string) {
     this.clearRevealTimers();
     this.revealed.clear();
@@ -279,7 +243,7 @@ export class GameEngine {
       .filter((i) => i >= 0);
     const maxReveals =
       letterIdx.length <= 1 ? 0 : Math.min(Math.ceil(letterIdx.length / 3), 5);
-    // Fisher–Yates shuffle so revealed positions aren't always left-to-right.
+    // Shuffle, so letters don't always appear left to right.
     for (let i = letterIdx.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [letterIdx[i], letterIdx[j]] = [letterIdx[j]!, letterIdx[i]!];
@@ -301,12 +265,11 @@ export class GameEngine {
     this.revealTimers = [];
   }
 
-  /** The masked word, exactly as guessers see it. Safe to hand the AI: it is not the answer. */
+  // Safe to hand to the AI: this is what guessers already see, not the answer.
   currentHint(): string {
     return this.computeHint();
   }
 
-  // The masked word guessers see: revealed letters in place, "_" elsewhere.
   private computeHint(): string {
     if (!this.word) return "";
     return [...this.word]
@@ -335,8 +298,7 @@ export class GameEngine {
     this.broadcastState();
 
     this.turnIndex += 1;
-    // A score target ends the game whenever someone reaches it. The round count still applies
-    // as a backstop, so a target nobody hits can't run forever.
+    // The round count still applies, so a score nobody ever reaches can't run forever.
     const target = this.settings.scoreTarget;
     const reached = target > 0 && Math.max(0, ...Object.values(this.scoreboard)) >= target;
     if (reached || this.turnIndex >= this.totalTurns) {
@@ -358,7 +320,7 @@ export class GameEngine {
 
   private publicState(): PublicGameState {
     const totalRounds = Math.max(1, Math.ceil(this.totalTurns / this.turnsPerRound));
-    // Clamp so the post-increment end-of-game turnIndex can't overshoot.
+    // Clamp it: the turn counter is already one past the end by the time the game finishes.
     const round = Math.min(totalRounds, Math.floor(this.turnIndex / this.turnsPerRound) + 1);
     return {
       phase: this.phase,
@@ -375,7 +337,6 @@ export class GameEngine {
     };
   }
 
-  // The narrow handle handed to the mode. Bound once; reads live engine state.
   private ctx: EngineContext = {
     participants: () => [...this.roster.values()],
     getName: (id) => this.roster.get(id)?.name ?? this.deps.getName(id),

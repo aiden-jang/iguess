@@ -1,11 +1,9 @@
 import type { AiBinding, Env } from './env.ts';
 import { WORDS_BY_TIER } from '@iguess/shared/words';
 
-// A pluggable vision backend. Swap providers without touching the worker's HTTP layer or the
-// game server. Keys/config come from the Worker env (not process.env — this runs on Workers).
 export interface VisionProvider {
   readonly name: string;
-  // Ranked, best first. The runners-up are the interesting part: "guitar?  no... a fish?"
+  // Best guess first. The runners-up are the fun part.
   guess(pngBase64: string, hint?: string): Promise<string[]>;
 }
 
@@ -14,8 +12,7 @@ const BASE_PROMPT =
   'Reply with up to three lowercase single-word guesses, best first, separated by commas. ' +
   'No punctuation beyond the commas, no explanation.';
 
-// The hint is the masked word every human guesser can already see ("_ u _ t a _"), never the
-// answer. Without it the AI was playing blind against players who get letters for free.
+// The hint is what human guessers already see, like "_ u _ t a _". Never the answer itself.
 function promptFor(hint?: string): string {
   const shape = hint?.trim();
   if (!shape) return BASE_PROMPT;
@@ -26,8 +23,7 @@ function promptFor(hint?: string): string {
   );
 }
 
-// The mock and the last-resort fallback guess from the game's own easy tier. A hard-coded
-// fifteen looked obviously canned once the real list passed a few hundred words.
+// Guess from the game's own easy words. A short hard-coded list looks obviously canned.
 const COMMON = WORDS_BY_TIER.easy;
 
 interface ChatLike {
@@ -35,23 +31,23 @@ interface ChatLike {
   content?: { text?: string }[];
 }
 
-// Filler that shows up around the actual noun: "it looks like a house", "maybe a barn".
+// Words that pad out an answer: "it looks like a house", "maybe a barn".
 const FILLER = new Set([
   'a', 'an', 'the', 'it', 'is', 'this', 'that', 'looks', 'look', 'like', 'maybe', 'probably',
   'appears', 'to', 'be', 'of', 'some', 'kind', 'sort', 'drawing', 'doodle', 'sketch', 'picture',
   'image', 'simple', 'i', 'think', 'see', 'there', 'seems', 'sketchy', 'black', 'white', 'and',
 ]);
 
-// The answer is the last real word in the fragment: "a cat" and "it looks like a house" both
-// end on the noun, while taking the first word would give "a" and "it".
+// Take the LAST real word. "a cat" and "it looks like a house" both end on the answer, while
+// taking the first word gives you "a" and "it".
 function normalize(s: string): string {
   const words = s.trim().toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(Boolean);
   const meaty = words.filter((w) => !FILLER.has(w));
   return meaty[meaty.length - 1] ?? words[words.length - 1] ?? '';
 }
 
-// Models are asked for "cat, dog, house" but will happily return a sentence, a numbered list,
-// or one word. Split on anything list-shaped and keep the first three that survive normalize.
+// We ask for "cat, dog, house" and get back sentences, numbered lists, or one bare word.
+// Split on anything list-like and keep the first three that survive tidying.
 function rank(raw: string): string[] {
   const out: string[] = [];
   for (const part of raw.split(/[,\n;/]|\bor\b/)) {
@@ -62,12 +58,10 @@ function rank(raw: string): string[] {
   return out;
 }
 
-// No key configured ⇒ the whole stack still runs end-to-end. It can't be "correct" (it never
-// sees the word), but it proves the pipeline: ops → PNG → provider → guess → chat.
 export class MockProvider implements VisionProvider {
   readonly name = 'mock';
   async guess(_pngBase64: string, hint?: string): Promise<string[]> {
-    // Even the mock respects the hint's length, so a hinted run looks plausible end to end.
+    // Even the fake one matches the hint's length, so a hinted run looks real end to end.
     const shape = hint?.replace(/\s+/g, '') ?? '';
     const fits = shape ? COMMON.filter((w) => w.length === shape.length) : COMMON;
     const pool = [...(fits.length ? fits : COMMON)];
@@ -148,13 +142,10 @@ function base64ToBytes(b64: string): number[] {
   return bytes;
 }
 
-// Free, real vision via Cloudflare Workers AI. Runs on the same platform as this Worker, so there's
-// no API key — just the [ai] binding — and it has a standing free daily allowance.
+// Free real vision, no API key, just the [ai] binding.
 //
-// Default is LLaVA: works with zero setup. It's weak on crude doodles, but real. For sharper guesses
-// set WORKERS_AI_MODEL to '@cf/meta/llama-3.2-11b-vision-instruct' — BUT that model is license-gated
-// (Cloudflare returns error 5016 until you accept its Community License once for your account), and
-// it answers on `response` rather than `description` (both are handled below).
+// LLaVA by default: weak on crude doodles but works with zero setup. The llama vision model is
+// sharper, but Cloudflare returns error 5016 until you accept its licence once for your account.
 const DEFAULT_WORKERS_AI_MODEL = '@cf/llava-hf/llava-1.5-7b-hf';
 
 export class WorkersAIProvider implements VisionProvider {
@@ -167,11 +158,10 @@ export class WorkersAIProvider implements VisionProvider {
     const inputs = { image: base64ToBytes(pngBase64), prompt: promptFor(hint), max_tokens: 24 };
     try {
       const res = await this.ai.run(this.model, inputs);
-      // LLaVA answers on `description`, the llama vision-instruct models on `response`.
+      // LLaVA replies on `description`, the llama models on `response`.
       return rank(res.description ?? res.response ?? '');
     } catch {
-      // First call after a cold start (model/WASM warmup) occasionally fails; one quick retry keeps
-      // more first-guesses "real" before the worker falls through to the next provider.
+      // The very first call after a cold start sometimes fails while the model warms up.
       await new Promise((r) => setTimeout(r, 200));
       const res = await this.ai.run(this.model, inputs);
       return rank(res.description ?? res.response ?? '');
@@ -179,11 +169,8 @@ export class WorkersAIProvider implements VisionProvider {
   }
 }
 
-// Ordered list of providers to try, best-first, with fallbacks. The worker tries each in turn and
-// uses the first that returns a guess — so a rate-limited or broken paid key (e.g. OpenAI 429)
-// degrades to free Workers AI, then to the mock, instead of killing the AI entirely. The preferred
-// provider (a configured paid key, or VISION_PROVIDER) goes first; MockProvider is always last and
-// never throws, so there is always a guess.
+// Best first, with fallbacks behind it. A rate-limited paid key drops through to free Workers
+// AI, then to the fake one. The fake one never throws, so there is always some guess.
 export function selectProviders(env: Env): VisionProvider[] {
   const pick = env.VISION_PROVIDER?.toLowerCase();
   if (pick === 'mock') return [new MockProvider()];
@@ -198,7 +185,6 @@ export function selectProviders(env: Env): VisionProvider[] {
     workers: () => (env.AI ? new WorkersAIProvider(env.AI, workersModel) : null),
   };
 
-  // Forced provider first (if available), then everything else in default priority as fallbacks.
   const order = ['openai', 'anthropic', 'workers'];
   if (pick === 'workers-ai' || pick === 'cf' || pick === 'workers') order.unshift('workers');
   else if (pick && order.includes(pick)) order.unshift(pick);
@@ -216,15 +202,11 @@ export function selectProviders(env: Env): VisionProvider[] {
   return out;
 }
 
-// The primary provider (what /health reports). Guessing uses the full fallback list above.
 export function selectProvider(env: Env): VisionProvider {
   return selectProviders(env)[0]!;
 }
 
-// Try providers best-first; return the first non-throwing guess. Vision providers are skipped when
-// there's no image (png === ''); MockProvider needs none and never throws, so — as long as the list
-// ends in a mock (selectProviders guarantees this) — there is always a guess. Returns null only if
-// handed a list with no viable provider.
+// Skips real providers when there is no image to send them.
 export async function guessWithFallback(
   providers: VisionProvider[],
   png: string,

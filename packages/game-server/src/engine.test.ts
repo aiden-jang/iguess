@@ -7,12 +7,9 @@ import { ClassicMode, WORDS, winnerLine } from "./modes/ClassicMode.ts";
 import { isClose, normalizeGuess } from "./text.ts";
 import type { EngineContext } from "./modes/GameMode.ts";
 
-// ---- Minimal fake timer harness ----
-// The engine schedules a 60s per-turn timer and a 5s intermission timer via
-// the global setTimeout. We capture them so tests can advance the game's
-// timeline deterministically. flush(5000) fires only the intermission timers
-// (advancing turns) and never the 60s turn timer, so turns end exactly when
-// we drive a guess — not by wall-clock.
+// Fake timers, so tests drive the clock instead of waiting on it.
+// flush(5000) fires the short between-turn timers but NOT the 60s turn timer, so a turn only
+// ends when a test makes someone guess.
 type Job = { id: number; fn: () => void; delay: number };
 let jobs: Job[] = [];
 let nextId = 1;
@@ -35,8 +32,6 @@ function restoreTimers() {
   globalThis.setTimeout = realSetTimeout;
   globalThis.clearTimeout = realClearTimeout;
 }
-// Run every pending job whose delay is <= maxDelay, repeating until quiescent
-// so a job that schedules another due job also runs.
 function flush(maxDelay = 5000) {
   let ran = true;
   while (ran) {
@@ -49,7 +44,6 @@ function flush(maxDelay = 5000) {
   }
 }
 
-// ---- Harness: an engine wired to in-memory deps that record output ----
 function makeHarness(names: Record<string, string>, rounds = 1) {
   const broadcasts: ServerMessage[] = [];
   const sent: Record<string, ServerMessage[]> = {};
@@ -74,7 +68,6 @@ function latestState(broadcasts: ServerMessage[]): PublicGameState {
   throw new Error("no game_state broadcast yet");
 }
 
-// The secret word is only ever sent to the drawer; pull it from their inbox.
 function wordSentTo(sent: Record<string, ServerMessage[]>, id: string): string {
   const inbox = sent[id] ?? [];
   for (let i = inbox.length - 1; i >= 0; i--) {
@@ -84,10 +77,7 @@ function wordSentTo(sent: Record<string, ServerMessage[]>, id: string): string {
   throw new Error(`no your_word sent to ${id}`);
 }
 
-// ClassicMode now opens each turn with a "choosing" phase: the drawer is
-// offered a few words and must pick one before drawing begins. In tests we
-// auto-accept the drawer's first offered word so the turn proceeds. No-op if
-// we're not currently choosing.
+// Every turn starts with the drawer picking a word, so tests take the first one offered.
 function settleChoosing(
   engine: GameEngine,
   broadcasts: ServerMessage[],
@@ -134,7 +124,7 @@ test("startGame begins turn 0 with the first player drawing", () => {
   assert.equal(st.drawerId, "a");
   assert.equal(st.turnIndex, 0);
   assert.equal(st.totalTurns, 2);
-  // Word goes only to the drawer, never broadcast or sent to the guesser.
+  // The word must never appear in a broadcast or in the guesser's inbox.
   const word = wordSentTo(sent, "a");
   assert.ok(word.length > 0);
   assert.ok(!(sent["b"] ?? []).some((m) => m.type === "your_word"));
@@ -149,7 +139,7 @@ test("a correct guess scores the guesser and the drawer, and ends the turn", () 
   engine.handleChat("b", word); // bob guesses correctly
 
   const st = latestState(broadcasts);
-  // Guesser: 50..100 by speed (times the word's tier); drawer: 10..50, also by that speed.
+  // Both are paid on how fast it was guessed, and the guesser always out-earns the drawer.
   assert.ok(st.scores["b"]! >= 50, `guesser=${st.scores["b"]}`);
   assert.ok(st.scores["a"]! >= 10 && st.scores["a"]! <= 80, `drawer=${st.scores["a"]}`);
   assert.ok(st.scores["a"]! < st.scores["b"]!, "the guesser should out-earn the drawer");
@@ -180,7 +170,7 @@ test("the drawer rotates and the game ends after one full round", () => {
   st = latestState(broadcasts);
   assert.equal(st.phase, "ended");
   assert.equal(st.drawerId, null);
-  // Both played both roles: ~100 (guess) + 25 (drawer bonus) each.
+  // Both drew once and guessed once, so both earn guesser points and drawer points.
   assert.ok(st.scores["a"]! > 100, `a=${st.scores["a"]}`);
   assert.ok(st.scores["b"]! > 100, `b=${st.scores["b"]}`);
 });
@@ -196,7 +186,7 @@ test("hints start fully masked and reveal letters as the turn progresses", () =>
   assert.equal(hint0.length, word.length);
   assert.equal(hint0, "_".repeat(word.length));
 
-  // Fire the reveal timers (all < 60s) but NOT the 60s turn-end timer.
+  // Fire the letter-reveal timers without ending the turn.
   flush(55000);
 
   const st = latestState(broadcasts);
@@ -204,8 +194,7 @@ test("hints start fully masked and reveal letters as the turn progresses", () =>
   const hint1 = st.hint;
   assert.equal(hint1.length, word.length);
 
-  // Every revealed character matches the real word at that position; the rest
-  // stay masked. At least one letter, but never the whole word, is revealed.
+  // Some letters, never all of them, and each one in its right place.
   let revealedCount = 0;
   for (let i = 0; i < word.length; i++) {
     if (hint1[i] !== "_") {
@@ -224,7 +213,7 @@ test("a turn that times out with no correct guess announces the whiff", () => {
   settleChoosing(engine, broadcasts, sent);
   const word = wordSentTo(sent, "a");
 
-  // Nobody guesses; fire the 60s turn timer (and the cascade) to end the turn.
+  // Nobody guesses, so run the clock out.
   flush(60000);
 
   assert.ok(
@@ -241,7 +230,7 @@ test("the drawer's own chat is swallowed, not treated as a guess", () => {
   settleChoosing(engine, broadcasts, sent);
   const word = wordSentTo(sent, "a");
 
-  // The drawer typing the word must not score or end the turn.
+  // The drawer typing their own word must not score.
   const handled = engine.handleChat("a", word);
   assert.equal(handled, true); // handled (hidden), but...
   const st = latestState(broadcasts);
@@ -255,7 +244,6 @@ test("a wrong guess is passed through as normal chat", () => {
   settleChoosing(engine, broadcasts, sent);
   const word = wordSentTo(sent, "a");
   const wrong = word === "zzzz" ? "yyyy" : "zzzz";
-  // false === "not consumed by the game, show it as chat"
   assert.equal(engine.handleChat("b", wrong), false);
 });
 
@@ -264,7 +252,6 @@ test("normalizeGuess canonicalizes case, accents, punctuation and spacing", () =
   assert.equal(normalizeGuess("ICE-CREAM"), "ice cream");
   assert.equal(normalizeGuess("  hot   dog  "), "hot dog");
   assert.equal(normalizeGuess("piñata!"), "pinata");
-  // Two spellings that should be considered the same guess.
   assert.equal(normalizeGuess("t-rex"), normalizeGuess("T Rex"));
 });
 
@@ -274,7 +261,6 @@ test("a guess matches the word despite punctuation/casing/accent differences", (
   engine.startGame(["a", "b"]);
   settleChoosing(engine, broadcasts, sent);
   const word = wordSentTo(sent, "a");
-  // Build a "messy" but normalization-equivalent version of the word.
   const messy = ` ${word.toUpperCase()}!! `;
   const handled = engine.handleChat("b", messy);
   assert.equal(handled, true, "messy-but-equivalent guess should count");

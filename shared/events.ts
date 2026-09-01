@@ -1,25 +1,16 @@
-// The single source of truth for every message crossing the WebSocket.
-// Both client and server import from here. Change a shape → TypeScript
-// flags every affected call site on both sides. This is the most
-// valuable file in the whole project for preventing protocol drift.
+// Every message the client and server send each other. Both sides import these types, so
+// changing a shape here breaks the build on whichever side forgot to keep up.
 
-// ---- Domain types ----
-
-// Word difficulty. Drives both which pool a word comes from and what it pays.
 export type WordTier = "easy" | "medium" | "hard";
 
-// Room-level knobs. Every field was a hardcoded constant; a room that wants 30-second
-// rounds is a different game from one that wants two minutes.
 export interface RoomSettings {
   turnSeconds: number;
   rounds: number;
   aiSkill: AiSkill;
-  // Themed word packs. Empty means the whole list.
+  // Empty means "use every word", not "use no words".
   packs: string[];
-  // Words the room typed in. Inside jokes are half the reason people play this with friends.
   customWords: string[];
-  // 0 plays the fixed round count. Anything else ends the game the moment someone reaches it,
-  // however many rounds that takes.
+  // 0 means "play the set number of rounds". Any other number means "first to this score wins".
   scoreTarget: number;
 }
 
@@ -28,12 +19,11 @@ export type AiSkill = "easy" | "normal" | "brutal";
 export const SETTINGS_LIMITS = {
   turnSeconds: { min: 20, max: 180, default: 60 },
   rounds: { min: 1, max: 8, default: 3 },
-  // A room's own words. Capped so one player can't stuff the pool or the message.
+  // Capped so one person can't paste in a novel and push everything else out of the pool.
   customWords: { maxCount: 40, maxLength: 24 },
   scoreTarget: { min: 0, max: 5000, default: 0 },
 } as const;
 
-/** Normalize one room-supplied word, or null if it isn't usable as an answer. */
 export function cleanCustomWord(raw: string): string | null {
   const w = raw
     .toLowerCase()
@@ -55,7 +45,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   scoreTarget: 0,
 };
 
-/** Clamp untrusted settings from a client into the allowed range. */
+// A client can send any numbers it likes, so force them back into range before use.
 export function sanitizeSettings(raw: Partial<RoomSettings> | undefined): RoomSettings {
   const clamp = (n: unknown, k: "turnSeconds" | "rounds" | "scoreTarget") => {
     const { min, max, default: d } = SETTINGS_LIMITS[k];
@@ -87,17 +77,13 @@ export function sanitizeSettings(raw: Partial<RoomSettings> | undefined): RoomSe
 export interface PlayerInfo {
   id: string;
   name: string;
-  // The room's owner: the only one who can start a game, change settings, or remove someone.
-  // Eight-player rooms with nobody in charge go wrong the first time someone goes AFK.
   isHost?: boolean;
-  // Lobby only. Advisory, not a gate: the host can still start, so one AFK player
-  // can't hold the room hostage.
+  // Just a hint to everyone else. It does NOT stop the host starting without you.
   ready?: boolean;
-  // Watching, not playing. A full room takes extras as spectators rather than turning them
-  // away; they join the next game if a seat has opened by then.
+  // Watching, not playing. Gets a seat when the next game starts, if one has freed up.
   spectator?: boolean;
-  // One emoji, chosen by the player and remembered locally. Validated server-side against a
-  // fixed set: a free-text field here renders arbitrary strings in everyone's roster.
+  // Check this against AVATARS on the server. Anything else would put whatever string the
+  // client sent straight into everyone else's player list.
   avatar?: string;
 }
 
@@ -110,48 +96,37 @@ export function isAvatar(s: unknown): s is string {
   return typeof s === "string" && (AVATARS as readonly string[]).includes(s);
 }
 
-// ---- Drawing ----
-// Coordinates are normalized to 0..1 (fraction of canvas width/height) so a
-// drawing replays correctly on canvases of any pixel size.
+// Every x and y is 0..1, a fraction of the canvas, never pixels. That way the same drawing
+// looks right on a phone and on a laptop.
 export interface Point {
   x: number;
   y: number;
 }
 
-// A single incremental drawing operation. Streaming start/move/end (rather
-// than whole completed strokes) lets watchers see a line grow in real time.
+// Sent as the line is being drawn, not once it is finished, so watchers see it grow.
 export type DrawOp =
-  // `erase: true` lifts ink back off rather than painting over it in white. Painting white
-  // left white pixels behind, which the fill tool would then treat as a region of its own.
+  // Don't "erase" by painting white. That leaves white pixels behind, and the fill bucket
+  // then treats them as their own area to flood.
   | { kind: "start"; strokeId: string; color: string; width: number; point: Point; erase?: boolean }
-  // `widths` is parallel to `points` when the line tapers (stylus pressure, or speed on a
-  // mouse/finger). Omitted entirely for a constant-width stroke, so nothing pays for it.
+  // `widths` lines up one-to-one with `points`, and is left out for an even stroke.
   | { kind: "move"; strokeId: string; points: Point[]; widths?: number[] }
   | { kind: "end"; strokeId: string }
-  // Bucket fill from a point. Rasterized on each client rather than sent as pixels: a fill is
-  // three numbers on the wire instead of a bitmap. Replaying at a different canvas size gives
-  // a near-identical, not bit-identical, result — fine for a doodle.
+  // Each client works out the filled pixels itself. Replaying on a different sized canvas
+  // gives an almost-identical result, not an exactly identical one.
   | { kind: "fill"; strokeId: string; color: string; point: Point }
   | { kind: "clear" }
-  // Drawer-only. The client sends it bare; the server pops the stroke and echoes it back
-  // naming the stroke, so every client drops that one stroke and repaints from its own log
-  // instead of being sent the whole canvas again.
+  // The client sends this with no id. The server fills the id in and sends it back, so every
+  // client can throw away that one stroke instead of being sent the whole canvas again.
   | { kind: "undo"; strokeId?: string };
 
-// ---- Game state ----
-
-// "choosing": a turn's drawer has been picked and is choosing their word from
-// a few options; nobody can draw or guess yet. Followed by "playing".
 export type GamePhase = "lobby" | "choosing" | "playing" | "intermission" | "ended";
 
-// The room's game mode. A room's mode is fixed by whoever creates it, so a
-// late joiner who requested a different mode still plays (and must be SHOWN)
-// the room's actual mode — hence the server echoes it back in `welcome`.
+// Whoever makes the room picks the mode. Someone joining later gets that mode, not the one
+// they asked for, so show them the mode the server sends back in `welcome`.
 export type GameModeName = "classic" | "ai" | "ai-drawer" | "team-battle" | "duel";
 
-// The view of game state that is safe for EVERY client to see. Note it
-// carries only `wordLength`, never the word itself — the secret word is
-// delivered separately and only to the drawer (see `your_word`).
+// Safe to send to everyone. Never put the secret word in here: only its length. The word
+// itself goes to the drawer alone, in `your_word`.
 export interface PublicGameState {
   phase: GamePhase;
   drawerId: string | null;
@@ -161,17 +136,13 @@ export interface PublicGameState {
   totalRounds: number;
   turnEndsAt: number | null; // epoch ms; clients derive their own countdown
   wordLength: number;
-  // Masked word for guessers: one char per letter — the actual letter once
-  // revealed, otherwise "_" (spaces stay spaces). Letters reveal progressively
-  // as the turn's clock drains. The drawer ignores this (they have `your_word`).
+  // What guessers see, like "g _ i t _ r". More letters appear as the clock runs down.
   hint: string;
   scores: Record<string, number>; // playerId -> points
   guessedIds: string[]; // who has guessed correctly this turn
 }
 
-// ---- Client → Server ----
-// Messages the browser sends. The room + name are supplied at connect
-// time via the WebSocket URL query string, so they are not repeated here.
+// Room, name and avatar are already in the WebSocket URL, so no message repeats them.
 
 export type ClientMessage =
   | {
@@ -179,58 +150,46 @@ export type ClientMessage =
       text: string;
     }
   | {
-      // A drawing operation produced locally by this client.
       type: "draw";
       op: DrawOp;
     }
   | {
-      // Request to start (or restart) the game. Allowed from lobby/ended.
       type: "start_game";
     }
   | {
-      // The drawer's pick among the offered word choices (sent only while
-      // this client is the drawer in the "choosing" phase). Ignored otherwise.
       type: "choose_word";
       word: string;
     }
   | {
-      // Throw away all three options and get three new ones. One per player per game,
-      // so a drawer stuck with three unrawable words isn't simply stuck.
       type: "skip_word";
     }
   | {
-      // Change the room's settings. Lobby only; the server clamps every value.
+      // Lobby only, and the server clamps every value.
       type: "set_settings";
       settings: Partial<RoomSettings>;
     }
   | {
-      // Host only: remove a player from the room.
       type: "kick";
       playerId: string;
     }
   | {
-      // Lobby only: "I'm at my keyboard".
+      // Lobby only.
       type: "ready";
       ready: boolean;
     }
   | {
-      // Throw an emoji at the canvas. Guessers spend most of a round with nothing to do.
       type: "react";
       emoji: string;
     }
   | {
-      // Where the drawer's pen is hovering. Never persisted to the stroke log — it is a
-      // liveness cue, not part of the drawing, and a late joiner must not replay it.
+      // Never save this to the stroke log. It shows where the pen is right now; someone
+      // joining late must not have old pen positions replayed at them as if they were ink.
       type: "cursor";
       point: Point | null;
     };
 
-// ---- Server → Client ----
-
 export type ServerMessage =
   | {
-      // Sent right after a successful connection: who you are, and the room's
-      // actual game mode (which may differ from what this client requested).
       type: "welcome";
       you: PlayerInfo;
       roomId: string;
@@ -238,86 +197,72 @@ export type ServerMessage =
       settings: RoomSettings;
     }
   | {
-      // Broadcast whenever the room's settings change, so every lobby stays in step.
       type: "settings";
       settings: RoomSettings;
     }
   | {
-      // The drawer's pen position, relayed to everyone else. null means it left the canvas.
       type: "cursor";
       playerId: string;
       point: Point | null;
     }
   | {
-      // Somebody reacted. `at` is a horizontal position so simultaneous reactions don't stack.
+      // `at` is where across the canvas it floats up, so two at once don't land on top.
       type: "react";
       emoji: string;
       at: number;
     }
   | {
-      // Current roster of the room. Re-sent whenever it changes.
       type: "presence";
       players: PlayerInfo[];
     }
   | {
-      // A chat line from any player (including yourself, echoed back
-      // by the authoritative server rather than rendered optimistically).
+      // Your own messages come back to you this way too. Don't also show them straight away
+      // or you will see them twice.
       type: "chat";
       from: PlayerInfo;
       text: string;
     }
   | {
-      // Server-generated notices ("Alice joined", etc.).
       type: "system";
       text: string;
     }
   | {
-      // A drawing op relayed from another client. The drawer does NOT
-      // receive their own ops back (they render locally for zero latency).
+      // Only from OTHER people. You never get your own strokes back, because you already
+      // drew them on your own screen the instant you made them.
       type: "draw";
       op: DrawOp;
     }
   | {
-      // Full replay of the current canvas, sent once on join so a
-      // late-comer catches up to the in-progress drawing.
+      // The whole canvas so far, sent when you join a drawing already in progress.
       type: "canvas_sync";
       ops: DrawOp[];
     }
   | {
-      // Authoritative snapshot of public game state. Broadcast on every
-      // phase change, guess, or score update.
       type: "game_state";
       state: PublicGameState;
     }
   | {
-      // Word options offered to the drawer during the "choosing" phase. Sent
-      // ONLY to the drawer; they reply with `choose_word`.
+      // Sent only to the drawer.
       type: "word_choices";
       words: string[];
-      // Whether this drawer still has their one skip. Drives the button's enabled state.
       canSkip: boolean;
-      // Parallel to `words`: the tier of each option, so the drawer can see what
-      // the harder pick is worth before committing to drawing it.
+      // Lines up one-to-one with `words`.
       tiers: WordTier[];
     }
   | {
-      // The secret word — sent ONLY to the current drawer at turn start.
+      // Sent to the drawer and nobody else. This is the one message with the answer in it.
       type: "your_word";
       word: string;
     }
   | {
-      // End of a turn: reveal the word and the updated scores.
       type: "turn_end";
       word: string;
       scores: Record<string, number>;
     };
 
-// Narrowing helpers so consumers get exhaustive switch checking.
-export type ServerMessageType = ServerMessage["type"];
-// The only emoji a client may send. An open string field here is a way to paint arbitrary
-// text over everyone's canvas.
-// Single-codepoint emoji only. 🗑️ carries a variation selector and rendered as a missing-glyph
-// box in Chrome on macOS.
+// Check incoming reactions against this list. A free-text field here would let anyone paint
+// any string across everyone's canvas.
+// One codepoint each: 🗑️ has a hidden extra character and showed up as an empty box.
 export const REACTIONS = ["😂", "🔥", "💀", "👏", "😍", "🤔", "🙈", "🐶"] as const;
 export type Reaction = (typeof REACTIONS)[number];
 
@@ -325,4 +270,3 @@ export function isReaction(s: unknown): s is Reaction {
   return typeof s === "string" && (REACTIONS as readonly string[]).includes(s);
 }
 
-export type ClientMessageType = ClientMessage["type"];

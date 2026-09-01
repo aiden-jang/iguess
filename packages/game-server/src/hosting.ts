@@ -1,5 +1,4 @@
-// Who owns the room, and who is playing versus watching. Kept as pure helpers (mirrors
-// limits.ts and roomReset.ts) so the policy is unit-testable without a Durable Object.
+// Plain functions on purpose, so the rules can be tested without a Durable Object.
 
 import { MAX_PLAYERS_PER_ROOM } from "./limits.ts";
 
@@ -8,13 +7,11 @@ export interface Seat {
   spectator: boolean;
 }
 
-/**
- * Move waiting spectators into free seats, oldest first.
- *
- * Also the escape hatch from a dead room: when every player leaves and only spectators are
- * left, nothing would ever promote them — the host is picked from players, and spectators are
- * only seated when a host starts a game. The room would sit there unable to start anything.
- */
+// Seat waiting watchers, oldest first.
+//
+// This is also the only way out of a stuck room. The host is chosen from players, and watchers
+// are only seated when a host starts a game, so a room where everyone playing has left would
+// sit there forever with nobody able to start anything.
 export function seatSpectators(seats: Seat[]): Seat[] {
   let playing = seats.filter((s) => !s.spectator).length;
   return seats.map((s) => {
@@ -26,7 +23,6 @@ export function seatSpectators(seats: Seat[]): Seat[] {
   });
 }
 
-/** The host: longest-present player. Null only when the room is empty. */
 export function pickHost(seats: Seat[], currentHostId: string | null): string | null {
   if (currentHostId && seats.some((s) => s.id === currentHostId && !s.spectator)) return currentHostId;
   return seats.find((s) => !s.spectator)?.id ?? null;
