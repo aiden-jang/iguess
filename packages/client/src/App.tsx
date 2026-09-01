@@ -7,6 +7,8 @@ import type { WordTier } from "@iguess/shared";
 import { newRoomCode } from "@iguess/shared/roomCode";
 import { PACK_NAMES } from "@iguess/shared/words";
 import { REACTIONS } from "@iguess/shared";
+import type { DrawOp } from "@iguess/shared";
+import { Replay } from "./Replay";
 
 // What each tier pays, mirroring TIER_MULTIPLIER on the server.
 const TIER_LABEL: Record<WordTier, string> = { easy: "1x", medium: "1.25x", hard: "1.6x" };
@@ -581,6 +583,8 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
   const [width, setWidth] = useState(4);
   const [erasing, setErasing] = useState(false);
   const [filling, setFilling] = useState(false);
+  const [replayIdx, setReplayIdx] = useState<number | null>(null);
+  const roundOps = useRef<DrawOp[]>([]);
   // Chat auto-scroll: follow the newest message while pinned to the bottom; if the user has scrolled
   // up to read history, stop following and surface a "new messages" button instead of yanking them down.
   const chatLogRef = useRef<HTMLDivElement>(null);
@@ -631,7 +635,9 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
    * game would be an account feature in an app that deliberately has no accounts.
    */
   const [savingEvidence, setSavingEvidence] = useState(false);
-  const [gallery, setGallery] = useState<{ word: string; png: string; guess: string | null; right: boolean }[]>([]);
+  const [gallery, setGallery] = useState<
+    { word: string; png: string; guess: string | null; right: boolean; ops: DrawOp[] }[]
+  >([]);
   /*
    * The AI's last guess, held past the moment it's cleared from the canvas bubble.
    *
@@ -721,7 +727,8 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
     const png = thumbnailOf(el);
     if (!png) return;
     const { guess, right } = lastGuess.current;
-    setGallery((g) => [...g, { word: turnEnd.word, png, guess, right }]);
+    // Snapshot the ops too: the still is for sharing, the ops are for replaying the round.
+    setGallery((g) => [...g, { word: turnEnd.word, png, guess, right, ops: roundOps.current.slice() }]);
     lastGuess.current = { guess: null, right: false };
   }, [turnEnd?.at]);
 
@@ -1364,6 +1371,7 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
             width={width}
             erasing={erasing}
             filling={filling}
+            opsRef={roundOps}
             onCursor={sendCursor}
             peerCursor={peerCursor}
             canDraw={canDraw}
@@ -1425,7 +1433,18 @@ function Room({ name, room, mode, onLeave }: { name: string; room: string; mode:
             <div style={styles.galleryStrip}>
               {gallery.map((g, i) => (
                 <figure key={i} style={styles.galleryItem}>
-                  <img src={g.png} alt={`the drawing for "${g.word}"`} style={styles.galleryImg} />
+                  {replayIdx === i ? (
+                    <Replay ops={g.ops} size={160} />
+                  ) : (
+                    <img src={g.png} alt={`the drawing for "${g.word}"`} style={styles.galleryImg} />
+                  )}
+                  <button
+                    style={styles.replayButton}
+                    onClick={() => setReplayIdx(replayIdx === i ? null : i)}
+                    title={replayIdx === i ? "show the finished drawing" : "watch it being drawn"}
+                  >
+                    {replayIdx === i ? "◼ still" : "▶ replay"}
+                  </button>
                   <figcaption style={styles.galleryCaption}>{g.word}</figcaption>
                   {/*
                     What the machine thought it was.
@@ -1928,6 +1947,17 @@ const styles: Record<string, React.CSSProperties> = {
   },
   tiles: { display: "flex", gap: 5 },
   disabled: { opacity: 0.5, cursor: "not-allowed" },
+  replayButton: {
+    marginTop: 4,
+    border: "1px solid var(--line)",
+    background: "transparent",
+    color: "var(--muted)",
+    borderRadius: 8,
+    fontSize: 10,
+    fontWeight: 700,
+    padding: "2px 7px",
+    cursor: "pointer",
+  },
   readyOn: { borderColor: "var(--good)", color: "var(--on-good)", background: "var(--tint-good)" },
   kickButton: {
     border: "none",
