@@ -82,6 +82,9 @@ export interface GuessLoopOpts {
   // 0..1, how often a win is preceded by a wrong shout. A seam so tests aren't coin flips.
   teaseChance?: number;
   skill?: AiSkill;
+  // Every guess the AI actually says out loud, correct or not. Lets a mode settle calls
+  // players made on what the machine would say.
+  onSaid?: (guess: string) => void;
 }
 
 /** How long to wait before looking again, given how much was drawn since the last look. */
@@ -158,8 +161,10 @@ export function startGuessLoop(
     if (!correct) {
       // Misses get the hedging personality so the bot feels alive, not robotic.
       say(phraseGuess(guess, alternatives));
+      opts.onSaid?.(guess);
       return;
     }
+    opts.onSaid?.(hit!);
 
     // Landing the answer out of nowhere is flat. A wrong shout, a beat, then the answer plays
     // like it worked it out. The beat is short and guarded: the turn can end inside it.

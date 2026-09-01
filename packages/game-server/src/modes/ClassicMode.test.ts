@@ -129,3 +129,38 @@ test("reading the drawing before any letter appears pays extra", () => {
   assert.ok(unaided.scores["you"]! > aided.scores["you"]!,
     `no-hint ${unaided.scores["you"]} should beat hinted ${aided.scores["you"]}`);
 });
+
+test("calling the machine's guess pays when it lands, and is never read as a guess", () => {
+  const mode = new ClassicMode();
+  const { ctx, scores } = makeCtx(1, "guitar");
+  mode.onTurnStart({ turnIndex: 0, drawerId: "drawer", word: "guitar" }, ctx);
+
+  // "?guitar" must not win the round outright even though it contains the answer.
+  mode.onChat("you", "?guitar", ctx);
+  assert.equal(scores["you"] ?? 0, 0, "a call is not a guess");
+
+  (mode as unknown as { settleBets: (s: string, c: typeof ctx) => void }).settleBets("guitar", ctx);
+  assert.ok((scores["you"] ?? 0) > 0, "a correct call should pay");
+});
+
+test("a wrong call pays nothing and is spent", () => {
+  const mode = new ClassicMode();
+  const { ctx, scores } = makeCtx(1, "guitar");
+  mode.onTurnStart({ turnIndex: 0, drawerId: "drawer", word: "guitar" }, ctx);
+  mode.onChat("you", "?horse", ctx);
+  const settle = (mode as unknown as { settleBets: (s: string, c: typeof ctx) => void }).settleBets.bind(mode);
+  settle("cow", ctx);
+  assert.equal(scores["you"] ?? 0, 0);
+  settle("horse", ctx); // the call is gone; saying it later must not pay
+  assert.equal(scores["you"] ?? 0, 0);
+});
+
+test("a new turn clears last turn's calls", () => {
+  const mode = new ClassicMode();
+  const { ctx, scores } = makeCtx(1, "guitar");
+  mode.onTurnStart({ turnIndex: 0, drawerId: "drawer", word: "guitar" }, ctx);
+  mode.onChat("you", "?horse", ctx);
+  mode.onTurnStart({ turnIndex: 1, drawerId: "drawer", word: "apple" }, ctx);
+  (mode as unknown as { settleBets: (s: string, c: typeof ctx) => void }).settleBets("horse", ctx);
+  assert.equal(scores["you"] ?? 0, 0);
+});
