@@ -1239,17 +1239,6 @@ function Room({
                   </label>
                 )}
                 <label style={styles.settingLabel}>
-                  ours
-                  <input
-                    style={{ ...styles.settingSelect, width: 150 }}
-                    disabled={!youAreHost}
-                    placeholder="your own words, comma separated"
-                    defaultValue={settings.customWords.join(", ")}
-                    onBlur={(e) => updateSettings({ customWords: e.target.value.split(",") })}
-                    onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-                  />
-                </label>
-                <label style={styles.settingLabel}>
                   ends
                   <select
                     style={styles.settingSelect}
@@ -1658,7 +1647,7 @@ function Room({
               canDraw
                 ? "eyes on the canvas, picasso ✋"
                 : inGame
-                ? "guess it bestie…"
+                ? "guess it bestie… (?word calls the AI)"
                 : "say something fr"
             }
             disabled={canDraw}

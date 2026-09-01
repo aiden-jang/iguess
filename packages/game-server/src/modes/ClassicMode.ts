@@ -4,6 +4,8 @@ import { normalizeGuess, isClose } from "../text.ts";
 import type { WordMemory } from "../wordMemory.ts";
 import { SETTINGS_LIMITS, type RoomSettings } from "@iguess/shared";
 
+const CALL_REWARD = 40;
+
 export { WORDS }; // re-export so AIGuesserMode's fallback can reuse it
 
 // Classic skribbl-style mode: humans take turns drawing, everyone else
@@ -29,6 +31,8 @@ export class ClassicMode implements GameMode {
   private memory?: WordMemory;
   private packs: string[] = [];
   private customWords: string[] = [];
+  // Live calls on the AI's next guess, one per player. Cleared each turn.
+  protected bets = new Map<string, string>();
 
   constructor(rounds = 3) {
     this.rounds = Math.max(1, rounds);
@@ -110,13 +114,38 @@ export class ClassicMode implements GameMode {
   }
 
   onTurnStart(turn: TurnContext, ctx: EngineContext): void {
+    this.bets.clear();
     // Secret word goes ONLY to the drawer.
     ctx.sendToPlayer(turn.drawerId, { type: "your_word", word: turn.word });
+  }
+
+  /** Settle calls against what the AI actually said. Every call is spent, right or wrong. */
+  protected settleBets(said: string, ctx: EngineContext): void {
+    const heard = normalizeGuess(said);
+    for (const [playerId, call] of this.bets) {
+      if (call !== heard) continue;
+      ctx.awardPoints(playerId, CALL_REWARD);
+      ctx.broadcast({
+        type: "system",
+        text: `📞 ${ctx.getName(playerId)} called it: the machine said "${heard}" (+${CALL_REWARD})`,
+      });
+    }
+    this.bets.clear();
+    ctx.syncState();
   }
 
   onChat(playerId: string, text: string, ctx: EngineContext): boolean {
     const word = ctx.currentWord();
     if (!word) return false; // not in a live turn → normal chat
+    // "?dog" is a call on what the machine will say next, not a guess at the word. Checked
+    // before the guess path: normalizeGuess would strip the "?" and score it as an answer.
+    if (text.trimStart().startsWith("?")) {
+      const call = normalizeGuess(text.trimStart().slice(1));
+      if (!call) return true;
+      this.bets.set(playerId, call);
+      ctx.sendToPlayer(playerId, { type: "system", text: `📞 called it: the machine says "${call}"` });
+      return true;
+    }
     if (playerId === ctx.currentDrawerId()) return true; // hide drawer chat
     if (ctx.hasGuessed(playerId)) return true; // already done → stay quiet
     // Normalize both sides so punctuation, accents, casing and stray spaces

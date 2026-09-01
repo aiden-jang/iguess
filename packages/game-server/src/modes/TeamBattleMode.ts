@@ -106,6 +106,7 @@ export class TeamBattleMode extends ClassicMode {
         aiId: AI_ID,
         aiName: AI_NAME,
         skill: this.skill,
+        onSaid: (g) => this.settleBets(g, ctx),
         requestGuess: this.requestGuess,
         onCorrect: () => this.winRound("ai", AI_ID, ctx),
         onUnavailable: () =>

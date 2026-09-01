@@ -101,6 +101,7 @@ export class DuelMode extends ClassicMode {
         aiId: AI_ID,
         aiName: AI_NAME,
         skill: this.skill,
+        onSaid: (g) => this.settleBets(g, ctx),
         requestGuess: this.requestGuess,
         onCorrect: () => this.acceptGuess(AI_ID, ctx),
         onUnavailable: () =>
