@@ -347,3 +347,32 @@ Honest list:
 **Next three things, in order:** (1) persist engine state to the DO's SQLite so a
 room survives eviction; (2) an end-to-end test across the real WebSocket +
 Durable Object; (3) signed session tokens so a `pid` can't be spoofed.
+
+# How it works, moved out of the README
+
+*Moved out of the README, which is the front door and was carrying the whole house.*
+
+## Game modes
+
+A mode implements the `GameMode` interface and gets an `EngineContext` of verbs
+(`broadcast`, `awardPoints`, `endTurn`, `addParticipant`, and so on). The engine
+calls the mode at set points (`configure`, `pickDrawer`, `pickWord`,
+`pickWordChoices`, `onTurnStart`, `onChat`, `canDraw`, `onTurnEnd`, `onGameEnd`).
+Adding a mode means writing a class, not editing the engine.
+
+- **ClassicMode.** Humans take turns drawing, everyone else guesses in chat.
+  The other four build on this one.
+- **AIGuesserMode.** Adds an AI player that guesses off the live canvas on a
+  timer.
+- **AIDrawerMode.** The AI does all the drawing (its strokes go through the
+  engine via `ctx.draw`) and humans guess.
+- **TeamBattleMode.** Humans vs AI. Rounds alternate who draws, and the first
+  correct guess wins the round for that side.
+- **DuelMode.** You vs the AI, head-to-head. You trade the drawer role each turn
+  (you draw and the AI reads your canvas; then the AI draws and you guess), and
+  both sides bank cumulative points — so unlike TeamBattle's round-win race, the
+  AI earns points both as guesser and as drawer. Most points beats the machine.
+
+The `pickWordChoices` hook drives the word-choice step: return 2+ words and the
+drawer gets to choose one; return `null` to skip it (the AI drawer just picks its
+own word).
