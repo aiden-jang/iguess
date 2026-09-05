@@ -1,6 +1,6 @@
 # Architecture
 
-A deep-dive into how *iguess* is built, why it's structured this way, and
+A deep-dive into how _iguess_ is built, why it's structured this way, and
 what I'd change to take it to production. Written to be read top-to-bottom; each
 section ends with the trade-off I actually made.
 
@@ -23,7 +23,7 @@ The sections below are the long form, each ending with the trade-off I made.
 The central design bet is that **the game timeline and the game rules are
 different things and should never be tangled together.**
 
-- **`engine.ts` (`GameEngine`)** owns the *timeline*: phases
+- **`engine.ts` (`GameEngine`)** owns the _timeline_: phases
   (`lobby → choosing → playing → intermission → ended`), the per-turn timer, the
   scoreboard, the "who has guessed" set, and broadcasting public state. It
   contains **zero game rules**. It does not know what a "word" means, who is
@@ -34,13 +34,13 @@ different things and should never be tangled together.**
 
 The two halves meet through two narrow interfaces:
 
-- **`EngineDeps`** — what the transport layer injects *into* the engine
+- **`EngineDeps`** — what the transport layer injects _into_ the engine
   (`broadcast`, `sendToPlayer`, `clearCanvas`, `drawOp`, …). The engine never
   imports the transport or a store; it only knows these verbs. That's what makes
   it unit-testable and transport-agnostic — and it's exactly why the whole thing
   ported from a Node/`ws`/Redis process into a Cloudflare Durable Object without
   the engine or the modes changing at all (see §4).
-- **`EngineContext`** — the verbs the engine hands *to* a mode
+- **`EngineContext`** — the verbs the engine hands _to_ a mode
   (`awardPoints`, `endTurn`, `addParticipant`, `draw`, `turnFractionRemaining`,
   …). A mode never sees a socket, a store, or even the full engine — just this
   surface.
@@ -60,17 +60,17 @@ transport (worker.ts → GameRoom Durable Object)
    └─ DuelMode         (You vs AI)
 ```
 
-**Why this holds up:** four of the five modes were added *after* the engine
+**Why this holds up:** four of the five modes were added _after_ the engine
 froze, and none required an engine change. `ClassicMode` is a concrete base;
 the four AI modes extend or compose it. The only engine evolution the whole
 project needed was a single new verb — see §6.
 
-**Where shared *behavior* lives (and why not in the engine):** the AI's
+**Where shared _behavior_ lives (and why not in the engine):** the AI's
 interval guess loop and progressive draw-reveal loop are shared by multiple
 modes, but they're **mode policy** (cadence, cost caps, reveal speed), not
 timeline. So they live in composable helpers (`ai/aiGuessLoop.ts`,
-`ai/aiDrawLoop.ts`) that modes *compose*, rather than in the engine or in a mode
-base class. `TeamBattleMode` and `DuelMode` each need *both* loops and can't
+`ai/aiDrawLoop.ts`) that modes _compose_, rather than in the engine or in a mode
+base class. `TeamBattleMode` and `DuelMode` each need _both_ loops and can't
 extend two mode classes — that pressure is exactly what proved the helpers
 belong outside the inheritance tree.
 
@@ -105,7 +105,7 @@ flows through `broadcast`/`broadcastExcept`. The drawing model:
 > **Decision — authoritative server over client prediction / P2P.** This is a
 > trust boundary as much as a latency one: a cheating client can't fabricate
 > game state because it has no authority over it. The cost is a round-trip for
-> *remote* strokes; I hide it only for the local drawer. Because there's exactly
+> _remote_ strokes; I hide it only for the local drawer. Because there's exactly
 > one drawer per turn (a draw-lock, not a CRDT), I never need conflict
 > resolution — a deliberate simplification versus collaborative drawing.
 
@@ -140,14 +140,14 @@ Key properties:
   op list), then re-guesses every 10s, capped at 4 attempts per turn.
 - **The secret word never leaves the trusted boundary.** Only stroke ops are
   sent to the worker; the word is delivered solely to the drawer via
-  `your_word`. Anti-cheat (and privacy) is enforced by the *absence* of data,
+  `your_word`. Anti-cheat (and privacy) is enforced by the _absence_ of data,
   not by trusting a client.
 - **Providers are swappable and auto-detected.** Mock / OpenAI / Anthropic
   behind one interface; the mock means the whole system runs with zero API keys.
 
 > **Decision — interval snapshot polling over per-frame or final-image
 > guessing.** Per-frame would be accurate but ruinously expensive and pointless
-> (the canvas barely changes between frames). Guessing only the *final* image
+> (the canvas barely changes between frames). Guessing only the _final_ image
 > would kill the "AI races you live" feel. Interval polling with a hard cap is
 > the middle that's both affordable and fun. **Decision — a separate worker over
 > an inline call** so vision latency is isolated and the model tier can scale
@@ -157,7 +157,7 @@ Key properties:
 
 ## 4. Scaling stateful WebSocket servers — the design, now realized by Durable Objects
 
-This section originally described how I'd *hypothetically* scale a single Node
+This section originally described how I'd _hypothetically_ scale a single Node
 process horizontally. Porting to Cloudflare turned that design into the actual
 implementation, so it's worth reading as "the problem, the approach I reasoned
 out, and the runtime that happens to be that approach."
@@ -165,13 +165,13 @@ out, and the runtime that happens to be that approach."
 **The hard constraint: the engine is a single-writer.** Each room has one
 authoritative timeline with one running timer. If two instances both ran a
 room's engine, you'd get two timers, two "turn ended" events, double scoring.
-So *whatever* the topology, **each room must have exactly one owning process at
+So _whatever_ the topology, **each room must have exactly one owning process at
 a time.** That constraint is what ruled out the naive answers (fully stateless
-instances + pub/sub relay solves *message delivery* but not *authority*; you'd
+instances + pub/sub relay solves _message delivery_ but not _authority_; you'd
 still get two timers). The approach that survives it is **route by room, not by
 connection**: consistent-hash each room to one owning instance, keep in-room
 broadcast a local in-memory fan-out, and make the owner's state rehydratable so
-a failover is a *rehydrate*, not a *rebuild*.
+a failover is a _rehydrate_, not a _rebuild_.
 
 **A Durable Object is exactly that owner, by construction.** In the Cloudflare
 port, each room is one `GameRoom` Durable Object addressed by `idFromName(room)`.
@@ -185,7 +185,7 @@ So:
    the socket to that object. Cloudflare routes it to the one instance.
 2. **In-room broadcast is a local in-memory fan-out.** The roster and stroke log
    live in the object's memory (no Redis, no per-message network hop) because the
-   object *is* the single owner — there's no other instance to synchronize with.
+   object _is_ the single owner — there's no other instance to synchronize with.
 3. **The timeline runs in the object.** The turn `setTimeout` lives inside the
    DO. To keep timers alive I use **pinned** WebSockets (`server.accept()`)
    rather than the hibernation API, since hibernation evicts pending timers — a
@@ -198,7 +198,7 @@ So:
 
 > **Decision — Durable Objects over a hand-rolled room-affinity cluster.** The
 > earlier plan (L7 consistent-hash by `roomId` + Redis checkpointing +
-> rehydrate-on-failover) was the *right* design; a Durable Object is that design
+> rehydrate-on-failover) was the _right_ design; a Durable Object is that design
 > delivered as a primitive, minus the infrastructure I'd otherwise operate. The
 > trade-offs are inherent to single-writer-per-room, not to the platform: a
 > single hot room still can't be split across instances (fine for a party game —
@@ -210,33 +210,33 @@ So:
 
 ## 5. Decision log (X over Y)
 
-| Decision | Chosen | Over | Reason |
-|---|---|---|---|
-| State authority | Authoritative server | Client prediction / P2P | Trust boundary + single source of truth |
-| Transport | Raw `ws` | Socket.IO | Visibility into the protocol; no hidden reconnection/room magic to learn |
-| Mode boundary | Strategy + DI | `if (mode)` branches / deep inheritance | Zero engine churn; supports a mode needing two behaviors |
-| Shared AI behavior | Composable helpers | Mode base class / engine | It's policy, not timeline; one mode needs both loops |
-| Canvas sync | Streamed ops | Snapshot images | Tiny messages, live growth, perfect replay, resolution-independent |
-| AI guess timing | Ink-delta pacing + cap | Fixed interval | A flat interval both stares at an untouched canvas and waits through a burst; cost falls out of the same knob |
-| AI difficulty | Later, rarer, second-guesses itself | Corrupt its answers | It still says what it actually saw; a bot that lies on purpose stops being a demo of the model |
-| AI confidence | Ranked shortlist | Confidence percentages | These APIs return no calibrated confidence — a percentage would be invented, and the runners-up are the funnier signal anyway |
-| AI vision | Separate Worker | Inline call | Isolate latency; scale the model tier independently |
-| AI drawer art | Curated doodle library | Generative model | Legible, free, testable; a generator can slot behind the same injected callback |
-| Doodle variation | Post-process the vectors | More source doodles | 12 fixed pictures read as canned no matter how many you add; a wobble pass makes each one a subject instead of an image, and it is ~100 lines |
-| Word difficulty | Three tiers, one offered each | Flat list | Makes the pick a bet: harder words pay more, so choosing is a decision rather than a formality |
-| Word repetition | Per-room recency, capped at half a pool | Global shuffle bag | A shuffle bag over a small pool (40 doodles) starves; the cap guarantees a pick always exists |
-| Undo sync | Echo the stroke id | Rebroadcast the canvas | Undo was the largest message in the room, fired by the button people press most; both sides run the same `dropStroke` so they cannot disagree |
-| Fill tool | Rasterize per client | Send pixels | Three numbers on the wire instead of a bitmap; a replay at a different size is near-identical, which is fine for a doodle |
-| Eraser | `destination-out` | Paint white | White pixels are a region the fill tool would treat as its own; erasing back to transparent keeps one background |
-| Overfull rooms | Spectator gallery (capped) | Refuse the connection | Closing the socket on the ninth friend is a worse answer than letting them watch; the gallery is capped because every connection still receives every draw op |
-| Room identity | Generated word codes | A shared default room | Everyone landed in one room called "lobby", so unrelated groups collided and the second one hit the player cap |
-| Invite links | `/r/:room` path | URL hash | A hash never reaches the server, so a scraper could only ever unfurl the generic card |
-| Team scoring | System messages + scoreboard | New `PublicGameState` fields | Team scoring is mode-specific; adding it to the shared contract is the wrong coupling |
-| Room runtime | Durable Object per room | Node + Redis / stateless + pub-sub | Single-writer-per-room by construction; roster + strokes in-memory, no external store (§4) |
-| WebSocket style | Pinned (`server.accept()`) | Hibernation API | The turn timer must survive; hibernation evicts pending timers |
-| Comments | Traps and constraints only | Explaining the code | Naming carries what the code does; a comment earns its place by recording something that would cost someone real time to rediscover |
-| Shared rules | Pure functions in `shared/` | Duplicated per side | Undo, word tiers and awards all run on both client and server, and a disagreement shows up as one player seeing a stroke another has dropped |
-| Abuse limits | Per-IP + per-room + per-connection caps | Accounts / auth | Bound the blast radius (spammed rooms, overfull rooms, message floods) without bolting a login onto a share-a-link party game |
+| Decision           | Chosen                                  | Over                                    | Reason                                                                                                                                                        |
+| ------------------ | --------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| State authority    | Authoritative server                    | Client prediction / P2P                 | Trust boundary + single source of truth                                                                                                                       |
+| Transport          | Raw `ws`                                | Socket.IO                               | Visibility into the protocol; no hidden reconnection/room magic to learn                                                                                      |
+| Mode boundary      | Strategy + DI                           | `if (mode)` branches / deep inheritance | Zero engine churn; supports a mode needing two behaviors                                                                                                      |
+| Shared AI behavior | Composable helpers                      | Mode base class / engine                | It's policy, not timeline; one mode needs both loops                                                                                                          |
+| Canvas sync        | Streamed ops                            | Snapshot images                         | Tiny messages, live growth, perfect replay, resolution-independent                                                                                            |
+| AI guess timing    | Ink-delta pacing + cap                  | Fixed interval                          | A flat interval both stares at an untouched canvas and waits through a burst; cost falls out of the same knob                                                 |
+| AI difficulty      | Later, rarer, second-guesses itself     | Corrupt its answers                     | It still says what it actually saw; a bot that lies on purpose stops being a demo of the model                                                                |
+| AI confidence      | Ranked shortlist                        | Confidence percentages                  | These APIs return no calibrated confidence — a percentage would be invented, and the runners-up are the funnier signal anyway                                 |
+| AI vision          | Separate Worker                         | Inline call                             | Isolate latency; scale the model tier independently                                                                                                           |
+| AI drawer art      | Curated doodle library                  | Generative model                        | Legible, free, testable; a generator can slot behind the same injected callback                                                                               |
+| Doodle variation   | Post-process the vectors                | More source doodles                     | 12 fixed pictures read as canned no matter how many you add; a wobble pass makes each one a subject instead of an image, and it is ~100 lines                 |
+| Word difficulty    | Three tiers, one offered each           | Flat list                               | Makes the pick a bet: harder words pay more, so choosing is a decision rather than a formality                                                                |
+| Word repetition    | Per-room recency, capped at half a pool | Global shuffle bag                      | A shuffle bag over a small pool (40 doodles) starves; the cap guarantees a pick always exists                                                                 |
+| Undo sync          | Echo the stroke id                      | Rebroadcast the canvas                  | Undo was the largest message in the room, fired by the button people press most; both sides run the same `dropStroke` so they cannot disagree                 |
+| Fill tool          | Rasterize per client                    | Send pixels                             | Three numbers on the wire instead of a bitmap; a replay at a different size is near-identical, which is fine for a doodle                                     |
+| Eraser             | `destination-out`                       | Paint white                             | White pixels are a region the fill tool would treat as its own; erasing back to transparent keeps one background                                              |
+| Overfull rooms     | Spectator gallery (capped)              | Refuse the connection                   | Closing the socket on the ninth friend is a worse answer than letting them watch; the gallery is capped because every connection still receives every draw op |
+| Room identity      | Generated word codes                    | A shared default room                   | Everyone landed in one room called "lobby", so unrelated groups collided and the second one hit the player cap                                                |
+| Invite links       | `/r/:room` path                         | URL hash                                | A hash never reaches the server, so a scraper could only ever unfurl the generic card                                                                         |
+| Team scoring       | System messages + scoreboard            | New `PublicGameState` fields            | Team scoring is mode-specific; adding it to the shared contract is the wrong coupling                                                                         |
+| Room runtime       | Durable Object per room                 | Node + Redis / stateless + pub-sub      | Single-writer-per-room by construction; roster + strokes in-memory, no external store (§4)                                                                    |
+| WebSocket style    | Pinned (`server.accept()`)              | Hibernation API                         | The turn timer must survive; hibernation evicts pending timers                                                                                                |
+| Comments           | Traps and constraints only              | Explaining the code                     | Naming carries what the code does; a comment earns its place by recording something that would cost someone real time to rediscover                           |
+| Shared rules       | Pure functions in `shared/`             | Duplicated per side                     | Undo, word tiers and awards all run on both client and server, and a disagreement shows up as one player seeing a stroke another has dropped                  |
+| Abuse limits       | Per-IP + per-room + per-connection caps | Accounts / auth                         | Bound the blast radius (spammed rooms, overfull rooms, message floods) without bolting a login onto a share-a-link party game                                 |
 
 ---
 
@@ -245,11 +245,11 @@ So:
 Until a mode let the AI draw, strokes only ever originated from a human socket, so
 the engine never needed a "draw" verb — human draw ops were persisted and
 broadcast entirely in the transport layer. **AI-as-drawer broke that
-assumption:** the AI must emit strokes *through the engine*, and they must be
+assumption:** the AI must emit strokes _through the engine_, and they must be
 persisted, or a mid-turn joiner's `canvas_sync` would miss them.
 
 The fix was a single transport-agnostic verb — `ctx.draw(op)` (backed by
-`EngineDeps.drawOp`) — that persists to the stroke log *and* broadcasts,
+`EngineDeps.drawOp`) — that persists to the stroke log _and_ broadcasts,
 symmetric with the existing `clearCanvas()`. The engine still has no idea who or
 why; it just stopped assuming strokes can only come from a socket. Discovering a
 missing abstraction from a concrete new requirement — rather than speculating it
@@ -289,7 +289,7 @@ Worth writing down, because none of it was caught by the unit tests that were pa
 Honest list:
 
 - **The AI drawer is still curated, not generative** — 40 hand-coded vector
-  doodles. What changed is that they no longer *look* canned: a post-processing
+  doodles. What changed is that they no longer _look_ canned: a post-processing
   pass redraws each one with an unsteady hand, so the same word never produces
   the same picture. The seam for a real generator is unchanged
   (`AIDrawerMode`'s injected `requestDrawing`), and the wobble pass would apply
@@ -306,14 +306,14 @@ Honest list:
   rejoin as the same player (keeps score, draw order, drawer role) before it's
   removed from the game, the drawer's secret word is re-delivered on reconnect,
   and an overlap reconnect no longer ends the turn or duplicates the roster
-  entry. *Remaining:* the `pid` is client-asserted — a signed session token would
+  entry. _Remaining:_ the `pid` is client-asserted — a signed session token would
   stop one client claiming another's id.
 - **Error handling hardened:** the connect/close handlers are wrapped, the
   client guards malformed frames, and process-level `unhandledRejection` /
   `uncaughtException` handlers keep one bad async path from killing every room.
 - **Abuse limits, server-enforced at three layers.** (1) A per-IP cap on new
   connections via Cloudflare's rate-limit binding, checked at the Worker edge
-  *before* a room's Durable Object is created — so one client can't spin up
+  _before_ a room's Durable Object is created — so one client can't spin up
   unbounded rooms/objects. (2) A per-room player cap (8) that turns away extra
   joiners with a terminal close code the client renders as a "room's full"
   notice, while always readmitting reconnects (they reclaim an existing slot).
@@ -323,20 +323,20 @@ Honest list:
   a bill. The pure policy (`atCapacity`) is unit-tested; the per-IP layer
   degrades open when the binding is absent (local dev). Rooms now have a host —
   the longest-present player — and only the host can start a game, change
-  settings, or remove someone. *Remaining:* no auth, so the host is whoever
+  settings, or remove someone. _Remaining:_ no auth, so the host is whoever
   connected first rather than a verified identity, and anyone with the room code
   can still join.
 - **Horizontal scale is now the runtime, not a plan.** §4's design is
   implemented: one Durable Object per room gives single-writer-per-room by
-  construction. What's *not* done is persisting engine state to the DO's SQLite
+  construction. What's _not_ done is persisting engine state to the DO's SQLite
   storage — today a room's state is in-memory, so a rare object eviction ends
   that game rather than rehydrating it. That's the cheap, obvious next step now
   that the object owns the state.
 - **Unit-tested core; integration coverage is the gap.** The engine, modes, and
   pure helpers have a committed suite (`pnpm --filter @iguess/game-server
-  test`) that drives the engine through whole games against in-memory
+test`) that drives the engine through whole games against in-memory
   `EngineDeps` — rounds, scoring, hints, forgiving-guess matching, and the
-  word-choice phase. *Remaining:* no end-to-end test exercising the real
+  word-choice phase. _Remaining:_ no end-to-end test exercising the real
   WebSocket transport through the Durable Object; those paths are validated by
   hand (a two-browser playthrough).
 - **No auth, by design.** Anyone can join any room and `start_game` — that's the
@@ -350,7 +350,7 @@ Durable Object; (3) signed session tokens so a `pid` can't be spoofed.
 
 # How it works, moved out of the README
 
-*Moved out of the README, which is the front door and was carrying the whole house.*
+_Moved out of the README, which is the front door and was carrying the whole house._
 
 ## Game modes
 
