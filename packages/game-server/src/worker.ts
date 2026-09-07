@@ -1,4 +1,5 @@
 import type { Env } from './env.ts';
+import { aiWorkerProblem } from './aiHealth.ts';
 import { GameRoom } from './GameRoom.ts';
 import { withSecurityHeaders } from './harden.ts';
 import { rewriteInviteMeta } from './inviteMeta.ts';
@@ -56,6 +57,13 @@ export default {
 
     // Everything else is the client SPA (real files + index.html fallback for client routes).
     return withSecurityHeaders(await env.ASSETS.fetch(request));
+  },
+
+  // Cron: cross-check the ai-worker, since nothing else does until a player starts an AI mode.
+  // Anything wrong lands in Workers Logs as an error, which a Cloudflare notification can email.
+  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+    const problem = await aiWorkerProblem(env.AI_WORKER_URL);
+    if (problem) console.error(`ai-worker health: ${problem}`);
   },
 };
 
