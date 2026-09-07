@@ -8,15 +8,17 @@ import { useAppBadge } from "./useAppBadge";
 import type { WordTier } from "@iguess/shared";
 import { newRoomCode } from "@iguess/shared/roomCode";
 import { PACK_NAMES } from "@iguess/shared/words";
-import { REACTIONS, AVATARS } from "@iguess/shared";
+import { AVATARS } from "@iguess/shared";
 import type { DrawOp } from "@iguess/shared";
 import { Replay } from "./Replay";
 import { awardsFor } from "@iguess/shared/awards";
 import { styles } from "./styles";
+import { RoomSidebar } from "./RoomSidebar";
+import { Scoreboard } from "./Scoreboard";
+import { ChatPanel } from "./ChatPanel";
 import { readStored, writeStored } from "./storage";
 import { blip, buzz } from "./feedback";
 import { useToast } from "./useToast";
-import { useChatScroll } from "./useChatScroll";
 import { useMuted } from "./useMuted";
 import { saveCanvasPng, thumbnailOf } from "./canvasExport";
 import { flexText, scoreLine, shareOrDownload } from "./share";
@@ -559,7 +561,6 @@ function Room({
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-  const [text, setText] = useState("");
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(4);
   const [erasing, setErasing] = useState(false);
@@ -568,7 +569,6 @@ function Room({
   const roundOps = useRef<DrawOp[]>([]);
   // Only auto-scroll when they are already at the bottom. Someone reading back through the
   // chat should not get yanked to the end every time a message arrives.
-  const { chatLogRef, hasNewChat, scrollChatToBottom, onChatScroll } = useChatScroll(log.length);
   const [inviteResult, setInviteResult] = useState<"copied" | "shared" | null>(null);
   const [flexed, setFlexed] = useState(false);
   const { toast, showToast, hideToast } = useToast();
@@ -827,95 +827,26 @@ function Room({
           ⚠ connection dropped. reconnecting<Dots />
         </div>
       )}
-      <aside className="glass" style={styles.sidebar}>
-        <div style={styles.roomHead}>
-          <span style={styles.roomMark}>✏️</span>
-          <div style={{ minWidth: 0 }}>
-            <div className="grad-anim" style={styles.roomName}>#{room}</div>
-            <div style={styles.roomMode}>
-              {modeMeta?.icon} {modeMeta?.label ?? effectiveMode}
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            ...styles.statusPill,
-            ...(connected ? styles.statusOk : styles.statusBad),
-          }}
-        >
-          <span style={styles.statusDot} />{" "}
-          {connected ? "we're so back" : everConnected ? "hang on…" : "connecting…"}
-        </div>
-
-        <button
-          className="lift"
-          style={{ ...styles.inviteButton, ...(inviteResult ? styles.inviteButtonOk : null) }}
-          onClick={handleInvite}
-        >
-          {inviteResult === "shared"
-            ? "✅ invite sent"
-            : inviteResult === "copied"
-              ? "✅ copied, go spam it"
-              : "🔗 invite the squad"}
-        </button>
-
-        <button className="lift" style={styles.muteButton} onClick={toggleMuted}>
-          {muted ? "🔇 sound off" : "🔊 sound on"}
-        </button>
-
-        <button className="lift" style={styles.leaveButton} onClick={onLeave}>
-          ← leave room
-        </button>
-
-        <div style={styles.sectionLabel}>Scoreboard</div>
-        <ul style={styles.scoreList}>
-          {ranked.map((p, i) => {
-            const me = p.id === you?.id;
-            const drawer = game?.drawerId === p.id;
-            const guessed = game?.guessedIds.includes(p.id);
-            return (
-              <li
-                key={p.id}
-                style={{
-                  ...styles.scoreRow,
-                  ...(me ? styles.scoreRowMe : null),
-                  ...(drawer ? styles.scoreRowDrawer : null),
-                }}
-              >
-                <span style={styles.rank}>{i + 1}</span>
-                <span style={styles.playerName}>
-                  {isAI(p.id) ? (
-                    <span style={styles.aiBadge}>AI</span>
-                  ) : p.avatar ? (
-                    <span aria-hidden>{p.avatar}</span>
-                  ) : null}
-                  <span style={styles.nameText}>{p.name}</span>
-                  {me ? <span style={styles.youTag}>you</span> : null}
-                  {p.isHost ? <span title="host">👑</span> : null}
-                  {p.spectator ? <span title="watching">👀</span> : null}
-                  {drawer ? <span title="drawing">✏️</span> : null}
-                  {guessed ? <span title="guessed">✅</span> : null}
-                </span>
-                {youAreHost && !me && !isAI(p.id) && (
-                  <button
-                    style={styles.kickButton}
-                    title={`remove ${p.name}`}
-                    aria-label={`remove ${p.name}`}
-                    onClick={() => kick(p.id)}
-                  >
-                    ✕
-                  </button>
-                )}
-                <strong style={styles.scoreNum}>{game?.scores[p.id] ?? 0}</strong>
-              </li>
-            );
-          })}
-          {ranked.length === 0 && (
-            <li style={styles.emptyRoster}>nobody here but us 🦗</li>
-          )}
-        </ul>
-      </aside>
+      <RoomSidebar
+        room={room}
+        modeIcon={modeMeta?.icon}
+        modeLabel={modeMeta?.label ?? effectiveMode}
+        connected={connected}
+        everConnected={everConnected}
+        inviteResult={inviteResult}
+        onInvite={handleInvite}
+        muted={muted}
+        onToggleMute={toggleMuted}
+        onLeave={onLeave}
+      >
+        <Scoreboard
+          ranked={ranked}
+          game={game}
+          youId={you?.id ?? null}
+          youAreHost={youAreHost}
+          onKick={kick}
+        />
+      </RoomSidebar>
 
       <section className="pane-canvas" style={styles.canvasPane}>
         <div className="glass play-banner" style={styles.banner}>
@@ -1310,94 +1241,14 @@ function Room({
         )}
       </section>
 
-      <main className="glass" style={styles.main}>
-        <div style={styles.sectionLabel}>the group chat</div>
-        <div style={styles.chatWrap}>
-          <div
-            ref={chatLogRef}
-            onScroll={onChatScroll}
-            style={styles.chatLog}
-            role="log"
-            aria-live="polite"
-            aria-label="game chat and guesses"
-          >
-          {log.map((line, i) =>
-            line.kind === "system" ? (
-              <div key={i} style={styles.system}>
-                {line.text}
-              </div>
-            ) : (
-              <div key={i} style={styles.chatLine}>
-                <span
-                  style={{
-                    ...styles.chatFrom,
-                    ...(isAI(line.from?.id) ? styles.chatFromAI : null),
-                  }}
-                >
-                  {isAI(line.from?.id) ? "🤖 " : ""}
-                  {line.from?.name}
-                </span>
-                <span style={styles.chatText}>{line.text}</span>
-              </div>
-            )
-          )}
-          {log.length === 0 && <div style={styles.system}>crickets… break the ice bestie 👀</div>}
-          </div>
-          {hasNewChat && (
-            <button
-              type="button"
-              className="lift"
-              style={styles.newMsgBtn}
-              onClick={scrollChatToBottom}
-            >
-              ↓ new messages
-            </button>
-          )}
-        </div>
-        <div style={styles.reactRow}>
-          {REACTIONS.map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              className="lift"
-              style={styles.reactBtn}
-              onClick={() => react(emoji)}
-              disabled={drawingNow}
-              title={`react ${emoji}`}
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
-        <form
-          style={styles.inputRow}
-          onSubmit={(e) => {
-            e.preventDefault();
-            const t = text.trim();
-            if (!t) return;
-            // An emptied box is how you know you sent it.
-            if (sendChat(t)) setText("");
-            else showToast("not sent, still reconnecting 👀");
-          }}
-        >
-          <input
-            style={{ ...styles.input, flex: 1, margin: 0 }}
-            placeholder={
-              drawingNow
-                ? "eyes on the canvas, picasso ✋"
-                : inGame
-                ? "guess it bestie… (?word calls the AI)"
-                : "say something fr"
-            }
-            disabled={drawingNow}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
-          <button className="lift" style={styles.button} type="submit" disabled={drawingNow}>
-            Send
-          </button>
-        </form>
-      </main>
+      <ChatPanel
+        log={log}
+        drawingNow={drawingNow}
+        inGame={inGame}
+        onReact={react}
+        onSend={sendChat}
+        onSendFailed={() => showToast("not sent, still reconnecting 👀")}
+      />
     </div>
   );
 }
