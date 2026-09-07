@@ -13,6 +13,7 @@ import type { DrawOp } from "@iguess/shared";
 import { Replay } from "./Replay";
 import { awardsFor } from "@iguess/shared/awards";
 import { styles } from "./styles";
+import { readStored, writeStored } from "./storage";
 import { blip, buzz } from "./feedback";
 import { useToast } from "./useToast";
 import { useChatScroll } from "./useChatScroll";
@@ -68,7 +69,7 @@ const AVATAR_KEY = "iguess_avatar";
 const STATS_KEY = "iguess_stats";
 
 function getStreak(): number {
-  return Number(localStorage.getItem(STREAK_KEY) || 0) || 0;
+  return Number(readStored(STREAK_KEY) || 0) || 0;
 }
 
 export interface LifetimeStats {
@@ -81,7 +82,7 @@ export interface LifetimeStats {
 // new player, never an error.
 export function lifetimeStats(): LifetimeStats {
   try {
-    const raw = JSON.parse(localStorage.getItem(STATS_KEY) ?? "");
+    const raw = JSON.parse(readStored(STATS_KEY) ?? "");
     return {
       games: Number(raw?.games) || 0,
       wins: Number(raw?.wins) || 0,
@@ -94,9 +95,9 @@ export function lifetimeStats(): LifetimeStats {
 
 function bumpStreak(won: boolean): number {
   const next = won ? getStreak() + 1 : 0;
-  localStorage.setItem(STREAK_KEY, String(next));
+  writeStored(STREAK_KEY, String(next));
   const s = lifetimeStats();
-  localStorage.setItem(
+  writeStored(
     STATS_KEY,
     JSON.stringify({
       games: s.games + 1,
@@ -252,16 +253,16 @@ export function App() {
   const invite = readInvite();
   const invited = !!invite.room;
   const [draftName, setDraftName] = useState(
-    invite.name ?? localStorage.getItem("iguess_name") ?? ""
+    invite.name ?? readStored("iguess_name") ?? ""
   );
   // Make up a code instead of defaulting to one shared name, or two unrelated groups opening
   // the site at the same moment end up in each other's game.
   const [draftRoom, setDraftRoom] = useState(
-    invite.room ?? localStorage.getItem("iguess_room") ?? newRoomCode()
+    invite.room ?? readStored("iguess_room") ?? newRoomCode()
   );
   const [draftMode, setDraftMode] = useState(invite.mode ?? "ai");
   const [avatar, setAvatar] = useState(
-    () => localStorage.getItem(AVATAR_KEY) ?? AVATARS[Math.floor(Math.random() * AVATARS.length)]!
+    () => readStored(AVATAR_KEY) ?? AVATARS[Math.floor(Math.random() * AVATARS.length)]!
   );
   const stats = lifetimeStats();
   const [joined, setJoined] = useState<{
@@ -281,9 +282,9 @@ export function App() {
     const name = draftName.trim();
     if (!name) return;
     const room = draftRoom.trim() || newRoomCode();
-    localStorage.setItem("iguess_name", name);
-    localStorage.setItem("iguess_room", room);
-    localStorage.setItem(AVATAR_KEY, avatar);
+    writeStored("iguess_name", name);
+    writeStored("iguess_room", room);
+    writeStored(AVATAR_KEY, avatar);
     // Put the room in the address bar, so copying the URL shares this room and not the homepage.
     const q = new URLSearchParams({ room, mode: draftMode });
     window.history.pushState(null, "", `#${q.toString()}`);
@@ -771,7 +772,7 @@ function Room({
     }
   };
 
-  // Read at click time, not on render: getStreak hits localStorage and the score can still move.
+  // Read at click time, not on render: getStreak hits storage and the score can still move.
   const brag = (): string =>
     flexText(standings, {
       modeLabel: modeMeta?.label ?? effectiveMode,
