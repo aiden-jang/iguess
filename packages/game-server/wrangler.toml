@@ -14,6 +14,12 @@ port = 33300
 # at the paid production worker. Unset = AI modes tell the room the AI is unavailable, and
 # classic mode is unaffected.
 
+# Product events, written fire-and-forget from the room. One dataset across every app, with the
+# app name in index1 and blob1, so a single query can compare them.
+[[analytics_engine_datasets]]
+binding = "EVENTS"
+dataset = "aidenjang_events"
+
 # One GameRoom instance per room id. SQLite-backed (free-plan requirement); it holds no persisted
 # storage today — room state lives in memory while players are connected (pinned WebSockets), and
 # the object is evicted once the room empties.

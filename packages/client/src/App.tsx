@@ -418,8 +418,8 @@ pull up →
           </button>
         </div>
         <p style={styles.privacyNote}>
-          no account, no sign-in. we only hold the live game room while you play, and analytics are
-          cookieless, so there's nothing personal to collect.
+          no account, no sign-in. we only hold the live game room while you play. we count how many
+          games start and finish in each mode, never who played or what you drew.
         </p>
         <p style={styles.credit}>
           made by{" "}
