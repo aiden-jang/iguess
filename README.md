@@ -58,7 +58,7 @@ word. Proof the strokes sync live and the word stays secret:
   there is still nothing to cheat with.
 - The engine and the modes are separate. `engine.ts` runs the turn timeline and
   scoring and doesn't know any game rules. A `GameMode` decides who draws, what
-  the word is, and how chat is read. `AIGuesserMode` is about 70 lines and
+  the word is, and how chat is read. `AIGuesserMode` is a short file, and it
   doesn't touch the engine.
 - Full game loop: multiple rounds with a rotating drawer, a word-choice step
   (one word per difficulty tier, with a once-per-game skip), letter hints that
@@ -130,11 +130,11 @@ real time to find out the hard way — usually a thing that already bit once.
         ╚══════════════┼════════════════════════ ╝
                        │ HTTP POST /guess { ops }
                        ▼
-        ┌───────────────────────────────────────┐
-        │            ai-worker (Worker)          │
-        │   strokeRender: ops → PNG (resvg-wasm) │
-        │   VisionProvider: Mock|OpenAI|Anthropic│
-        └───────────────────────────────────────┘
+        ┌───────────────────────────────────────────┐
+        │            ai-worker (Worker)             │
+        │   strokeRender: ops → PNG (resvg-wasm)    │
+        │   VisionProvider: OpenAI|Anthropic|CF|Mock│
+        └───────────────────────────────────────────┘
 ```
 
 A few of the choices and why:
@@ -145,10 +145,10 @@ A few of the choices and why:
 | Room runtime | One Durable Object per room | A room is single-threaded per its id, so roster + stroke log live in the object's memory: no external store, no lock, no cross-instance race. An idle room costs nothing. |
 | Dropped Redis | In-memory in the DO | The old Node build used Redis for presence + strokes across instances. A Durable Object *is* the single instance for a room, so that entire dependency (and its ops cost) went away in the port. |
 | WebSocket style | Pinned (`server.accept()`), not hibernation | The turn timeline runs on `setTimeout`/`setInterval`; hibernation evicts timers, so a room stays pinned while a game is live. |
-| Transport | Raw `ws`, not Socket.IO | I wanted to see the actual protocol instead of relying on hidden reconnection/room behavior. |
+| Transport | Raw WebSocket, not Socket.IO | I wanted to see the actual protocol instead of relying on hidden reconnection/room behavior. |
 | Player identity | Client-asserted `pid` in `sessionStorage` | A reconnect has to be the *same* player or you lose your score, your place in the draw order and your turn. The server gives a returning `pid` an 8-second grace window and rejoins it silently. Keeping that id in `sessionStorage` rather than a variable is what makes it survive a refresh — the most common reconnect there is — while staying per-tab, so two tabs on one device are still two players. |
 | Stroke format | Normalized 0–1 coords, streamed ops | Works at any canvas size, messages stay small, and the op log replays for late joiners and the AI. |
-| AI guess timing | Interval (~8s first, then every 10s, max 4/turn) | Keeps cost and latency bounded without spamming the model. |
+| AI guess timing | Paced by new ink, capped per turn and per room | Keeps cost and latency bounded without spamming the model. A flat interval both stares at an untouched canvas and waits through a burst of drawing. |
 | AI process | Separate Worker | Vision calls are slow, so I kept them off the WebSocket loop. |
 | AI identity | Virtual player in roster | Lets it reuse the human scoring/turn code instead of adding AI special cases. |
 
@@ -170,7 +170,7 @@ packages/game-server/            game Worker: routing + Durable Object + engine 
   src/modes/DuelMode.ts          You vs AI, alternating drawer, cumulative points
   src/ai/{aiGuessLoop,aiDrawLoop}.ts  composable AI cadence helpers
   src/text.ts                    guess normalization + close-match
-  src/services/aiWorkerClient.ts resilient HTTP client to ai-worker
+  src/services/aiWorkerClient.ts HTTP client to ai-worker (throws, so outages are visible)
   src/doodles.ts                 40 hand-coded vector doodles the AI draws
   src/humanize.ts                redraws a doodle with an unsteady hand
   src/ai/persona.ts              the bot's name and commentary
@@ -182,7 +182,7 @@ packages/ai-worker/              vision Worker
   src/worker.ts                  fetch handler: POST /guess, /health
   src/strokeSvg.ts               DrawOps → SVG (pure)
   src/strokeRender.ts            SVG → PNG via @resvg/resvg-wasm
-  src/visionProviders.ts         Mock | OpenAI | Anthropic
+  src/visionProviders.ts         OpenAI | Anthropic | Workers AI | Mock, tried in order
   src/ogCard.ts                  per-room link-preview PNG
 packages/client/                 React + Vite + Canvas UI
   src/paint.ts                   canvas painter (live board + replay share it)

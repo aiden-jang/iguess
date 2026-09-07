@@ -124,7 +124,7 @@ game-server (GameRoom DO)           ai-worker (Worker)
   aiWorkerClient ── HTTP POST /guess { ops } ──►  strokeSvg(ops) → PNG (resvg-wasm)
      ▲                                                   │
      │            { guess }                              ▼
-     └────────────────────────────────────────  VisionProvider (Mock|OpenAI|Anthropic)
+     └────────────────────────────────────  VisionProvider (OpenAI|Anthropic|Workers AI|Mock)
 ```
 
 Key properties:
@@ -132,18 +132,26 @@ Key properties:
 - **Off the hot path.** A slow vision call (hundreds of ms to seconds) can't
   block message handling or other rooms — it's an awaited HTTP call from inside
   a timer callback, not inline in the socket loop.
-- **Resilient by construction.** Every failure mode in `aiWorkerClient`
-  (worker down, timeout, non-200, malformed body) resolves to `""`, which the
-  guess loop treats as "no guess this tick." The game never stalls on the AI.
-- **Cost is bounded, not best-effort.** First guess is delayed 8s (an empty
-  canvas isn't worth a call — `requestAIGuess` even short-circuits on an empty
-  op list), then re-guesses every 10s, capped at 4 attempts per turn.
+- **A failure is announced, not swallowed.** `aiWorkerClient` throws on a real
+  failure (no worker configured, worker down, timeout, non-200) and returns `""`
+  only for "there was nothing to ask". The guess loop tells the room once a turn
+  that the AI can't see the canvas, then keeps trying. The game never stalls on
+  the AI, and a mute AI is never mistaken for a thoughtful one.
+- **Cost is bounded, not best-effort.** The first guess waits 8s at normal skill
+  (an empty canvas isn't worth a call — `requestAIGuess` short-circuits on an
+  empty op list). Later looks are paced by how much new ink has appeared: sooner
+  after a burst, much later at an untouched canvas, scaled by skill. Attempts per
+  turn are capped by skill, and the room carries a whole-lifetime budget on paid
+  calls so a "run it back" loop can't run up a bill.
 - **The secret word never leaves the trusted boundary.** Only stroke ops are
   sent to the worker; the word is delivered solely to the drawer via
   `your_word`. Anti-cheat (and privacy) is enforced by the _absence_ of data,
   not by trusting a client.
-- **Providers are swappable and auto-detected.** Mock / OpenAI / Anthropic
-  behind one interface; the mock means the whole system runs with zero API keys.
+- **Providers are swappable and auto-detected.** OpenAI / Anthropic / Workers AI
+  / Mock behind one interface, tried in order, so a rate-limited paid key drops
+  through to the free tier and then to the fake one. The mock means the whole
+  system runs with zero API keys, and because it never throws, the room is told
+  when the mock is the one answering.
 
 > **Decision — interval snapshot polling over per-frame or final-image
 > guessing.** Per-frame would be accurate but ruinously expensive and pointless
@@ -213,7 +221,7 @@ So:
 | Decision           | Chosen                                  | Over                                    | Reason                                                                                                                                                        |
 | ------------------ | --------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | State authority    | Authoritative server                    | Client prediction / P2P                 | Trust boundary + single source of truth                                                                                                                       |
-| Transport          | Raw `ws`                                | Socket.IO                               | Visibility into the protocol; no hidden reconnection/room magic to learn                                                                                      |
+| Transport          | Raw WebSocket                           | Socket.IO                               | Visibility into the protocol; no hidden reconnection/room magic to learn                                                                                      |
 | Mode boundary      | Strategy + DI                           | `if (mode)` branches / deep inheritance | Zero engine churn; supports a mode needing two behaviors                                                                                                      |
 | Shared AI behavior | Composable helpers                      | Mode base class / engine                | It's policy, not timeline; one mode needs both loops                                                                                                          |
 | Canvas sync        | Streamed ops                            | Snapshot images                         | Tiny messages, live growth, perfect replay, resolution-independent                                                                                            |
@@ -222,9 +230,9 @@ So:
 | AI confidence      | Ranked shortlist                        | Confidence percentages                  | These APIs return no calibrated confidence — a percentage would be invented, and the runners-up are the funnier signal anyway                                 |
 | AI vision          | Separate Worker                         | Inline call                             | Isolate latency; scale the model tier independently                                                                                                           |
 | AI drawer art      | Curated doodle library                  | Generative model                        | Legible, free, testable; a generator can slot behind the same injected callback                                                                               |
-| Doodle variation   | Post-process the vectors                | More source doodles                     | 12 fixed pictures read as canned no matter how many you add; a wobble pass makes each one a subject instead of an image, and it is ~100 lines                 |
+| Doodle variation   | Post-process the vectors                | More source doodles                     | a fixed picture per word reads as canned no matter how many you add; a wobble pass makes each one a subject instead of an image, and it is ~100 lines                 |
 | Word difficulty    | Three tiers, one offered each           | Flat list                               | Makes the pick a bet: harder words pay more, so choosing is a decision rather than a formality                                                                |
-| Word repetition    | Per-room recency, capped at half a pool | Global shuffle bag                      | A shuffle bag over a small pool (40 doodles) starves; the cap guarantees a pick always exists                                                                 |
+| Word repetition    | Per-room recency, capped at half a pool | Global shuffle bag                      | A shuffle bag over a small pool starves; the cap guarantees a pick always exists                                                                 |
 | Undo sync          | Echo the stroke id                      | Rebroadcast the canvas                  | Undo was the largest message in the room, fired by the button people press most; both sides run the same `dropStroke` so they cannot disagree                 |
 | Fill tool          | Rasterize per client                    | Send pixels                             | Three numbers on the wire instead of a bitmap; a replay at a different size is near-identical, which is fine for a doodle                                     |
 | Eraser             | `destination-out`                       | Paint white                             | White pixels are a region the fill tool would treat as its own; erasing back to transparent keeps one background                                              |
@@ -308,9 +316,10 @@ Honest list:
   and an overlap reconnect no longer ends the turn or duplicates the roster
   entry. _Remaining:_ the `pid` is client-asserted — a signed session token would
   stop one client claiming another's id.
-- **Error handling hardened:** the connect/close handlers are wrapped, the
-  client guards malformed frames, and process-level `unhandledRejection` /
-  `uncaughtException` handlers keep one bad async path from killing every room.
+- **Error handling hardened:** the connect/close handlers are wrapped and the
+  client guards malformed frames. There is no process-level net to add, because a
+  Worker isolate has no `process`; Workers Logs (`[observability]`) captures the
+  uncaught throws a Node process would have handed to `unhandledRejection`.
 - **Abuse limits, server-enforced at three layers.** (1) A per-IP cap on new
   connections via Cloudflare's rate-limit binding, checked at the Worker edge
   _before_ a room's Durable Object is created — so one client can't spin up
