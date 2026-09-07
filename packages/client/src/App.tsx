@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useGameSocket } from "./useWebSocket";
 import { isAI, roomView } from "./roomView";
-import { DrawingCanvas } from "./DrawingCanvas";
 import { renderEvidencePng } from "./evidenceCard";
 import { useWakeLock } from "./useWakeLock";
 import { useAppBadge } from "./useAppBadge";
@@ -25,7 +24,9 @@ import { useBrush } from "./useBrush";
 import { DrawToolbar } from "./DrawToolbar";
 import { HostSettings } from "./HostSettings";
 import { EndScreen, type GalleryShot } from "./EndScreen";
-import { lobbyStatus } from "./labels";
+import { boardHint, lobbyStatus } from "./labels";
+import { GameBoard } from "./GameBoard";
+import { Dots } from "./Dots";
 
 const TIER_LABEL: Record<WordTier, string> = { easy: "1x", medium: "1.25x", hard: "1.6x" };
 
@@ -167,16 +168,6 @@ const LOSS_LINES = [
   "💀 we move. silently. run it back",
 ];
 const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]!;
-
-function Dots() {
-  return (
-    <span aria-hidden>
-      <span className="dot">.</span>
-      <span className="dot">.</span>
-      <span className="dot">.</span>
-    </span>
-  );
-}
 
 // The clipboard API only exists on https and localhost, so there is a fallback path.
 async function copyText(text: string): Promise<boolean> {
@@ -588,22 +579,17 @@ function Room({
   useWakeLock(inGame || phase === "choosing");
   useAppBadge(canDraw || (phase === "choosing" && isDrawer) ? 1 : 0);
 
-  // Always say WHY the board is dead, or it just looks broken.
-  const drawDisabledReason: string | null = canDraw
-    ? null
-    : youAreWatching
-      ? "you're watching this one"
-      : phase === "lobby"
-        ? "doodle while you wait ✏️"
-        : phase === "ended"
-          ? "round over. run it back"
-        : phase === "choosing"
-          ? isDrawer
-            ? "pick a word to start drawing ☝️"
-            : `${playerName(players, game?.drawerId ?? "")} is picking a word`
-          : isAI(game?.drawerId)
-            ? "🤖 the AI is cooking"
-            : `${playerName(players, game?.drawerId ?? "")} is cooking 👨‍🍳`;
+  const hint = boardHint({
+    canDraw,
+    youAreWatching,
+    phase,
+    isDrawer,
+    drawerName: playerName(players, game?.drawerId ?? ""),
+    drawerIsAI: isAI(game?.drawerId),
+  });
+  // The bot only has something to say while it is guessing someone else's drawing.
+  const aiTake =
+    hasAI && inGame && !isAI(game?.drawerId) ? { won: aiGuessedRight, guess: botGuess } : null;
 
   useEffect(() => {
     document.title = canDraw
@@ -964,53 +950,16 @@ function Room({
           onClear={clearBoard}
         />
 
-        <div className="canvas-wrap" style={styles.canvasWrap}>
-          <DrawingCanvas
-            sendDraw={sendDraw}
-            subscribeDraw={subscribeDraw}
-            color={brush.color}
-            width={brush.width}
-            erasing={brush.erasing}
-            filling={brush.filling}
-            opsRef={roundOps}
-            socketBacklog={socketBacklog}
-            onCursor={sendCursor}
-            peerCursor={peerCursor}
-            canDraw={canDraw}
-            onCanvas={(el) => (canvasElRef.current = el)}
-          />
-          {reactions.map((r) => (
-            <span
-              key={r.id}
-              aria-hidden
-              className="reaction-float"
-              style={{ left: `${8 + r.at * 84}%` }}
-            >
-              {r.emoji}
-            </span>
-          ))}
-          {drawDisabledReason && (
-            <div style={styles.canvasHintBadge}>
-              {drawDisabledReason}
-              {inGame && <Dots />}
-            </div>
-          )}
-          {hasAI && inGame && !isAI(game?.drawerId) && (
-            <div
-              key={aiGuessedRight ? "win" : (botGuess ?? "thinking")}
-              className="pop-in"
-              style={styles.hotTake}
-            >
-              {aiGuessedRight ? (
-                "🤖 nailed it! 🎉"
-              ) : botGuess ? (
-                <>🤖 "{botGuess}"</>
-              ) : (
-                <>🤖 thinking<Dots /></>
-              )}
-            </div>
-          )}
-        </div>
+        <GameBoard
+          socket={{ sendDraw, subscribeDraw, socketBacklog, sendCursor, peerCursor, reactions }}
+          brush={brush}
+          canDraw={canDraw}
+          opsRef={roundOps}
+          onCanvas={(el) => (canvasElRef.current = el)}
+          hint={hint}
+          waiting={inGame}
+          aiTake={aiTake}
+        />
 
         {phase === "ended" && gallery.length > 0 && (
           <EndScreen

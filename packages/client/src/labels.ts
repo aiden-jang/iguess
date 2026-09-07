@@ -44,3 +44,24 @@ export function lobbyStatus({
   if (isAIMode) return "it's you vs the 🤖 AI. hit send it whenever you're ready.";
   return "just you so far. classic needs someone to guess, so hit 🔗 invite the squad.";
 }
+
+export interface BoardState {
+  canDraw: boolean;
+  youAreWatching: boolean;
+  phase: string;
+  isDrawer: boolean;
+  drawerName: string;
+  drawerIsAI: boolean;
+}
+
+// Always say WHY the board is dead, or it just looks broken.
+export function boardHint(s: BoardState): string | null {
+  if (s.canDraw) return null;
+  if (s.youAreWatching) return "you're watching this one";
+  if (s.phase === "lobby") return "doodle while you wait \u270f\ufe0f";
+  if (s.phase === "ended") return "round over. run it back";
+  if (s.phase === "choosing") {
+    return s.isDrawer ? "pick a word to start drawing \u261d\ufe0f" : `${s.drawerName} is picking a word`;
+  }
+  return s.drawerIsAI ? "\ud83e\udd16 the AI is cooking" : `${s.drawerName} is cooking \ud83d\udc68\u200d\ud83c\udf73`;
+}
