@@ -1,7 +1,7 @@
-// Enforces the two comment rules from CLAUDE.md that a script can judge without guessing:
+// Enforces the two comment rules from CONVENTIONS.md that a script can judge without guessing:
 // no block over four lines, and no ticket ids. Everything else about comments (does this one
 // earn its place, is it narrating history) needs a reader, and a check that cries wolf gets
-// ignored. See the note in CLAUDE.md for why "used to" in particular is not automated.
+// ignored. See the note in CONVENTIONS.md for why "used to" in particular is not automated.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
