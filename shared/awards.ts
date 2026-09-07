@@ -17,7 +17,6 @@ const nameOf = (players: PlayerInfo[], id: string | null) =>
   players.find((p) => p.id === id)?.name ?? "someone";
 
 /**
- * End-of-game awards, computed from rounds the client already kept for the gallery.
  * Only awards with something real behind them are returned: a "winner" of a category nobody
  * competed in reads as filler.
  */

@@ -1,11 +1,9 @@
 import type { DrawOp, Point } from "@iguess/shared";
 import { humanize, type Rng } from "./humanize.ts";
 
-// Hand-drawn pictures the AI can produce, stored as lists of strokes so they can be revealed
-// gradually. Coordinates are 0..1, like everywhere else.
-//
-// Hand-made rather than generated: it is legible, free, and testable. A real generator drops in
-// behind AIDrawerMode's `requestDrawing` without touching anything here.
+// Stored as lists of strokes so they can be revealed gradually, in 0..1 coordinates like
+// everywhere else. A real generator drops in behind AIDrawerMode's `requestDrawing` without
+// touching anything here.
 
 let idCounter = 0;
 const nextId = () => `ai-draw-${Date.now()}-${idCounter++}`;

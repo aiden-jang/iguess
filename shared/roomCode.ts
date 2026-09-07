@@ -1,6 +1,5 @@
-// Everyone used to land in a room literally called "lobby", so two unrelated groups opening the
-// site at the same time joined the same game — and the second group hit the 8-player cap.
-// Codes are meant to be read aloud, so words beat random characters.
+// One shared default room name drops two unrelated groups into the same game, and the second
+// group hits the player cap. Codes are meant to be read aloud, so words beat random characters.
 
 const ADJECTIVES = [
   "brave", "calm", "clever", "cosmic", "cranky", "crisp", "dizzy", "eager", "fancy", "feral",
