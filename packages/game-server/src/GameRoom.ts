@@ -254,7 +254,10 @@ export class GameRoom {
   }
 
   private gameFor(modeName: string | null): GameEngine {
-    const requested = normalizeMode(modeName);
+    // Only someone alone in the room may set its mode. The client's picker has a default, so a
+    // joiner who never chose anything would otherwise re-pick the mode out from under everyone.
+    const alone = this.conns.size <= 1;
+    const requested = alone ? normalizeMode(modeName) : this.mode;
     // Joining a room that is sitting idle gives you a clean lobby, so you don't land on the
     // last game's results screen. Joining a game already running leaves it alone: you join it.
     if (this.engine && shouldResetRoom(this.engine.currentPhase, requested, this.mode)) {

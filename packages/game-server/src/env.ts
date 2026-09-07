@@ -4,7 +4,8 @@ export interface Env {
   GAME_ROOM: DurableObjectNamespace;
   // The built client SPA (packages/client/dist), served from this same Worker.
   ASSETS: Fetcher;
-  // Base URL of the ai-worker (guess/draw). Unset = AI features are skipped gracefully.
+  // Base URL of the ai-worker (guess/draw). Set on the deploy command, not in wrangler.toml.
+  // Unset = AI modes tell the room the AI is unavailable and play on without it.
   AI_WORKER_URL?: string;
   // Shared secret presented to the ai-worker so its paid /guess endpoint can reject direct hits.
   AI_SHARED_SECRET?: string;
