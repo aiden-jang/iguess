@@ -137,20 +137,8 @@ real time to find out the hard way — usually a thing that already bit once.
         └───────────────────────────────────────────┘
 ```
 
-A few of the choices and why:
-
-| Decision | Choice | Why |
-|---|---|---|
-| State authority | Authoritative server | One source of truth, and clients can't cheat. The drawer renders locally to hide latency. |
-| Room runtime | One Durable Object per room | A room is single-threaded per its id, so roster + stroke log live in the object's memory: no external store, no lock, no cross-instance race. An idle room costs nothing. |
-| Dropped Redis | In-memory in the DO | The old Node build used Redis for presence + strokes across instances. A Durable Object *is* the single instance for a room, so that entire dependency (and its ops cost) went away in the port. |
-| WebSocket style | Pinned (`server.accept()`), not hibernation | The turn timeline runs on `setTimeout`/`setInterval`; hibernation evicts timers, so a room stays pinned while a game is live. |
-| Transport | Raw WebSocket, not Socket.IO | I wanted to see the actual protocol instead of relying on hidden reconnection/room behavior. |
-| Player identity | Client-asserted `pid` in `sessionStorage` | A reconnect has to be the *same* player or you lose your score, your place in the draw order and your turn. The server gives a returning `pid` an 8-second grace window and rejoins it silently. Keeping that id in `sessionStorage` rather than a variable is what makes it survive a refresh — the most common reconnect there is — while staying per-tab, so two tabs on one device are still two players. |
-| Stroke format | Normalized 0–1 coords, streamed ops | Works at any canvas size, messages stay small, and the op log replays for late joiners and the AI. |
-| AI guess timing | Paced by new ink, capped per turn and per room | Keeps cost and latency bounded without spamming the model. A flat interval both stares at an untouched canvas and waits through a burst of drawing. |
-| AI process | Separate Worker | Vision calls are slow, so I kept them off the WebSocket loop. |
-| AI identity | Virtual player in roster | Lets it reuse the human scoring/turn code instead of adding AI special cases. |
+Why each of those pieces is shaped that way, and what it was chosen over, is in
+[ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ---
 

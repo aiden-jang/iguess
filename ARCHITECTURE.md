@@ -191,7 +191,7 @@ bet rather than a formality.
 
 ---
 
-## 6. The one place the engine had to evolve (and why that's a good story)
+## 6. The one place the engine had to evolve
 
 Until a mode let the AI draw, strokes only ever originated from a human socket, so
 the engine never needed a "draw" verb: human draw ops were persisted and
@@ -203,8 +203,8 @@ The fix was a single transport-agnostic verb, `ctx.draw(op)` (backed by
 `EngineDeps.drawOp`), that persists to the stroke log _and_ broadcasts,
 symmetric with the existing `clearCanvas()`. The engine still has no idea who or
 why; it just stopped assuming strokes can only come from a socket. Discovering a
-missing abstraction from a concrete new requirement, rather than speculating it
-up front, is the design discipline I'm most happy with here.
+missing abstraction from a concrete new requirement, rather than speculating it up front, is
+what kept the engine from churning.
 
 ---
 
