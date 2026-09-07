@@ -23,24 +23,24 @@ The sections below are the long form, each ending with the trade-off I made.
 The central design bet is that **the game timeline and the game rules are
 different things and should never be tangled together.**
 
-- **`engine.ts` (`GameEngine`)** owns the _timeline_: phases
+- `engine.ts` (`GameEngine`) owns the _timeline_: phases
   (`lobby → choosing → playing → intermission → ended`), the per-turn timer, the
   scoreboard, the "who has guessed" set, and broadcasting public state. It
   contains **zero game rules**. It does not know what a "word" means, who is
   allowed to draw, or how points are earned.
-- **A `GameMode`** (the strategy) supplies every rule decision through a fixed
+- A `GameMode` (the strategy) supplies every rule decision through a fixed
   set of hooks: `configure`, `pickDrawer`, `pickWord`, `pickWordChoices`
   (optional), `onTurnStart`, `onChat`, `canDraw`, `onTurnEnd`, `onGameEnd`.
 
 The two halves meet through two narrow interfaces:
 
-- **`EngineDeps`** is what the transport layer injects _into_ the engine
+- `EngineDeps` is what the transport layer injects _into_ the engine
   (`broadcast`, `sendToPlayer`, `clearCanvas`, `drawOp`, …). The engine never
   imports the transport or a store; it only knows these verbs. That's what makes
   it unit-testable and transport-agnostic, and it's exactly why the whole thing
   ported from a Node/`ws`/Redis process into a Cloudflare Durable Object without
   the engine or the modes changing at all (see §4).
-- **`EngineContext`** is the set of verbs the engine hands _to_ a mode
+- `EngineContext` is the set of verbs the engine hands _to_ a mode
   (`awardPoints`, `endTurn`, `addParticipant`, `draw`, `turnFractionRemaining`,
   …). A mode never sees a socket, a store, or even the full engine, just this
   surface.
@@ -85,22 +85,22 @@ belong outside the inheritance tree.
 ## 2. Real-time sync
 
 The server is **authoritative**. Clients never talk to each other; every fact
-flows through `broadcast`/`broadcastExcept`. The drawing model:
+flows through `broadcast`/`broadcastExcept`.
 
-- **Streamed ops, not frames.** A stroke is a sequence of
-  `start → move → end` ops (`shared/events.ts`), not a finished bitmap. Watchers
-  see lines grow in real time, messages stay tiny, and the same op log replays
-  perfectly for a late joiner (`canvas_sync`).
-- **Normalized 0–1 coordinates.** A drawing made on an 800×600 canvas renders
-  correctly on any client size, with no server-side rescaling.
-- **The drawer renders locally and is excluded from its own broadcast**
-  (`broadcastExcept`). This hides round-trip latency for the person drawing
-  while keeping everyone else server-driven.
-- **Late joiners replay the log.** On connect, the server sends one
-  `canvas_sync` containing the full ordered op list held in the room's Durable
-  Object memory, so a mid-turn joiner catches up exactly.
-- **`clear` truncates the log** rather than appending, and each turn starts with
-  a clear, which also bounds how large the per-turn log can grow.
+A stroke travels as a sequence of `start → move → end` ops (`shared/events.ts`), never a
+finished bitmap. Watchers see lines grow in real time, messages stay tiny, and the same op
+log replays perfectly for a late joiner (`canvas_sync`). The rest of the drawing model falls
+out of that:
+
+- Coordinates are normalized 0 to 1, so a drawing made on an 800×600 canvas renders correctly
+  on any client size with no server-side rescaling.
+- The drawer renders locally and is excluded from its own broadcast (`broadcastExcept`), which
+  hides the round trip for the person drawing while keeping everyone else server-driven.
+- Late joiners replay the log. On connect the server sends one `canvas_sync` holding the full
+  ordered op list from the room's Durable Object memory, so a mid-turn joiner catches up
+  exactly.
+- `clear` truncates the log rather than appending, and each turn starts with a clear, which
+  also bounds how large the per-turn log can grow.
 
 > **Decision:** authoritative server over client prediction / P2P. This is a
 > trust boundary as much as a latency one: a cheating client can't fabricate
@@ -359,15 +359,15 @@ calls the mode at set points (`configure`, `pickDrawer`, `pickWord`,
 `pickWordChoices`, `onTurnStart`, `onChat`, `canDraw`, `onTurnEnd`, `onGameEnd`).
 Adding a mode means writing a class, not editing the engine.
 
-- **ClassicMode.** Humans take turns drawing, everyone else guesses in chat.
+- `ClassicMode`: humans take turns drawing, everyone else guesses in chat.
   The other four build on this one.
-- **AIGuesserMode.** Adds an AI player that guesses off the live canvas on a
+- `AIGuesserMode`: adds an AI player that guesses off the live canvas on a
   timer.
-- **AIDrawerMode.** The AI does all the drawing (its strokes go through the
+- `AIDrawerMode`: the AI does all the drawing (its strokes go through the
   engine via `ctx.draw`) and humans guess.
-- **TeamBattleMode.** Humans vs AI. Rounds alternate who draws, and the first
+- `TeamBattleMode`: humans vs AI. Rounds alternate who draws, and the first
   correct guess wins the round for that side.
-- **DuelMode.** You vs the AI, head-to-head. You trade the drawer role each turn
+- `DuelMode`: you vs the AI, head-to-head. You trade the drawer role each turn
   (you draw and the AI reads your canvas; then the AI draws and you guess), and
   both sides bank cumulative points, so unlike TeamBattle's round-win race, the
   AI earns points both as guesser and as drawer. Most points beats the machine.
