@@ -13,8 +13,12 @@ import type { DrawOp } from "@iguess/shared";
 import { Replay } from "./Replay";
 import { awardsFor } from "@iguess/shared/awards";
 import { styles } from "./styles";
-import { blip, buzz, MUTE_KEY } from "./feedback";
+import { blip, buzz } from "./feedback";
+import { useToast } from "./useToast";
+import { useChatScroll } from "./useChatScroll";
+import { useMuted } from "./useMuted";
 import { saveCanvasPng, thumbnailOf } from "./canvasExport";
+import { flexText, scoreLine, shareOrDownload } from "./share";
 
 const TIER_LABEL: Record<WordTier, string> = { easy: "1x", medium: "1.25x", hard: "1.6x" };
 
@@ -563,40 +567,11 @@ function Room({
   const roundOps = useRef<DrawOp[]>([]);
   // Only auto-scroll when they are already at the bottom. Someone reading back through the
   // chat should not get yanked to the end every time a message arrives.
-  const chatLogRef = useRef<HTMLDivElement>(null);
-  const followChatRef = useRef(true);
-  const [hasNewChat, setHasNewChat] = useState(false);
-  const scrollChatToBottom = () => {
-    const el = chatLogRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-    followChatRef.current = true;
-    setHasNewChat(false);
-  };
-  const onChatScroll = () => {
-    const el = chatLogRef.current;
-    if (!el) return;
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
-    followChatRef.current = nearBottom;
-    if (nearBottom) setHasNewChat(false);
-  };
-  useEffect(() => {
-    if (followChatRef.current) {
-      const el = chatLogRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
-    } else {
-      setHasNewChat(true);
-    }
-  }, [log.length]);
+  const { chatLogRef, hasNewChat, scrollChatToBottom, onChatScroll } = useChatScroll(log.length);
   const [inviteResult, setInviteResult] = useState<"copied" | "shared" | null>(null);
   const [flexed, setFlexed] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const flashToast = (text: string) => {
-    setToast(text);
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 2600);
-  };
-  const [muted, setMuted] = useState(() => localStorage.getItem(MUTE_KEY) === "1");
+  const { toast, showToast, hideToast } = useToast();
+  const { muted, toggleMuted } = useMuted();
   const [burstKey, setBurstKey] = useState(0);
   const [botGuess, setBotGuess] = useState<string | null>(null);
   const aiMsgCount = useRef(0);
@@ -663,11 +638,9 @@ function Room({
 
   useEffect(() => {
     if (canDraw) {
-      setToast("🎨 you're up, cook!");
+      showToast("🎨 you're up, cook!");
       blip([523, 784], muted); // little "ping!"
       buzz([18, 60, 18]);
-      const t = setTimeout(() => setToast(null), 2600);
-      return () => clearTimeout(t);
     }
   }, [canDraw]);
 
@@ -681,9 +654,7 @@ function Room({
       setBurstKey((k) => k + 1);
       blip([659, 880, 1175], muted);
       buzz([12, 40, 12, 40, 30]);
-      setToast("✅ nailed it! big brain 🧠");
-      const t = setTimeout(() => setToast(null), 2400);
-      return () => clearTimeout(t);
+      showToast("✅ nailed it! big brain 🧠", 2400);
     } else {
       blip([880], muted); // someone else got it
       buzz(12);
@@ -724,15 +695,13 @@ function Room({
       setWinConfetti(Math.min(48 + streak * 16, 160)); // bigger party per streak
       blip([523, 659, 784, 1047], muted); // ascending fanfare
       buzz([25, 50, 25, 50, 90]);
-      setToast(streak > 1 ? `🏆 dub! ${streak} in a row 🔥` : pick(WIN_LINES));
+      showToast(streak > 1 ? `🏆 dub! ${streak} in a row 🔥` : pick(WIN_LINES), 2000);
     } else {
       setWinConfetti(48);
       blip([330, 247], muted); // sad trombone-ish
       buzz(140);
-      setToast(pick(LOSS_LINES));
+      showToast(pick(LOSS_LINES), 2000);
     }
-    const t = setTimeout(() => setToast(null), 2000);
-    return () => clearTimeout(t);
   }, [phase]);
 
   // The drawer sees the word. Everyone else sees one tile per letter, filling in over time.
@@ -756,15 +725,6 @@ function Room({
     const t = setTimeout(() => setBotGuess(null), 4200);
     return () => clearTimeout(t);
   }, [log]);
-
-  const toggleMute = () => {
-    setMuted((m) => {
-      const next = !m;
-      localStorage.setItem(MUTE_KEY, next ? "1" : "0");
-      if (!next) blip([659], false); // little confirmation chirp when unmuting
-      return next;
-    });
-  };
 
   const handleInvite = async () => {
     const url = inviteLink(room, effectiveMode);
@@ -793,44 +753,17 @@ function Room({
     }
   };
 
+  const standings = { ranked, scores: game?.scores ?? {}, youId: you?.id ?? null };
+
   const saveEvidence = async () => {
     if (savingEvidence || gallery.length === 0) return;
     setSavingEvidence(true);
     try {
-      const line = ranked
-        .slice(0, 4)
-        .map((p) => `${p.id === you?.id ? "you" : isAI(p.id) ? "🤖" : p.name} ${game?.scores[p.id] ?? 0}`)
-        .join("  ·  ");
-      const blob = await renderEvidencePng(gallery, line, awardsFor(gallery, players));
-      const filename = `iguess-evidence-${room}.png`;
-      const file = new File([blob], filename, { type: "image/png" });
-      // Some browsers can share a link but not a file. Ask about this exact file first, or the
-      // share sheet opens and then fails.
-      if (
-        typeof navigator.share === "function" &&
-        typeof navigator.canShare === "function" &&
-        navigator.canShare({ files: [file] })
-      ) {
-        try {
-          await navigator.share({
-            title: "iguess evidence",
-            text: "the drawings, the score, and what the AI thought it saw",
-            files: [file],
-          });
-          return;
-        } catch (err) {
-          // They cancelled on purpose. Don't surprise them with a download instead.
-          if (err instanceof Error && err.name === "AbortError") return;
-        }
-      }
-      const href = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.download = filename;
-      a.href = href;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(href);
+      const blob = await renderEvidencePng(gallery, scoreLine(standings), awardsFor(gallery, players));
+      await shareOrDownload(blob, `iguess-evidence-${room}.png`, {
+        title: "iguess evidence",
+        text: "the drawings, the score, and what the AI thought it saw",
+      });
     } catch {
       /* nothing to do about it, and nothing worth interrupting the end screen for */
     } finally {
@@ -838,42 +771,16 @@ function Room({
     }
   };
 
-  const flexText = () => {
-    const place = you ? ranked.findIndex((p) => p.id === you.id) + 1 : 0;
-    const beatAI =
-      ranked.some((p) => isAI(p.id)) &&
-      you != null &&
-      (game?.scores[you.id] ?? 0) >
-        Math.max(...ranked.filter((p) => isAI(p.id)).map((p) => game?.scores[p.id] ?? 0));
-    const streak = getStreak();
-
-    const top = Math.max(1, ...ranked.map((p) => game?.scores[p.id] ?? 0));
-    const medals = ["🥇", "🥈", "🥉"];
-    const rows = ranked.slice(0, 4).map((p, i) => {
-      const score = game?.scores[p.id] ?? 0;
-      const filled = Math.max(1, Math.round((score / top) * 8));
-      const block = p.id === you?.id ? "🟪" : isAI(p.id) ? "🤖" : "⬜";
-      return `${medals[i] ?? "▪️"} ${block.repeat(filled)} ${score}`;
+  // Read at click time, not on render: getStreak hits localStorage and the score can still move.
+  const brag = (): string =>
+    flexText(standings, {
+      modeLabel: modeMeta?.label ?? effectiveMode,
+      inviteUrl: inviteLink(room, effectiveMode),
+      streak: getStreak(),
     });
 
-    const brags = [
-      beatAI ? "cooked the AI too 🤖💥 no cap" : null,
-      streak > 1 ? `🔥 ${streak}-win streak` : null,
-    ].filter(Boolean);
-
-    return [
-      `iguess ✏️ · ${modeMeta?.label ?? effectiveMode}`,
-      `i came #${place || "?"}/${ranked.length} and that's on periodt`,
-      "",
-      ...rows,
-      ...(brags.length ? ["", ...brags] : []),
-      "",
-      `pull up: ${inviteLink(room, effectiveMode)}`,
-    ].join("\n");
-  };
-
   const handleFlex = async () => {
-    const ok = await copyText(flexText());
+    const ok = await copyText(brag());
     if (ok) {
       setFlexed(true);
       setTimeout(() => setFlexed(false), 1800);
@@ -908,7 +815,7 @@ function Room({
           role="status"
           aria-live="polite"
           style={styles.toast}
-          onClick={() => setToast(null)}
+          onClick={hideToast}
           title="tap to dismiss"
         >
           {toast}
@@ -952,7 +859,7 @@ function Room({
               : "🔗 invite the squad"}
         </button>
 
-        <button className="lift" style={styles.muteButton} onClick={toggleMute}>
+        <button className="lift" style={styles.muteButton} onClick={toggleMuted}>
           {muted ? "🔇 sound off" : "🔊 sound on"}
         </button>
 
@@ -1141,7 +1048,7 @@ function Room({
               <button
                 className="lift"
                 style={styles.xButton}
-                onClick={() => shareToX(flexText())}
+                onClick={() => shareToX(brag())}
               >
                 𝕏 post it
               </button>
@@ -1469,7 +1376,7 @@ function Room({
             if (!t) return;
             // An emptied box is how you know you sent it.
             if (sendChat(t)) setText("");
-            else flashToast("not sent, still reconnecting 👀");
+            else showToast("not sent, still reconnecting 👀");
           }}
         >
           <input
