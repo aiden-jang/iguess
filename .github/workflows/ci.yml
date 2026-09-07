@@ -18,10 +18,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm lint
-      - run: pnpm build
-      - run: pnpm test
+      # typecheck, lint, the size ceilings, the test floors, then the build. Same command
+      # locally, so CI can't be the first place a check runs.
+      - run: pnpm run verify
       - run: pnpm exec playwright install --with-deps chromium
       # The e2e stack starts the game-server without AI_WORKER_URL on purpose, so a CI run
       # can never reach a paid vision provider. See playwright.config.ts.

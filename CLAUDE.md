@@ -19,6 +19,20 @@ without ever executing.
 So: an impossibly clean result means suspect the scan first. And **green is not proof unless you
 have seen that check fail** — break the thing it guards, watch it go red, then believe it.
 
+## The checks this repo has
+
+`pnpm run verify` is the whole gate, and CI runs exactly that. Beyond typecheck, lint and
+build:
+
+- **check-size** pins a line ceiling per sprawl-prone file and rejects any unlisted file over
+  300 lines. Ceilings only move down: shrink a file, lower its number in the same commit. It
+  also fails when a ceiling sits well above the real count, so a ceiling can't drift into
+  meaninglessness.
+- **check-tests** runs each package's suite and holds it to a floor, because `node --test`
+  exits 0 when its glob matches nothing. Floors only move up.
+
+Both cover their own source, and both are read-only.
+
 ## Writing a new check
 
 - It has to cover its own source, or the checks stop being checked.
