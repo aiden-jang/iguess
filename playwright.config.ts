@@ -15,10 +15,9 @@ export default defineConfig({
   },
   webServer: [
     {
-      // Deliberately started WITHOUT AI_WORKER_URL, so the ai-worker never runs and the suite
-      // cannot spend money. `.dev.vars` holds a real OpenAI key and outranks --var, so there is
-      // no way to force the mock from the command line; not calling out at all is the only
-      // safe answer. The AI guess path is covered by unit tests instead.
+      // No AI_WORKER_URL, so the suite can never reach the paid vision worker. That is why
+      // wrangler.toml carries no [vars] block: this command would inherit it. The AI guess path
+      // is covered by unit tests instead.
       command: "npx wrangler dev --port 33300",
       cwd: "packages/game-server",
       url: "http://127.0.0.1:33300/health",

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev --var AI_WORKER_URL:http://localhost:33400",
-    "deploy": "pnpm --filter @iguess/client build && wrangler deploy",
+    "deploy": "pnpm --filter @iguess/client build && wrangler deploy --var AI_WORKER_URL:https://iguess-ai.aidenjang.workers.dev",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
