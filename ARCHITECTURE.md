@@ -20,30 +20,23 @@ The sections below are the long form, each ending with the trade-off I made.
 
 ## 1. Core engine vs. mode plugins
 
-The central design bet is that **the game timeline and the game rules are
-different things and should never be tangled together.**
+The central design bet is that the game timeline and the game rules are different things and
+should never be tangled together.
 
-- `engine.ts` (`GameEngine`) owns the _timeline_: phases
-  (`lobby → choosing → playing → intermission → ended`), the per-turn timer, the
-  scoreboard, the "who has guessed" set, and broadcasting public state. It
-  contains **zero game rules**. It does not know what a "word" means, who is
-  allowed to draw, or how points are earned.
-- A `GameMode` (the strategy) supplies every rule decision through a fixed
-  set of hooks: `configure`, `pickDrawer`, `pickWord`, `pickWordChoices`
-  (optional), `onTurnStart`, `onChat`, `canDraw`, `onTurnEnd`, `onGameEnd`.
+`engine.ts` (`GameEngine`) owns the timeline: phases (`lobby → choosing → playing →
+intermission → ended`), the per-turn timer, the scoreboard, the "who has guessed" set, and
+broadcasting public state. It contains zero game rules. It does not know what a "word" means,
+who is allowed to draw, or how points are earned. A `GameMode` supplies every one of those
+decisions through a fixed set of hooks: `configure`, `pickDrawer`, `pickWord`,
+`pickWordChoices` (optional), `onTurnStart`, `onChat`, `canDraw`, `onTurnEnd`, `onGameEnd`.
 
-The two halves meet through two narrow interfaces:
-
-- `EngineDeps` is what the transport layer injects _into_ the engine
-  (`broadcast`, `sendToPlayer`, `clearCanvas`, `drawOp`, …). The engine never
-  imports the transport or a store; it only knows these verbs. That's what makes
-  it unit-testable and transport-agnostic, and it's exactly why the whole thing
-  ported from a Node/`ws`/Redis process into a Cloudflare Durable Object without
-  the engine or the modes changing at all (see §4).
-- `EngineContext` is the set of verbs the engine hands _to_ a mode
-  (`awardPoints`, `endTurn`, `addParticipant`, `draw`, `turnFractionRemaining`,
-  …). A mode never sees a socket, a store, or even the full engine, just this
-  surface.
+The two halves meet through two narrow interfaces. `EngineDeps` is what the transport injects
+_into_ the engine (`broadcast`, `sendToPlayer`, `clearCanvas`, `drawOp`, …), so the engine never
+imports a transport or a store and knows only those verbs. That is what let the whole thing move
+from a Node/`ws`/Redis process into a Durable Object without the engine or the modes changing at
+all (§4). `EngineContext` is what the engine hands back _to_ a mode (`awardPoints`, `endTurn`,
+`addParticipant`, `draw`, `turnFractionRemaining`, …); a mode never sees a socket, a store, or
+even the full engine.
 
 ```
 transport (worker.ts → GameRoom Durable Object)
@@ -52,33 +45,20 @@ transport (worker.ts → GameRoom Durable Object)
   GameEngine ── timeline, scoring bookkeeping
       │  exposes EngineContext
       ▼
-  GameMode (strategy)
-   ├─ ClassicMode      (humans only)
-   ├─ AIGuesserMode    (+ AI guesser)
-   ├─ AIDrawerMode     (AI draws)
-   ├─ TeamBattleMode   (Humans vs AI)
-   └─ DuelMode         (You vs AI)
+  GameMode (one of five strategies)
 ```
 
-**Why this holds up:** four of the five modes were added _after_ the engine
-froze, and none required an engine change. `ClassicMode` is a concrete base;
-the four AI modes extend or compose it. The only engine evolution the whole
-project needed was a single new verb. See §6.
+Shared _behavior_ deliberately lives outside both. The AI's interval guess loop and its
+progressive draw-reveal loop are used by several modes, but they are mode policy (cadence, cost
+caps, reveal speed) rather than timeline, so they are composable helpers (`ai/aiGuessLoop.ts`,
+`ai/aiDrawLoop.ts`) that modes call. `TeamBattleMode` and `DuelMode` each need both loops and
+cannot extend two mode classes, which is the pressure that proved the helpers belong outside the
+inheritance tree.
 
-**Where shared _behavior_ lives (and why not in the engine):** the AI's
-interval guess loop and progressive draw-reveal loop are shared by multiple
-modes, but they're **mode policy** (cadence, cost caps, reveal speed), not
-timeline. So they live in composable helpers (`ai/aiGuessLoop.ts`,
-`ai/aiDrawLoop.ts`) that modes _compose_, rather than in the engine or in a mode
-base class. `TeamBattleMode` and `DuelMode` each need _both_ loops and can't
-extend two mode classes, and that pressure is exactly what proved the helpers
-belong outside the inheritance tree.
-
-> **Decision:** strategy + dependency injection over `if (mode === …)` branches
-> or a deep inheritance chain. Conditionals would have scattered each mode's
-> rules across the engine; a tall inheritance chain breaks the moment one mode
-> needs behavior from two ancestors (which `TeamBattleMode` does). Composition +
-> a stable hook interface kept the engine at zero churn.
+> **Decision:** strategy and dependency injection over `if (mode === …)` branches or a deep
+> inheritance chain. Conditionals would have scattered each mode's rules across the engine, and
+> a tall chain breaks the moment one mode needs behavior from two ancestors. The engine has had
+> zero churn since it froze.
 
 ---
 
@@ -326,11 +306,8 @@ _Moved out of the README, which is the front door and was carrying the whole hou
 
 ## Game modes
 
-A mode implements the `GameMode` interface and gets an `EngineContext` of verbs
-(`broadcast`, `awardPoints`, `endTurn`, `addParticipant`, and so on). The engine
-calls the mode at set points (`configure`, `pickDrawer`, `pickWord`,
-`pickWordChoices`, `onTurnStart`, `onChat`, `canDraw`, `onTurnEnd`, `onGameEnd`).
-Adding a mode means writing a class, not editing the engine.
+A mode implements the `GameMode` interface and is called at the hooks listed in §1. Adding one
+means writing a class, not editing the engine.
 
 - `ClassicMode`: humans take turns drawing, everyone else guesses in chat.
   The other four build on this one.
