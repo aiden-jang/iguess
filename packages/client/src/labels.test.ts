@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chatPlaceholder, connectionLabel, inviteLabel, lobbyStatus } from "./labels";
+import { chatPlaceholder, connectionLabel, inviteLabel, lobbyStatus, boardHint } from "./labels";
 
 test("the drawer is told to stop typing, whatever the phase", () => {
   assert.match(chatPlaceholder(true, true), /eyes on the canvas/);
@@ -60,4 +60,36 @@ test("someone on their own is told why nothing is happening", () => {
   };
   assert.match(lobbyStatus(alone), /needs someone to guess/);
   assert.match(lobbyStatus({ ...alone, isAIMode: true }), /you vs the 🤖 AI/);
+});
+
+const board = {
+  canDraw: false,
+  youAreWatching: false,
+  phase: "playing",
+  isDrawer: false,
+  drawerName: "Bo",
+  drawerIsAI: false,
+};
+
+test("a board you can draw on says nothing", () => {
+  assert.equal(boardHint({ ...board, canDraw: true }), null);
+});
+
+test("watching beats every other reason the board is dead", () => {
+  assert.match(boardHint({ ...board, youAreWatching: true, phase: "lobby" })!, /watching this one/);
+});
+
+test("the lobby invites a doodle, and a finished game points at run it back", () => {
+  assert.match(boardHint({ ...board, phase: "lobby" })!, /doodle while you wait/);
+  assert.match(boardHint({ ...board, phase: "ended" })!, /run it back/);
+});
+
+test("during the word pick, the drawer is nudged and everyone else is told who is picking", () => {
+  assert.match(boardHint({ ...board, phase: "choosing", isDrawer: true })!, /pick a word/);
+  assert.equal(boardHint({ ...board, phase: "choosing" }), "Bo is picking a word");
+});
+
+test("a live round names whoever is drawing, bot or human", () => {
+  assert.equal(boardHint(board), "Bo is cooking 👨‍🍳");
+  assert.match(boardHint({ ...board, drawerIsAI: true })!, /the AI is cooking/);
 });
