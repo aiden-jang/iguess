@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useGameSocket } from "./useWebSocket";
+import { isAI, roomView } from "./roomView";
 import { DrawingCanvas } from "./DrawingCanvas";
 import { renderEvidencePng } from "./evidenceCard";
 import { useWakeLock } from "./useWakeLock";
@@ -36,7 +37,6 @@ const MODES = [
   { value: "duel", label: "You vs AI", blurb: "trade turns drawing, most points beats the machine", icon: "🤖", needsTwo: false },
 ];
 
-const isAI = (id?: string | null) => !!id && id.startsWith("ai-");
 
 const TAGLINES = [
   "probably not. draw it anyway, no cap.",
@@ -612,20 +612,24 @@ function Room({
   const lastGuess = useRef<{ guess: string | null; right: boolean }>({ guess: null, right: false });
   const prevGuessed = useRef<string[]>([]);
 
-  const phase = game?.phase ?? "lobby";
-  const isDrawer = !!game && game.drawerId === you?.id;
-  const youAreHost = players.some((p) => p.id === you?.id && p.isHost);
+  const {
+    phase,
+    isDrawer,
+    youAreHost,
+    humans,
+    watching,
+    youAreWatching,
+    readyCount,
+    youAreReady,
+    canDraw,
+    drawingNow,
+    inGame,
+    ranked,
+    hasAI,
+    aiGuessedRight,
+    soloWaiting,
+  } = roomView(game, players, you);
   const awards = phase === "ended" ? awardsFor(gallery, players) : [];
-  const humans = players.filter((p) => !isAI(p.id) && !p.spectator);
-  const watching = players.filter((p) => p.spectator);
-  const youAreWatching = watching.some((p) => p.id === you?.id);
-  const readyCount = humans.filter((p) => p.ready).length;
-  const youAreReady = humans.some((p) => p.id === you?.id && p.ready);
-  const canDraw = (phase === "playing" && isDrawer) || ((phase === "lobby" || phase === "ended") && !youAreWatching);
-  // Not the same as canDraw. Everyone can scribble in the lobby, but only the person drawing
-  // in a live round is told to stop typing. Using canDraw here silenced the whole lobby.
-  const drawingNow = phase === "playing" && isDrawer;
-  const inGame = phase === "playing" || phase === "intermission";
   useWakeLock(inGame || phase === "choosing");
   useAppBadge(canDraw || (phase === "choosing" && isDrawer) ? 1 : 0);
 
@@ -738,16 +742,9 @@ function Room({
       ? game.hint.split("").map((ch) => (ch === "_" ? "" : ch))
       : Array.from({ length: game?.wordLength ?? 0 }, () => "");
 
-  const ranked = [...players].sort(
-    (a, b) => (game?.scores[b.id] ?? 0) - (game?.scores[a.id] ?? 0)
-  );
-
   const modeMeta = MODES.find((m) => m.value === effectiveMode);
-  const hasAI = players.some((p) => isAI(p.id));
-  const aiGuessedRight = hasAI && (game?.guessedIds ?? []).some((id) => isAI(id));
   // Keep the winning guess, not the last wrong one.
   if (aiGuessedRight) lastGuess.current = { ...lastGuess.current, right: true };
-  const soloWaiting = !hasAI && players.filter((p) => !isAI(p.id)).length <= 1;
 
   useEffect(() => {
     const aiMsgs = log.filter((l) => isAI(l.from?.id));
