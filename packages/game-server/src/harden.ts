@@ -1,13 +1,13 @@
-// Mirrors the securityHeaders core the sibling Hono workers use, so the served client HTML and
-// assets carry the same CSP/HSTS. This Worker is fully same-origin (client, assets and the
-// WebSocket on one host), so the default CSP needs no per-app loosening, and `connect-src 'self'`
-// covers the ws/wss upgrade per CSP3.
+// Mirrors the securityHeaders core the sibling Hono workers use. This Worker is fully same-origin,
+// so `connect-src 'self'` covers the ws/wss upgrade per CSP3. The Web Analytics beacon is listed in
+// script-src as well as connect-src, because it is a script: allowing it in connect-src alone
+// never loads it.
 
 const DEFAULT_CSP = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
-  "script-src 'self'",
+  "script-src 'self' https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob:",
   "font-src 'self' https://fonts.gstatic.com data:",
