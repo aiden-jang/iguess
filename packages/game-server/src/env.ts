@@ -13,6 +13,8 @@ export interface Env {
   // edge (see wrangler.toml [[unsafe.bindings]]). Optional so local dev / tests run without it
   // (the Worker degrades open when it's absent).
   RATE_LIMITER?: RateLimiter;
+  // Optional so local dev and the e2e suite run without it: an absent binding drops the events.
+  EVENTS?: AnalyticsEngineDataset;
 }
 
 // Minimal shape of the Workers rate-limiting binding (avoids a hard dep on the ambient type).

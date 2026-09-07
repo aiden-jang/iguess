@@ -11,6 +11,8 @@ import { DuelMode } from './modes/DuelMode.ts';
 import type { GameMode, PlayerRef } from './modes/GameMode.ts';
 import { requestAIGuess, type AIGuess } from './services/aiWorkerClient.ts';
 import { shouldResetRoom } from './roomReset.ts';
+import { writeEvent } from './events.ts';
+import { allowMessage } from './floodGuard.ts';
 import {
   atCapacity,
   roomIsFull,
@@ -26,7 +28,6 @@ import type { Env } from './env.ts';
 // Don't switch to hibernating WebSockets: hibernation throws away pending timers, and the
 // whole game runs on a turn timer.
 
-const MSG_LIMIT_PER_SEC = 200; // coarse per-connection flood guard
 // How long a dropped player has to come back before we treat it as leaving. Covers a brief
 // blip so they keep their score and their place in the drawing order.
 const RECONNECT_GRACE_MS = 8000;
@@ -66,6 +67,7 @@ export class GameRoom {
   private pendingLeaves = new Map<string, ReturnType<typeof setTimeout>>();
   private aiCallCount = 0;
   private saidAiIsBlind = false;
+  private reportedEnd = false;
   // Survives between games, so a night in one room stops serving the same words over.
   private wordMemory = new WordMemory();
   private settings: RoomSettings = DEFAULT_SETTINGS;
@@ -147,7 +149,7 @@ export class GameRoom {
     if (!isReconnect) this.broadcast({ type: 'system', text: `${name} joined` });
 
     server.addEventListener('message', (event) => {
-      if (!this.allow(conn)) return; // drop floods silently
+      if (!allowMessage(conn.rate)) return; // drop floods silently
       const raw = typeof event.data === 'string' ? event.data : '';
       let msg: ClientMessage;
       try {
@@ -194,6 +196,8 @@ export class GameRoom {
       this.readyIds.clear(); // the lobby's ready flags mean nothing once a game is running
       this.seatSpectators();
       game.startGame([...this.conns].filter((c) => !c.spectator).map((c) => c.player.id));
+      this.reportedEnd = false;
+      writeEvent(this.env, 'game_started', this.mode, this.settings.aiSkill, this.playerCount());
     } else if (msg.type === 'choose_word') {
       game.handleChooseWord(player.id, msg.word);
     } else if (msg.type === 'skip_word') {
@@ -334,6 +338,7 @@ export class GameRoom {
   private discloseBlindAI(provider: string | undefined): void {
     if (provider !== 'mock' || this.saidAiIsBlind) return;
     this.saidAiIsBlind = true;
+    writeEvent(this.env, 'ai_blind', this.mode);
     this.broadcast({
       type: 'system',
       text: "🤖 the AI can't actually see the canvas right now, so it's just naming things.",
@@ -362,6 +367,10 @@ export class GameRoom {
   }
 
   private broadcast(msg: ServerMessage): void {
+    if (msg.type === 'game_state' && msg.state.phase === 'ended' && !this.reportedEnd) {
+      this.reportedEnd = true;
+      writeEvent(this.env, 'game_ended', this.mode, '', msg.state.turnIndex);
+    }
     for (const c of this.conns) this.send(c.ws, msg);
   }
 
@@ -415,13 +424,4 @@ export class GameRoom {
     return [...this.conns].find((c) => c.player.id === playerId);
   }
 
-  private allow(conn: Conn): boolean {
-    const now = Date.now();
-    if (now - conn.rate.windowStart >= 1000) {
-      conn.rate.windowStart = now;
-      conn.rate.count = 0;
-    }
-    conn.rate.count += 1;
-    return conn.rate.count <= MSG_LIMIT_PER_SEC;
-  }
 }
