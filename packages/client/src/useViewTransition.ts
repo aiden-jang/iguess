@@ -9,11 +9,15 @@ import { flushSync } from "react-dom";
 // import inside the callback resolves after the snapshot for the same reason.
 export function withTransition(update: () => void): void {
   const doc = document as Document & {
-    startViewTransition?: (cb: () => void) => { finished: Promise<void> };
+    startViewTransition?: (cb: () => void) => { ready: Promise<void>; finished: Promise<void> };
   };
   if (typeof doc.startViewTransition !== "function") {
     update();
     return;
   }
-  doc.startViewTransition(() => flushSync(update));
+  // A transition skipped before it begins rejects `ready`, and nobody is awaiting it. Turn end
+  // into choosing into playing can all land inside one animation, so this is routine.
+  const transition = doc.startViewTransition(() => flushSync(update));
+  transition.ready.catch(() => {});
+  transition.finished.catch(() => {});
 }
