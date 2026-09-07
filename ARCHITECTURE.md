@@ -12,7 +12,7 @@ The five that shaped everything else:
 2. **One Durable Object per room (§4).** Gives single-writer-per-room by construction, so roster + strokes live in memory with no Redis, no lock, no cross-instance race. It's the runtime that happens to be the room-affinity cluster I'd otherwise have hand-rolled.
 3. **AI off the hot path (§3).** Vision runs in a separate Worker on an interval with a hard per-turn cap and a provider fallback chain, so a slow or failed guess never blocks the socket loop or the game.
 4. **One abstraction, added on demand (§6).** The only engine change the whole project needed was a single transport-agnostic `ctx.draw` verb, introduced when AI-as-drawer actually required it, not speculated up front.
-5. **Production concerns are real (§8).** Server-enforced abuse limits at three layers, identity-preserving reconnect with a grace window, a committed test suite, and CI that gates deploys.
+5. **Production concerns are real (§8).** Abuse limits enforced server-side at three layers, identity-preserving reconnect with a grace window, and an honest list of what is still missing.
 
 The sections below are the long form, each ending with the trade-off I made.
 
@@ -237,68 +237,34 @@ Worth writing down, because none of it was caught by the unit tests that were pa
 
 ## 8. Known limitations & what I'd do next
 
-Honest list:
+- **A room's state is in memory, so eviction ends the game.** Settings, word memory, host and
+  engine state all live in the Durable Object's memory rather than its SQLite storage, so a rare
+  eviction ends that game instead of rehydrating it. It is the cheap next step now that the
+  object owns the state.
+- **The `pid` that survives a reconnect is client-asserted.** It buys a dropped player, including
+  a sole player, an ~8s grace window that keeps their score, draw order and drawer role, and
+  re-delivers the drawer's secret word. Nothing stops one client claiming another's id. A signed
+  session token would.
+- **No auth at all, by design.** Anyone with the room code can join, and the longest-present
+  player is the host by default rather than by identity. The abuse surface is bounded by limits
+  instead of accounts: a per-IP cap on new connections at the Worker edge before a room's object
+  exists, a per-room cap of 8 players (extra arrivals watch instead of being turned away), a
+  coarse 200 msg/s per-connection bucket, and a whole-lifetime budget on paid vision calls per
+  room so a "run it back" loop cannot run up a bill. The per-IP layer degrades open when the
+  binding is absent, which is what local dev relies on.
+- **The AI drawer is curated, not generative:** 40 hand-coded vector doodles, each redrawn by a
+  post-processing pass with an unsteady hand so the same word never draws the same picture twice.
+  The seam for a real generator is unchanged (`AIDrawerMode`'s injected `requestDrawing`) and the
+  wobble pass would apply to a generated drawing just as well.
+- **The fill tool rasterizes per client.** Replaying a filled drawing at a different canvas size
+  gives a near-identical, not bit-identical, result. Fine for a doodle, not fine if drawings were
+  ever authoritative artifacts.
+- **The rasterizer has no automated coverage.** The e2e suite drives the real Worker and Durable
+  Object, and `aiWorker.spec.ts` posts to a real ai-worker, but that worker is pinned to the mock
+  provider so it never renders a PNG. Exercising `strokeRender` end to end needs a paid provider.
 
-- **The AI drawer is still curated, not generative:** 40 hand-coded vector
-  doodles. What changed is that they no longer _look_ canned: a post-processing
-  pass redraws each one with an unsteady hand, so the same word never produces
-  the same picture. The seam for a real generator is unchanged
-  (`AIDrawerMode`'s injected `requestDrawing`), and the wobble pass would apply
-  to a generated drawing just as well.
-- **A room's settings, word memory, and host live in memory** alongside the rest
-  of the engine state, so they share the same eviction caveat below.
-- **The fill tool rasterizes per client.** Replaying a filled drawing at a
-  different canvas size gives a near-identical, not bit-identical, result. Fine
-  for a doodle; it would not be fine if drawings were ever authoritative
-  artifacts.
-
-- **Reconnect now preserves identity** via a client-held `pid` on the connect
-  URL: a dropped client (including a sole player) gets an ~8s grace window to
-  rejoin as the same player (keeps score, draw order, drawer role) before it's
-  removed from the game, the drawer's secret word is re-delivered on reconnect,
-  and an overlap reconnect no longer ends the turn or duplicates the roster
-  entry. _Remaining:_ the `pid` is client-asserted, and a signed session token would
-  stop one client claiming another's id.
-- **Error handling hardened:** the connect/close handlers are wrapped and the
-  client guards malformed frames. There is no process-level net to add, because a
-  Worker isolate has no `process`; Workers Logs (`[observability]`) captures the
-  uncaught throws a Node process would have handed to `unhandledRejection`.
-- **Abuse limits, server-enforced at three layers.** (1) A per-IP cap on new
-  connections via Cloudflare's rate-limit binding, checked at the Worker edge
-  _before_ a room's Durable Object is created, so one client can't spin up
-  unbounded rooms/objects. (2) A per-room player cap (8) that turns away extra
-  joiners with a terminal close code the client renders as a "room's full"
-  notice, while always readmitting reconnects (they reclaim an existing slot).
-  (3) A coarse per-connection token bucket (200 msg/s) that drops pathological
-  message floods without throttling normal play. Paid AI vision is separately
-  capped per room (a whole-lifetime budget) so a "run it back" loop can't run up
-  a bill. The pure policy (`atCapacity`) is unit-tested; the per-IP layer
-  degrades open when the binding is absent (local dev). Rooms now have a host,
-  the longest-present player, and only the host can start a game, change
-  settings, or remove someone. _Remaining:_ no auth, so the host is whoever
-  connected first rather than a verified identity, and anyone with the room code
-  can still join.
-- **Horizontal scale is now the runtime, not a plan.** §4's design is
-  implemented: one Durable Object per room gives single-writer-per-room by
-  construction. What's _not_ done is persisting engine state to the DO's SQLite
-  storage. Today a room's state is in-memory, so a rare object eviction ends
-  that game rather than rehydrating it. That's the cheap, obvious next step now
-  that the object owns the state.
-- **Unit-tested core; integration coverage is the gap.** The engine, modes, and
-  pure helpers have a committed suite (`pnpm --filter @iguess/game-server
-test`) that drives the engine through whole games against in-memory
-  `EngineDeps`: rounds, scoring, hints, forgiving-guess matching, and the
-  word-choice phase. _Remaining:_ no end-to-end test exercising the real
-  WebSocket transport through the Durable Object; those paths are validated by
-  hand (a two-browser playthrough).
-- **No auth, by design.** Anyone can join any room and `start_game`, which is the
-  intended "type a name, share a link" flow for a party game. The abuse surface
-  is bounded by the per-IP, per-room, and per-connection limits above rather than
-  by accounts.
-
-**Next three things, in order:** (1) persist engine state to the DO's SQLite so a
-room survives eviction; (2) an end-to-end test across the real WebSocket +
-Durable Object; (3) signed session tokens so a `pid` can't be spoofed.
+**Next two:** persist engine state to the object's SQLite so a room survives eviction, and signed
+session tokens so a `pid` cannot be spoofed.
 
 # How it works, moved out of the README
 

@@ -280,7 +280,7 @@ a stub. The pin matters: this worker has an `[ai]` binding and a key in `.dev.va
 without it a call would reach a paid provider. The spec asserts `/health` reports
 the mock in the same test, before it posts anything. Note that pinning the mock also
 skips rasterization (`worker.ts` only renders a PNG when a real vision model will use
-it), so `strokeRender` stays unit-tested only.
+it), so the rasterizer has no automated coverage at all.
 
 ---
 
