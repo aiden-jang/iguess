@@ -226,12 +226,12 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
     };
   }, [room, name, mode, avatar]);
 
-  const sendChat = useCallback((text: string) => {
+  const sendChat = useCallback((text: string): boolean => {
     const ws = wsRef.current;
-    if (ws?.readyState === WebSocket.OPEN) {
-      const msg: ClientMessage = { type: "chat", text };
-      ws.send(JSON.stringify(msg));
-    }
+    if (ws?.readyState !== WebSocket.OPEN) return false;
+    const msg: ClientMessage = { type: "chat", text };
+    ws.send(JSON.stringify(msg));
+    return true;
   }, []);
 
   const sendDraw = useCallback((op: DrawOp) => {

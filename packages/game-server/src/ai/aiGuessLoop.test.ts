@@ -118,6 +118,24 @@ test("a wrong shortlist keeps the turn going", async () => {
   assert.ok(chats[0]?.includes("horse"), `expected the guess in: ${chats[0]}`);
 });
 
+test("an AI that can't answer says so once, not every attempt", async () => {
+  const { chats, ctx, turn } = loopHarness("guitar");
+  let down = 0;
+  let calls = 0;
+  const stop = startGuessLoop(turn, ctx, {
+    aiId: "ai", aiName: "AI",
+    requestGuess: async () => { calls++; throw new Error("budget spent"); },
+    onCorrect: () => {},
+    onUnavailable: () => { down++; },
+    firstGuessMs: 1, intervalMs: 1,
+  });
+  await new Promise((r) => setTimeout(r, 40));
+  stop();
+  assert.ok(calls > 1, `expected repeated attempts, got ${calls}`);
+  assert.equal(down, 1, `told the room ${down} times`);
+  assert.deepEqual(chats, [], "a failed call must not be phrased as a guess");
+});
+
 test("the AI looks again sooner when a lot has just been drawn", () => {
   assert.ok(nextGuessDelay(80) < nextGuessDelay(20));
   assert.ok(nextGuessDelay(20) < nextGuessDelay(0));

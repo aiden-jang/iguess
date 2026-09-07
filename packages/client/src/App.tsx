@@ -590,6 +590,12 @@ function Room({
   const [inviteResult, setInviteResult] = useState<"copied" | "shared" | null>(null);
   const [flexed, setFlexed] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashToast = (text: string) => {
+    setToast(text);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2600);
+  };
   const [muted, setMuted] = useState(() => localStorage.getItem(MUTE_KEY) === "1");
   const [burstKey, setBurstKey] = useState(0);
   const [botGuess, setBotGuess] = useState<string | null>(null);
@@ -1463,10 +1469,10 @@ function Room({
           onSubmit={(e) => {
             e.preventDefault();
             const t = text.trim();
-            if (t) {
-              sendChat(t);
-              setText("");
-            }
+            if (!t) return;
+            // An emptied box is how you know you sent it.
+            if (sendChat(t)) setText("");
+            else flashToast("not sent, still reconnecting 👀");
           }}
         >
           <input

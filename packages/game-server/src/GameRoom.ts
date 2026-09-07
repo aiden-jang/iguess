@@ -32,7 +32,7 @@ const MSG_LIMIT_PER_SEC = 200; // coarse per-connection flood guard
 const RECONNECT_GRACE_MS = 8000;
 
 // Total paid AI calls this room may ever make, so replaying it over and over can't run up a
-// bill. Past this the AI just stops guessing.
+// bill. Past this it stops asking, and the room is told.
 const MAX_AI_CALLS_PER_ROOM = 240;
 
 // The client can send any mode string, so map it to a known one. Keep this next to makeMode
@@ -65,6 +65,7 @@ export class GameRoom {
   // People who dropped and might still come back. If the timer fires, they really left.
   private pendingLeaves = new Map<string, ReturnType<typeof setTimeout>>();
   private aiCallCount = 0;
+  private saidAiIsBlind = false;
   // Survives between games, so a night in one room stops serving the same words over.
   private wordMemory = new WordMemory();
   private settings: RoomSettings = DEFAULT_SETTINGS;
@@ -302,21 +303,38 @@ export class GameRoom {
   }
 
   private buildMode(name: GameModeName): GameMode {
-    const aiGuess = (): Promise<AIGuess> => {
-      if (this.aiCallCount >= MAX_AI_CALLS_PER_ROOM) return Promise.resolve({ guess: '', alternatives: [] });
+    const aiGuess = async (): Promise<AIGuess> => {
+      // An empty guess reads as "the AI had nothing to say", so resolving here would leave the
+      // loop waiting on a budget that never comes back, with nobody told.
+      if (this.aiCallCount >= MAX_AI_CALLS_PER_ROOM) {
+        throw new Error('room AI budget spent');
+      }
       this.aiCallCount += 1;
-      return requestAIGuess(
+      const said = await requestAIGuess(
         this.env.AI_WORKER_URL,
         this.env.AI_SHARED_SECRET,
         this.strokes,
         this.engine?.currentHint(),
       );
+      this.discloseBlindAI(said.provider);
+      return said;
     };
     if (name === 'ai') return new AIGuesserMode(aiGuess);
     if (name === 'ai-drawer') return new AIDrawerMode();
     if (name === 'team-battle') return new TeamBattleMode(aiGuess);
     if (name === 'duel') return new DuelMode(aiGuess);
     return new ClassicMode();
+  }
+
+  // The mock provider never throws and matches the hint's length, so losing vision reads as a
+  // stupid AI rather than a broken one. Say it once; there is no recovering inside a room.
+  private discloseBlindAI(provider: string | undefined): void {
+    if (provider !== 'mock' || this.saidAiIsBlind) return;
+    this.saidAiIsBlind = true;
+    this.broadcast({
+      type: 'system',
+      text: "🤖 the AI can't actually see the canvas right now, so it's just naming things.",
+    });
   }
 
   private persist(op: DrawOp): void {

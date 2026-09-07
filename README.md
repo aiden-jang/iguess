@@ -221,9 +221,9 @@ pnpm --filter @iguess/client dev
 
 Open two browser tabs, join the same room, and pick the **AI** mode from the
 join screen (or append `?mode=ai`) to play against the vision model. With no API
-key configured the mock provider makes random guesses so everything still works;
-set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` as a `wrangler secret` on the
-ai-worker for a real model. See [DEPLOY.md](DEPLOY.md) for production.
+key configured the mock provider makes random guesses so everything still works,
+and the room is told the AI can't see the canvas; set `OPENAI_API_KEY` or
+`ANTHROPIC_API_KEY` as a `wrangler secret` on the ai-worker for a real model. See [DEPLOY.md](DEPLOY.md) for production.
 
 ### Quick demo
 
