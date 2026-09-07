@@ -84,30 +84,25 @@ belong outside the inheritance tree.
 
 ## 2. Real-time sync
 
-The server is **authoritative**. Clients never talk to each other; every fact
-flows through `broadcast`/`broadcastExcept`.
+The server is authoritative: clients never talk to each other, and every fact flows through
+`broadcast`/`broadcastExcept`. A stroke travels as a sequence of `start → move → end` ops
+(`shared/events.ts`), never a finished bitmap, so watchers see lines grow in real time,
+messages stay tiny, and a late joiner is caught up by replaying the same log (`canvas_sync`).
 
-A stroke travels as a sequence of `start → move → end` ops (`shared/events.ts`), never a
-finished bitmap. Watchers see lines grow in real time, messages stay tiny, and the same op
-log replays perfectly for a late joiner (`canvas_sync`). The rest of the drawing model falls
-out of that:
+Three consequences:
 
 - Coordinates are normalized 0 to 1, so a drawing made on an 800×600 canvas renders correctly
   on any client size with no server-side rescaling.
 - The drawer renders locally and is excluded from its own broadcast (`broadcastExcept`), which
   hides the round trip for the person drawing while keeping everyone else server-driven.
-- Late joiners replay the log. On connect the server sends one `canvas_sync` holding the full
-  ordered op list from the room's Durable Object memory, so a mid-turn joiner catches up
-  exactly.
-- `clear` truncates the log rather than appending, and each turn starts with a clear, which
-  also bounds how large the per-turn log can grow.
+- `clear` truncates the log rather than appending, and every turn starts with a clear, so the
+  per-turn log stays bounded.
 
-> **Decision:** authoritative server over client prediction / P2P. This is a
-> trust boundary as much as a latency one: a cheating client can't fabricate
-> game state because it has no authority over it. The cost is a round-trip for
-> _remote_ strokes; I hide it only for the local drawer. Because there's exactly
-> one drawer per turn (a draw-lock, not a CRDT), I never need conflict
-> resolution, which is a deliberate simplification versus collaborative drawing.
+> **Decision:** an authoritative server over client prediction or P2P. It is a trust boundary
+> as much as a latency one: a cheating client cannot fabricate game state because it has no
+> authority over it. The cost is a round trip for _remote_ strokes, which I hide only for the
+> local drawer. Because there is exactly one drawer per turn (a draw-lock, not a CRDT),
+> conflict resolution never comes up, a deliberate simplification versus collaborative drawing.
 
 ---
 
@@ -162,55 +157,33 @@ loop. Beyond that:
 
 ---
 
-## 4. Scaling stateful WebSocket servers: the design, now realized by Durable Objects
+## 4. One owning process per room
 
-This section originally described how I'd _hypothetically_ scale a single Node
-process horizontally. Porting to Cloudflare turned that design into the actual
-implementation, so it's worth reading as "the problem, the approach I reasoned
-out, and the runtime that happens to be that approach."
+The engine is a single writer. Each room has one authoritative timeline with one running timer,
+so if two instances both ran a room's engine you would get two timers, two "turn ended" events
+and double scoring. Stateless instances behind a pub/sub relay do not fix this: that solves
+message _delivery_, not _authority_, and you still get two timers. The approach that survives is
+to route by room rather than by connection, hash each room to one owning instance, keep in-room
+broadcast a local fan-out, and make the owner's state rehydratable so a failover is a rehydrate
+rather than a rebuild.
 
-**The hard constraint: the engine is a single-writer.** Each room has one
-authoritative timeline with one running timer. If two instances both ran a
-room's engine, you'd get two timers, two "turn ended" events, double scoring.
-So _whatever_ the topology, **each room must have exactly one owning process at
-a time.** That constraint is what ruled out the naive answers (fully stateless
-instances + pub/sub relay solves _message delivery_ but not _authority_; you'd
-still get two timers). The approach that survives it is **route by room, not by
-connection**: consistent-hash each room to one owning instance, keep in-room
-broadcast a local in-memory fan-out, and make the owner's state rehydratable so
-a failover is a _rehydrate_, not a _rebuild_.
+A Durable Object is that owner by construction. Each room is one `GameRoom` addressed by
+`idFromName(room)`, and the platform guarantees at most one instance per id, globally,
+single-threaded. `worker.ts` derives the id from the room in the URL and hands the socket over;
+broadcast is then an in-memory loop over that object's own sockets, with no Redis and no
+per-message network hop, because there is no other instance to synchronize with.
 
-**A Durable Object is exactly that owner, by construction.** In the Cloudflare
-port, each room is one `GameRoom` Durable Object addressed by `idFromName(room)`.
-The platform guarantees **at most one instance per id, globally, single-threaded**,
-which is precisely the "exactly one owning process per room" invariant I'd
-otherwise have to build with an L7 hash ring plus checkpoint/rehydrate plumbing.
-So:
+The one part that needed a decision rather than a default is the socket style. The turn
+`setTimeout` lives inside the object, so its sockets are **pinned** (`server.accept()`) rather
+than hibernating, because hibernation evicts pending timers. The cost is that a live game keeps
+its object resident, so an idle-but-open room is not free the way a hibernating one would be. A
+single hot room also cannot be split across instances, which is fine when a room is a handful of
+people.
 
-1. Routing by room is the addressing model, not a gateway I run. The `worker.ts` fetch
-   handler derives the DO id from the room in the URL and hands the socket to that object.
-   Cloudflare routes it to the one instance.
-2. In-room broadcast is a local in-memory fan-out. The roster and stroke log live in the
-   object's memory (no Redis, no per-message network hop) because the object _is_ the single
-   owner, so there's no other instance to synchronize with.
-3. The timeline runs in the object. The turn `setTimeout` lives inside the DO, and to keep
-   timers alive I use **pinned** WebSockets (`server.accept()`) rather than the hibernation
-   API, since hibernation evicts pending timers. That is a deliberate cost trade for
-   correctness: a live game keeps the object resident.
-4. Durability is available without a second store. State can be persisted to the object's own
-   SQLite storage; today the game holds it in memory (a room's worth of state is small and a
-   crash simply ends that game), which is the same "checkpoint is cheap because the state is
-   small" observation from the original design.
-
-> **Decision:** Durable Objects over a hand-rolled room-affinity cluster. The
-> earlier plan (L7 consistent-hash by `roomId` + Redis checkpointing +
-> rehydrate-on-failover) was the _right_ design; a Durable Object is that design
-> delivered as a primitive, minus the infrastructure I'd otherwise operate. The
-> trade-offs are inherent to single-writer-per-room, not to the platform: a
-> single hot room still can't be split across instances (fine for a party game,
-> a room is a handful of people), and keeping timers alive means choosing pinned
-> over hibernating sockets, so an idle-but-open room isn't free the way a
-> hibernating one would be.
+> **Decision:** Durable Objects over a hand-rolled room-affinity cluster. The earlier plan
+> (consistent-hash by `roomId`, Redis checkpointing, rehydrate on failover) was the right shape.
+> A Durable Object is that shape delivered as a primitive, minus the infrastructure I would
+> otherwise be operating.
 
 ---
 
