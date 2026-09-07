@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chatPlaceholder, connectionLabel, inviteLabel, lobbyStatus, boardHint } from "./labels";
+import { roomView } from "./roomView";
+import type { PlayerInfo, PublicGameState } from "@iguess/shared";
 
 test("the drawer is told to stop typing, whatever the phase", () => {
   assert.match(chatPlaceholder(true, true), /eyes on the canvas/);
@@ -79,11 +81,6 @@ test("watching beats every other reason the board is dead", () => {
   assert.match(boardHint({ ...board, youAreWatching: true, phase: "lobby" })!, /watching this one/);
 });
 
-test("the lobby invites a doodle, and a finished game points at run it back", () => {
-  assert.match(boardHint({ ...board, phase: "lobby" })!, /doodle while you wait/);
-  assert.match(boardHint({ ...board, phase: "ended" })!, /run it back/);
-});
-
 test("during the word pick, the drawer is nudged and everyone else is told who is picking", () => {
   assert.match(boardHint({ ...board, phase: "choosing", isDrawer: true })!, /pick a word/);
   assert.equal(boardHint({ ...board, phase: "choosing" }), "Bo is picking a word");
@@ -92,4 +89,52 @@ test("during the word pick, the drawer is nudged and everyone else is told who i
 test("a live round names whoever is drawing, bot or human", () => {
   assert.equal(boardHint(board), "Bo is cooking 👨‍🍳");
   assert.match(boardHint({ ...board, drawerIsAI: true })!, /the AI is cooking/);
+});
+
+// boardHint has no lobby or results case because canDraw is true in both, so there is nothing to
+// explain. If that ever stops holding, the board goes quiet with no reason given: fail here first.
+test("nobody who can draw is ever shown a reason they cannot", () => {
+  const phases = ["lobby", "choosing", "playing", "intermission", "ended"] as const;
+  for (const phase of phases) {
+    for (const amDrawer of [false, true]) {
+      const you: PlayerInfo = { id: "me", name: "me" };
+      const players = [you, { id: "bo", name: "Bo" }];
+      const game: PublicGameState | null =
+        phase === "lobby"
+          ? null
+          : {
+              phase,
+              drawerId: amDrawer ? "me" : "bo",
+              turnIndex: 0,
+              totalTurns: 6,
+              round: 1,
+              totalRounds: 3,
+              turnEndsAt: null,
+              wordLength: 3,
+              hint: "___",
+              scores: {},
+              guessedIds: [],
+            };
+      const v = roomView(game, players, you);
+      const hint = boardHint({
+        canDraw: v.canDraw,
+        youAreWatching: v.youAreWatching,
+        phase: v.phase,
+        isDrawer: v.isDrawer,
+        drawerName: "Bo",
+        drawerIsAI: false,
+      });
+      const who = `${phase}/${amDrawer ? "drawer" : "guesser"}`;
+      if (v.canDraw) {
+        assert.equal(hint, null, `${who} can draw but was told: ${hint}`);
+        continue;
+      }
+      // The invariant the missing cases rest on: a dead board in these phases only ever means
+      // "you are watching". Anything else falls through to the cooking line and lies.
+      if (phase === "lobby" || phase === "ended") {
+        assert.ok(v.youAreWatching, `${who} has a dead board, so boardHint needs a ${phase} case`);
+      }
+      assert.notEqual(hint, null, `${who} gave no reason`);
+    }
+  }
 });

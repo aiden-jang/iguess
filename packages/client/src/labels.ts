@@ -54,14 +54,13 @@ export interface BoardState {
   drawerIsAI: boolean;
 }
 
-// Always say WHY the board is dead, or it just looks broken.
+// Always say WHY the board is dead, or it just looks broken. There is deliberately no lobby or
+// results case: anyone not watching can draw in those phases, so the board is alive and silent.
 export function boardHint(s: BoardState): string | null {
   if (s.canDraw) return null;
   if (s.youAreWatching) return "you're watching this one";
-  if (s.phase === "lobby") return "doodle while you wait \u270f\ufe0f";
-  if (s.phase === "ended") return "round over. run it back";
   if (s.phase === "choosing") {
-    return s.isDrawer ? "pick a word to start drawing \u261d\ufe0f" : `${s.drawerName} is picking a word`;
+    return s.isDrawer ? "pick a word to start drawing ☝️" : `${s.drawerName} is picking a word`;
   }
-  return s.drawerIsAI ? "\ud83e\udd16 the AI is cooking" : `${s.drawerName} is cooking \ud83d\udc68\u200d\ud83c\udf73`;
+  return s.drawerIsAI ? "🤖 the AI is cooking" : `${s.drawerName} is cooking 👨‍🍳`;
 }
