@@ -13,7 +13,7 @@ The game engine has no idea AI exists. Everything AI-related lives in game
 *modes*, which plug into the engine, so "AI guesser", "AI drawer", "humans vs
 AI", and "you vs AI" are separate modes rather than changes to the core.
 
-> Part of a [platform of apps](https://github.com/aiden-jang/platform/blob/main/PLATFORM.md) that share one sign-in. For the design decisions and
+> Part of a [platform of apps](https://github.com/aiden-jang/auth/blob/main/PLATFORM.md) that share one sign-in. For the design decisions and
 > how I'd scale it, see **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
 
 ---
