@@ -50,6 +50,12 @@ run_worker_first = true
 pattern = "iguess.aidenjang.com"
 custom_domain = true
 
+# Cross-check the ai-worker on a schedule. Nothing else notices a vision key expiring: the worker
+# stays up and quietly answers from the mock, so players get random words and find out mid-game.
+# Cron invocations are ordinary requests, so this is free at this rate.
+[triggers]
+crons = ["*/30 * * * *"]
+
 # Workers Logs — native, free-tier error/log observability. Tail live with `wrangler tail`;
 # browse + query in the dashboard (Workers & Pages → the worker → Logs).
 [observability]

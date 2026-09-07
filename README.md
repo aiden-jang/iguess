@@ -268,10 +268,19 @@ The engine tests run whole games through the `GameEngine` with in-memory deps
 (no sockets or real timers), covering rounds, scoring, hints, the word-choice
 step, and guess matching.
 
-The e2e suite starts the SPA and the game-server Durable Object for real. It runs a
-bare `wrangler dev`, which has no `AI_WORKER_URL`, so a test run can never reach a
-paid vision provider. That is why the URL lives on the deploy command instead of in
-`wrangler.toml`. The AI guess path is covered by unit tests instead.
+The e2e suite starts the SPA and the game-server Durable Object for real. The game-server
+runs as a bare `wrangler dev` with no `AI_WORKER_URL`, so the game the browser specs play
+can never reach a vision worker. That is why the URL lives on the deploy command instead
+of in `wrangler.toml`.
+
+`aiWorker.spec.ts` is the one exception: it starts the ai-worker pinned to the mock
+(`--var VISION_PROVIDER:mock`) and POSTs `/guess` directly, so the HTTP contract, the
+hint guard and the response shape are covered against a real running worker rather than
+a stub. The pin matters: this worker has an `[ai]` binding and a key in `.dev.vars`, so
+without it a call would reach a paid provider. The spec asserts `/health` reports
+the mock in the same test, before it posts anything. Note that pinning the mock also
+skips rasterization (`worker.ts` only renders a PNG when a real vision model will use
+it), so `strokeRender` stays unit-tested only.
 
 ---
 
@@ -307,5 +316,13 @@ will stop and ask.
 - **Errors + requests:** Workers Logs is enabled (`[observability]` in both workers'
   `wrangler.toml`), so uncaught throws are captured for the game-server and the ai-worker. Tail live
   with `pnpm --filter @iguess/game-server exec wrangler tail` (or `@iguess/ai-worker`).
-- **Uptime:** each worker exposes `GET /health`, ready for a free external monitor (e.g.
-  UptimeRobot).
+- **Uptime:** each worker exposes `GET /health`. The game-server also runs a cron every 30
+  minutes that reads the ai-worker's `/health` and logs an error if it is unreachable **or has
+  fallen back to the mock provider**. A vision key expiring is otherwise silent, since the
+  worker stays up and answers with random words of the right length. Set a Cloudflare
+  notification on Worker errors to have that emailed.
+- **The blind spot:** a worker cannot cron-check itself, so if the game-server is down nothing
+  reports it. That still wants a free external monitor (e.g. UptimeRobot) pointed at
+  `https://iguess.aidenjang.com/health`, expecting `{"status":"ok"}`. A scheduled GitHub Action
+  would be the wrong tool: this repo is private, so a 30-minute cron would bill ~1,400 Actions
+  minutes a month against the allowance.

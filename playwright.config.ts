@@ -15,12 +15,22 @@ export default defineConfig({
   },
   webServer: [
     {
-      // No AI_WORKER_URL, so the suite can never reach the paid vision worker. That is why
-      // wrangler.toml carries no [vars] block: this command would inherit it. The AI guess path
-      // is covered by unit tests instead.
+      // No AI_WORKER_URL, so the game the browser specs play can never reach a vision worker at
+      // all. That is why wrangler.toml carries no [vars] block: this command would inherit it.
       command: "npx wrangler dev --port 33300",
       cwd: "packages/game-server",
       url: "http://127.0.0.1:33300/health",
+      reuseExistingServer: true,
+      timeout: 120_000,
+    },
+    {
+      // The ai-worker, pinned to the mock provider. VISION_PROVIDER=mock returns before any paid
+      // provider is even constructed (see selectProviders), and .dev.vars sets only a key, never
+      // this, so the flag applies. aiWorker.spec.ts asserts /health agrees before it POSTs, so a
+      // broken pin fails the run rather than spending money. Nothing else here talks to it.
+      command: "npx wrangler dev --port 33400 --var VISION_PROVIDER:mock",
+      cwd: "packages/ai-worker",
+      url: "http://127.0.0.1:33400/health",
       reuseExistingServer: true,
       timeout: 120_000,
     },
