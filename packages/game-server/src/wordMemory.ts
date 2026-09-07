@@ -1,5 +1,5 @@
-// Per-room memory of what has already come up. Each game used to start with a clean slate,
-// so an evening of short games kept serving the same handful of words.
+// Per-room memory of what has already come up, so an evening of short games stops serving the
+// same handful of words.
 
 // Roomy enough to span a long session across every tier at once. avoidFor caps what this
 // can actually block, so a large history can never starve a pool.

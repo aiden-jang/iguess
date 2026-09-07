@@ -38,11 +38,9 @@ function newPid(): string {
     : Math.random().toString(36).slice(2, 14);
 }
 
-// The id that says "this is the same player". A returning pid inside the grace window keeps
-// your score, your place in the drawing order, and your turn.
-//
-// sessionStorage, NOT localStorage: it has to survive a refresh, but two tabs on one machine
-// must stay two players. If storage throws, a fresh id is no worse than having none.
+// A returning pid inside the grace window keeps your score, your place in the drawing order,
+// and your turn. sessionStorage, NOT localStorage: it has to survive a refresh, but two tabs on
+// one machine must stay two players. If storage throws, a fresh id is no worse than having none.
 function stablePid(): string {
   try {
     const existing = sessionStorage.getItem(PID_KEY);

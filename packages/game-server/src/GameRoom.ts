@@ -183,7 +183,7 @@ export class GameRoom {
         const strokeId = this.undoLastStroke();
         if (!strokeId) return; // nothing drawn yet
         // Send the stroke's id, not the canvas. Everyone holds the same list of strokes, so
-        // they can drop that one themselves. This used to be the biggest message we ever sent.
+        // they can drop that one themselves, and undo is the button people press most.
         this.broadcast({ type: 'draw', op: { kind: 'undo', strokeId } });
         return;
       }

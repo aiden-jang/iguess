@@ -1,8 +1,7 @@
-// Framework-agnostic HTTP hardening for the game-server (a plain-fetch Worker, not Hono). Mirrors
-// the securityHeaders core the platform's Hono workers use, so the browser-facing responses (the
-// served client HTML + static assets) carry the same CSP/HSTS/etc. The game-server is fully
-// same-origin: the client, its assets, and the WebSocket all live on one host, so the default CSP
-// needs no per-app loosening. `connect-src 'self'` covers the same-origin ws/wss upgrade per CSP3.
+// Mirrors the securityHeaders core the sibling Hono workers use, so the served client HTML and
+// assets carry the same CSP/HSTS. This Worker is fully same-origin (client, assets and the
+// WebSocket on one host), so the default CSP needs no per-app loosening, and `connect-src 'self'`
+// covers the ws/wss upgrade per CSP3.
 
 const DEFAULT_CSP = [
   "default-src 'self'",

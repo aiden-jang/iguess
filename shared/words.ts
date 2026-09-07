@@ -25,9 +25,8 @@ export const PACKS = packsByName as Record<string, string[]>;
 export const PACK_NAMES = Object.keys(PACKS);
 
 /**
- * Words available for a tier, narrowed to the chosen packs. No packs means everything.
- * A pack with nothing in this tier falls back to the whole tier, so "food" (which has no
- * hard words) still fills the hard slot on the pick screen instead of leaving it empty.
+ * No packs means everything. A pack with nothing in this tier falls back to the whole tier, so
+ * "food" (no hard words) still fills the hard slot on the pick screen instead of leaving it empty.
  */
 export function poolFor(tier: Tier, packs: string[] = []): string[] {
   const full = WORDS_BY_TIER[tier];

@@ -20,6 +20,7 @@ const CEILINGS = {
   "shared/events.ts": 275,
   "scripts/check-size.mjs": 100,
   "scripts/check-tests.mjs": 80,
+  "scripts/check-comments.mjs": 70,
 };
 
 // Anything this big should be under a ceiling, so a new god file can't appear unnoticed.

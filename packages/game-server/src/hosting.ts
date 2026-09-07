@@ -7,11 +7,9 @@ export interface Seat {
   spectator: boolean;
 }
 
-// Seat waiting watchers, oldest first.
-//
-// This is also the only way out of a stuck room. The host is chosen from players, and watchers
-// are only seated when a host starts a game, so a room where everyone playing has left would
-// sit there forever with nobody able to start anything.
+// Oldest watcher first. This is also the only way out of a stuck room: the host is chosen from
+// players and watchers are only seated when a host starts a game, so a room where everyone
+// playing has left would sit there forever with nobody able to start anything.
 export function seatSpectators(seats: Seat[]): Seat[] {
   let playing = seats.filter((s) => !s.spectator).length;
   return seats.map((s) => {

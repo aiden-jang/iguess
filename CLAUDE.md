@@ -30,8 +30,16 @@ build:
   meaninglessness.
 - **check-tests** runs each package's suite and holds it to a floor, because `node --test`
   exits 0 when its glob matches nothing. Floors only move up.
+- **check-comments** enforces the two comment rules below that a script can judge: no block over
+  four lines, and no ticket ids. Test files are out of scope, since a test comment explains why
+  the test exists.
 
-Both cover their own source, and both are read-only.
+They all cover their own source, and they are all read-only.
+
+Whether a comment earns its place is not automated, and "never explain what the code used to do"
+is not either: "used to" is ambiguous in English. `// Only used to size the draining bar` is
+present-tense and fine, `// Each game used to start with a clean slate` is a changelog. A check
+cannot tell them apart, and one that cries wolf gets ignored. Read them instead.
 
 ## Writing a new check
 

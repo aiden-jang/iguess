@@ -253,7 +253,7 @@ pnpm test:e2e                             # Playwright specs, real Worker + DO
 ```
 
 `pnpm run verify` is what CI runs, so a check can never fire in CI before it fires
-locally. Two of its steps are this repo's own:
+locally. Three of its steps are this repo's own:
 
 - **check-size** holds the files that have sprawled to a line ceiling, and refuses any
   unlisted file over 300 lines, so a new god file can't appear quietly. It also fails when
@@ -261,6 +261,8 @@ locally. Two of its steps are this repo's own:
 - **check-tests** runs each suite and holds it to a floor. `node --test` exits 0 when its
   glob matches nothing, so a moved directory or a typo'd path would otherwise report green
   forever.
+- **check-comments** rejects any comment block over four lines, and any ticket id. Whether a
+  comment earns its place at all is a reading job, not a script's.
 
 The engine tests run whole games through the `GameEngine` with in-memory deps
 (no sockets or real timers), covering rounds, scoring, hints, the word-choice
