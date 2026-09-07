@@ -16,9 +16,12 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "lint": "eslint . --ext .ts,.tsx",
+    "check-size": "node scripts/check-size.mjs",
+    "check-tests": "node scripts/check-tests.mjs",
+    "verify": "pnpm typecheck && pnpm lint && pnpm run check-size && pnpm run check-tests && pnpm build",
     "format": "prettier --write .",
     "test:e2e": "playwright test",
-    "deploy": "pnpm typecheck && pnpm lint && pnpm test && pnpm run deploy:only",
+    "deploy": "pnpm run verify && pnpm run deploy:only",
     "deploy:only": "pnpm --filter @iguess/ai-worker run deploy && pnpm --filter @iguess/game-server run deploy"
   },
   "devDependencies": {

@@ -244,11 +244,23 @@ Same engine, different mode.
 ### Tests
 
 ```bash
-pnpm -r test                              # 158 unit tests: 131 game-server, 27 ai-worker
+pnpm run verify                           # typecheck, lint, size ceilings, test floors, build
+pnpm -r test                              # every unit suite
 pnpm --filter @iguess/game-server test    # engine + modes + helpers
 pnpm --filter @iguess/ai-worker test      # stroke→SVG + vision providers
-pnpm test:e2e                             # 9 Playwright specs, real Worker + DO
+pnpm --filter @iguess/client test         # room view, chat scroll, share text
+pnpm test:e2e                             # Playwright specs, real Worker + DO
 ```
+
+`pnpm run verify` is what CI runs, so a check can never fire in CI before it fires
+locally. Two of its steps are this repo's own:
+
+- **check-size** holds the files that have sprawled to a line ceiling, and refuses any
+  unlisted file over 300 lines, so a new god file can't appear quietly. It also fails when
+  a ceiling drifts well above the real count, so the numbers keep meaning something.
+- **check-tests** runs each suite and holds it to a floor. `node --test` exits 0 when its
+  glob matches nothing, so a moved directory or a typo'd path would otherwise report green
+  forever.
 
 The engine tests run whole games through the `GameEngine` with in-memory deps
 (no sockets or real timers), covering rounds, scoring, hints, the word-choice
@@ -263,8 +275,8 @@ paid vision provider. That is why the URL lives on the deploy command instead of
 
 ## Deploying
 
-CI deploys on merge to `main` (`.github/workflows/ci.yml`), after typecheck, lint,
-build, unit tests and the e2e suite all pass. That is the normal path.
+CI deploys on merge to `main` (`.github/workflows/ci.yml`), after `pnpm run verify`
+and the e2e suite both pass. That is the normal path.
 
 To ship by hand:
 
