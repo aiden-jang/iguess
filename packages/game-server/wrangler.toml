@@ -9,10 +9,10 @@ workers_dev = false
 [dev]
 port = 33300
 
-# The ai-worker's URL (set after `iguess-ai` deploys). Empty = AI modes degrade gracefully
-# (no guesses/draws); classic mode is unaffected.
-[vars]
-AI_WORKER_URL = "https://iguess-ai.aidenjang.workers.dev"
+# AI_WORKER_URL is set on the deploy command (see this package's deploy script), NOT here. A
+# [vars] entry here also reaches `wrangler dev`, which would point local play and the e2e suite
+# at the paid production worker. Unset = AI modes tell the room the AI is unavailable, and
+# classic mode is unaffected.
 
 # One GameRoom instance per room id. SQLite-backed (free-plan requirement); it holds no persisted
 # storage today — room state lives in memory while players are connected (pinned WebSockets), and

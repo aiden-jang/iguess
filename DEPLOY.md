@@ -22,14 +22,17 @@ Optional real vision (else mock): `echo "<key>" | pnpm exec wrangler secret put 
 
 ## 2. Point the game server at it
 
-In `packages/game-server/wrangler.toml`, set the ai-worker URL from step 1:
+The URL goes on the deploy command, not in `wrangler.toml`. A `[vars]` entry there also
+reaches `wrangler dev`, which would point local play and the e2e suite at the paid worker. If
+step 1 gave you a different URL, edit the `deploy` script in
+`packages/game-server/package.json`:
 
-```toml
-[vars]
-AI_WORKER_URL = "https://iguess-ai.aidenjang.workers.dev"
+```bash
+wrangler deploy --var AI_WORKER_URL:https://iguess-ai.aidenjang.workers.dev
 ```
 
-(Leave it `""` to ship without AI — classic mode is unaffected; AI modes just won't guess.)
+(Drop the flag to ship without AI — classic mode is unaffected; AI modes tell the room the AI
+is unavailable.)
 
 ## 3. Deploy the game server
 

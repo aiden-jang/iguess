@@ -208,9 +208,9 @@ server, the Durable Object, and the AI worker all run under `wrangler dev`
 ```bash
 pnpm install
 
-# terminal 1: game-server on :33300 + GameRoom Durable Object. For AI modes, point it at the
-# local ai-worker (terminal 2); classic mode works without this override.
-pnpm --filter @iguess/game-server dev -- --var AI_WORKER_URL:http://localhost:33400
+# terminal 1: game-server on :33300 + GameRoom Durable Object. This script points AI modes at
+# the local ai-worker (terminal 2); a bare `wrangler dev` has no AI worker at all.
+pnpm dev:server
 
 # terminal 2: ai-worker (vision) on :33400
 pnpm --filter @iguess/ai-worker dev
@@ -254,11 +254,10 @@ The engine tests run whole games through the `GameEngine` with in-memory deps
 (no sockets or real timers), covering rounds, scoring, hints, the word-choice
 step, and guess matching.
 
-The e2e suite starts the SPA and the game-server Durable Object for real. It
-deliberately starts the game-server **without** `AI_WORKER_URL`, so a test run
-can never reach a paid vision provider — `.dev.vars` outranks `--var`, so there
-is no way to force the mock from the command line. The AI guess path is covered
-by unit tests instead.
+The e2e suite starts the SPA and the game-server Durable Object for real. It runs a
+bare `wrangler dev`, which has no `AI_WORKER_URL`, so a test run can never reach a
+paid vision provider. That is why the URL lives on the deploy command instead of in
+`wrangler.toml`. The AI guess path is covered by unit tests instead.
 
 ---
 
