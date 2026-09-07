@@ -7,10 +7,8 @@ import { useWakeLock } from "./useWakeLock";
 import { useAppBadge } from "./useAppBadge";
 import type { WordTier } from "@iguess/shared";
 import { newRoomCode } from "@iguess/shared/roomCode";
-import { PACK_NAMES } from "@iguess/shared/words";
 import { AVATARS } from "@iguess/shared";
 import type { DrawOp } from "@iguess/shared";
-import { Replay } from "./Replay";
 import { awardsFor } from "@iguess/shared/awards";
 import { styles } from "./styles";
 import { RoomSidebar } from "./RoomSidebar";
@@ -22,17 +20,15 @@ import { useToast } from "./useToast";
 import { useMuted } from "./useMuted";
 import { saveCanvasPng, thumbnailOf } from "./canvasExport";
 import { flexText, scoreLine, shareOrDownload } from "./share";
+import { COLORS } from "./brushStyle";
+import { useBrush } from "./useBrush";
+import { DrawToolbar } from "./DrawToolbar";
+import { HostSettings } from "./HostSettings";
+import { EndScreen, type GalleryShot } from "./EndScreen";
+import { lobbyStatus } from "./labels";
 
 const TIER_LABEL: Record<WordTier, string> = { easy: "1x", medium: "1.25x", hard: "1.6x" };
 
-// Real hex codes, not theme variables. A drawing must look the same to everyone, whichever
-// theme each person happens to be using.
-const COLORS = [
-  "#111111", "#6b7280", "#ffffff",
-  "#e11d48", "#f97316", "#f59e0b",
-  "#16a34a", "#0891b2", "#2563eb",
-  "#7c3aed", "#db2777", "#92400e",
-];
 
 // `needsTwo` has to match `minHumans` on the server. Classic is the only mode that needs a
 // second person, so a first-time visitor lands on AI Guesser and can play alone right away.
@@ -239,17 +235,6 @@ function readInvite(): { room?: string; mode?: string; name?: string } {
   };
 }
 
-function widthDot(w: number, c: string, on: boolean): React.CSSProperties {
-  return {
-    width: Math.max(6, Math.min(28, w)),
-    height: Math.max(6, Math.min(28, w)),
-    borderRadius: "50%",
-    background: c === "#ffffff" ? "#ffffff" : c,
-    border: c === "#ffffff" ? "1px solid #44495a" : "none",
-    opacity: on ? 1 : 0.35,
-    flexShrink: 0,
-  };
-}
 
 export function App() {
   const invite = readInvite();
@@ -561,11 +546,7 @@ function Room({
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-  const [color, setColor] = useState(COLORS[0]);
-  const [width, setWidth] = useState(4);
-  const [erasing, setErasing] = useState(false);
-  const [filling, setFilling] = useState(false);
-  const [replayIdx, setReplayIdx] = useState<number | null>(null);
+  const brush = useBrush(COLORS[0]!);
   const roundOps = useRef<DrawOp[]>([]);
   // Only auto-scroll when they are already at the bottom. Someone reading back through the
   // chat should not get yanked to the end every time a message arrives.
@@ -580,9 +561,7 @@ function Room({
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
 
   const [savingEvidence, setSavingEvidence] = useState(false);
-  const [gallery, setGallery] = useState<
-    { word: string; png: string; guess: string | null; right: boolean; drawerId: string | null; ops: DrawOp[] }[]
-  >([]);
+  const [gallery, setGallery] = useState<GalleryShot[]>([]);
   // `botGuess` clears itself after a few seconds, so by the end of a turn it is usually empty.
   // The gallery needs whatever the machine said LAST, which is the whole joke.
   const lastGuess = useRef<{ guess: string | null; right: boolean }>({ guess: null, right: false });
@@ -853,100 +832,21 @@ function Room({
           {phase === "lobby" && (
             <>
               <span style={styles.bannerText}>
-                {youAreWatching
-                  ? "room's full, so you're watching. you're in the next game."
-                  : !soloWaiting
-                  ? `lowkey waiting · ${readyCount}/${humans.length} ready` +
-                    (watching.length ? ` · ${watching.length} watching` : "")
-                  : isAIMode
-                    ? "it's you vs the 🤖 AI. hit send it whenever you're ready."
-                    : "just you so far. classic needs someone to guess, so hit 🔗 invite the squad."}
+                {lobbyStatus({
+                  youAreWatching,
+                  soloWaiting,
+                  isAIMode,
+                  readyCount,
+                  humanCount: humans.length,
+                  watchingCount: watching.length,
+                })}
               </span>
-              <span style={styles.settingsRow}>
-                <span style={styles.packRow}>
-                  {PACK_NAMES.map((p) => {
-                    const on = settings.packs.includes(p);
-                    return (
-                      <button
-                        key={p}
-                        className="lift"
-                        style={{ ...styles.packChip, ...(on ? styles.packChipOn : null) }}
-                        aria-pressed={on}
-                        disabled={!youAreHost}
-                        onClick={() =>
-                          updateSettings({
-                            packs: on ? settings.packs.filter((x) => x !== p) : [...settings.packs, p],
-                          })
-                        }
-                      >
-                        {p}
-                      </button>
-                    );
-                  })}
-                </span>
-                <label style={styles.settingLabel}>
-                  ours
-                  <input
-                    style={{ ...styles.settingSelect, width: 150 }}
-                    disabled={!youAreHost}
-                    placeholder="your own words, comma separated"
-                    defaultValue={settings.customWords.join(", ")}
-                    onBlur={(e) => updateSettings({ customWords: e.target.value.split(",") })}
-                    onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-                  />
-                </label>
-                <label style={styles.settingLabel}>
-                  round
-                  <select
-                    style={styles.settingSelect}
-                    disabled={!youAreHost}
-                    value={settings.turnSeconds}
-                    onChange={(e) => updateSettings({ turnSeconds: Number(e.target.value) })}
-                  >
-                    {[30, 45, 60, 90, 120].map((n) => (
-                      <option key={n} value={n}>{n}s</option>
-                    ))}
-                  </select>
-                </label>
-                {isAIMode && (
-                  <label style={styles.settingLabel}>
-                    ai
-                    <select
-                      style={styles.settingSelect}
-                      disabled={!youAreHost}
-                      value={settings.aiSkill}
-                      onChange={(e) => updateSettings({ aiSkill: e.target.value as typeof settings.aiSkill })}
-                    >
-                      <option value="easy">blindfolded</option>
-                      <option value="normal">normal</option>
-                      <option value="brutal">scary good</option>
-                    </select>
-                  </label>
-                )}
-                <label style={styles.settingLabel}>
-                  ends
-                  <select
-                    style={styles.settingSelect}
-                    disabled={!youAreHost}
-                    value={settings.scoreTarget > 0 ? `t${settings.scoreTarget}` : `r${settings.rounds}`}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      updateSettings(
-                        v.startsWith("t")
-                          ? { scoreTarget: Number(v.slice(1)) }
-                          : { scoreTarget: 0, rounds: Number(v.slice(1)) }
-                      );
-                    }}
-                  >
-                    {[1, 2, 3, 4, 5, 6, 8].map((n) => (
-                      <option key={`r${n}`} value={`r${n}`}>{n} rounds</option>
-                    ))}
-                    {[300, 500, 1000].map((n) => (
-                      <option key={`t${n}`} value={`t${n}`}>first to {n}</option>
-                    ))}
-                  </select>
-                </label>
-              </span>
+              <HostSettings
+                settings={settings}
+                youAreHost={youAreHost}
+                isAIMode={isAIMode}
+                onChange={updateSettings}
+              />
               {!youAreWatching && (
                 <button
                   className="lift"
@@ -1056,97 +956,22 @@ function Room({
           )}
         </div>
 
-        <div className="glass draw-toolbar" style={styles.toolbar}>
-          {COLORS.map((c) => (
-            <button
-              key={c}
-              disabled={!canDraw}
-              onClick={() => { setColor(c); setErasing(false); }}
-              style={{
-                ...styles.swatch,
-                background: c,
-                cursor: canDraw ? "pointer" : "default",
-                opacity: canDraw ? 1 : 0.35,
-                boxShadow:
-                  c === color ? "0 0 0 2px var(--panel), 0 0 0 4px var(--accent)" : "none",
-                border: c === "#ffffff" ? "1px solid #44495a" : "none",
-              }}
-              aria-label={`color ${c}`}
-            />
-          ))}
-          <div style={styles.toolDivider} />
-          <input
-            type="range"
-            min={1}
-            max={32}
-            value={width}
-            disabled={!canDraw}
-            aria-label="brush size"
-            onChange={(e) => setWidth(Number(e.target.value))}
-            style={{ accentColor: "var(--accent)" }}
-          />
-          <span style={widthDot(width, color, canDraw)} />
-          <button
-            className="lift"
-            style={{
-              ...styles.ghostButton,
-              ...(erasing ? { boxShadow: "0 0 0 2px var(--accent)" } : {}),
-            }}
-            onClick={() => { setErasing((e) => !e); setFilling(false); }}
-            disabled={!canDraw}
-            aria-pressed={erasing}
-            title="eraser"
-          >
-            ⌫ erase
-          </button>
-          <button
-            className="lift"
-            style={{
-              ...styles.ghostButton,
-              ...(filling ? { boxShadow: "0 0 0 2px var(--accent)" } : {}),
-            }}
-            onClick={() => { setFilling((f) => !f); setErasing(false); }}
-            disabled={!canDraw}
-            aria-pressed={filling}
-            title="fill an area with the current colour"
-          >
-            🪣 fill
-          </button>
-          <button
-            className="lift"
-            style={{ ...styles.ghostButton, marginLeft: "auto" }}
-            onClick={() => sendDraw({ kind: "undo" })}
-            disabled={!canDraw}
-            title="undo the last stroke"
-          >
-            ↶ undo
-          </button>
-          <button
-            className="lift"
-            style={styles.ghostButton}
-            onClick={() => canvasElRef.current && saveCanvasPng(canvasElRef.current, room)}
-            title="save the masterpiece"
-          >
-            🖼️ save
-          </button>
-          <button
-            className="lift"
-            style={styles.ghostButton}
-            onClick={clearBoard}
-            disabled={!canDraw}
-          >
-            Clear
-          </button>
-        </div>
+        <DrawToolbar
+          brush={brush}
+          canDraw={canDraw}
+          onUndo={() => sendDraw({ kind: "undo" })}
+          onSave={() => canvasElRef.current && saveCanvasPng(canvasElRef.current, room)}
+          onClear={clearBoard}
+        />
 
         <div className="canvas-wrap" style={styles.canvasWrap}>
           <DrawingCanvas
             sendDraw={sendDraw}
             subscribeDraw={subscribeDraw}
-            color={color}
-            width={width}
-            erasing={erasing}
-            filling={filling}
+            color={brush.color}
+            width={brush.width}
+            erasing={brush.erasing}
+            filling={brush.filling}
             opsRef={roundOps}
             socketBacklog={socketBacklog}
             onCursor={sendCursor}
@@ -1188,56 +1013,12 @@ function Room({
         </div>
 
         {phase === "ended" && gallery.length > 0 && (
-          <div style={styles.gallery}>
-            <div style={styles.galleryHead}>
-              <span style={styles.sectionLabel}>the evidence</span>
-              <button
-                className="lift"
-                style={styles.ghostButton}
-                onClick={() => void saveEvidence()}
-                title="one image of every drawing and what the AI thought it was"
-              >
-                {savingEvidence ? "rendering…" : "🖼️ share the evidence"}
-              </button>
-            </div>
-            <div style={styles.galleryStrip}>
-              {awards.length > 0 && (
-                <ul style={styles.awardList}>
-                  {awards.map((a) => (
-                    <li key={a.title} style={styles.awardItem}>
-                      <span style={styles.awardTitle}>{a.title}</span>
-                      <strong style={styles.awardWho}>{a.who}</strong>
-                      <span style={styles.awardDetail}>{a.detail}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {gallery.map((g, i) => (
-                <figure key={i} style={styles.galleryItem}>
-                  {replayIdx === i ? (
-                    <Replay ops={g.ops} size={160} />
-                  ) : (
-                    <img src={g.png} alt={`the drawing for "${g.word}"`} style={styles.galleryImg} />
-                  )}
-                  <button
-                    style={styles.replayButton}
-                    onClick={() => setReplayIdx(replayIdx === i ? null : i)}
-                    title={replayIdx === i ? "show the finished drawing" : "watch it being drawn"}
-                  >
-                    {replayIdx === i ? "◼ still" : "▶ replay"}
-                  </button>
-                  <figcaption style={styles.galleryCaption}>{g.word}</figcaption>
-                  {g.right ? (
-                    <p style={{ ...styles.galleryGuess, color: "var(--on-good)" }}>🤖 got it</p>
-                  ) : g.guess ? (
-                    <p style={styles.galleryGuess}>🤖 &ldquo;{g.guess}&rdquo;</p>
-                  ) : (
-                    <p style={{ ...styles.galleryGuess, opacity: 0.45 }}>🤖 no idea</p>
-                  )}
-                </figure>
-              ))}
-            </div>
-          </div>
+          <EndScreen
+            gallery={gallery}
+            awards={awards}
+            onSave={saveEvidence}
+            saving={savingEvidence}
+          />
         )}
       </section>
 
