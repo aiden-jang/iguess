@@ -26,16 +26,3 @@ if ("serviceWorker" in navigator) {
       .then((regs) => regs.forEach((r) => void r.unregister()));
   }
 }
-
-// Web Analytics. The token is locked to iguess.aidenjang.com, so anywhere else the beacon is
-// CORS-refused and adds nothing but console noise.
-if (import.meta.env.PROD && location.hostname === "iguess.aidenjang.com") {
-  const beacon = document.createElement("script");
-  beacon.type = "module";
-  beacon.src = "https://static.cloudflareinsights.com/beacon.min.js";
-  beacon.setAttribute(
-    "data-cf-beacon",
-    '{"token": "d82d578ac26b433aa45873add475d26e"}',
-  );
-  document.body.appendChild(beacon);
-}
