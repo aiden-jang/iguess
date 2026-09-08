@@ -371,8 +371,9 @@ export function App() {
 
           <label style={styles.fieldLabel}>Game mode</label>
           <div style={styles.modeGrid}>
-            {MODES.map((m) => {
+            {MODES.map((m, i) => {
               const active = m.value === draftMode;
+              // An odd last card spans both columns rather than sitting alone beside a gap.
               return (
                 <button
                   key={m.value}
@@ -381,6 +382,7 @@ export function App() {
                   style={{
                     ...styles.modeCard,
                     ...(active ? styles.modeCardActive : null),
+                    ...(i === MODES.length - 1 && MODES.length % 2 ? { gridColumn: "1 / -1" } : null),
                   }}
                 >
                   <span style={styles.modeIcon}>{m.icon}</span>
