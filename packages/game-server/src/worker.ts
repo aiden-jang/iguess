@@ -56,7 +56,14 @@ export default {
     }
 
     // Everything else is the client SPA (real files + index.html fallback for client routes).
-    return withSecurityHeaders(await env.ASSETS.fetch(request));
+    const asset = withSecurityHeaders(await env.ASSETS.fetch(request));
+    // Vite's hashed bundles cannot change under a given name, so a year and `immutable`. Workers
+    // Assets serves them `max-age=0, must-revalidate`, which spends a round trip per chunk on
+    // every repeat visit. index.html keeps its name and is left to revalidate.
+    if (url.pathname.startsWith('/assets/')) {
+      asset.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+    return asset;
   },
 
   // Cron: cross-check the ai-worker, since nothing else does until a player starts an AI mode.
