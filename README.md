@@ -54,7 +54,7 @@ word. Proof the strokes sync live and the word stays secret:
   relays them to everyone else. Clients can't fake game state.
 - The secret word is only ever sent to the drawer (`your_word`). The AI worker
   gets the pixels and the same masked hint every human guesser can see
-  (`_ u _ t a _`), never the answer — so it plays fair rather than blind, and
+  (`_ u _ t a _`), never the answer, so it plays fair rather than blind, and
   there is still nothing to cheat with.
 - The engine and the modes are separate. `engine.ts` runs the turn timeline and
   scoring and doesn't know any game rules. A `GameMode` decides who draws, what
@@ -88,13 +88,13 @@ word. Proof the strokes sync live and the word stays secret:
   joke ("no cap that's a dog … or is it a horse"). It paces its own guessing by
   how much new ink has appeared, which also stops it spending vision calls on a
   canvas nobody is touching.
-- Rules that both sides need — undo, word tiers, the end-of-game awards — live in
+- Rules that both sides need (undo, word tiers, the end-of-game awards) live in
   `shared/` as pure functions, so the client and the server can't disagree about
   them. Each is unit-tested without a socket or a Durable Object.
 
 A note on comments: they're for traps and constraints, not for describing the
 code. If a comment is there, it's recording something that would cost someone
-real time to find out the hard way — usually a thing that already bit once.
+real time to find out the hard way, usually a thing that already bit once.
 
 ---
 

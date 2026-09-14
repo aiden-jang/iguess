@@ -2,13 +2,13 @@
 
 **Status: live** at [iguess.aidenjang.com](https://iguess.aidenjang.com). Run the steps below to ship a new version. Two Cloudflare Workers:
 
-- **`iguess-ai`** — the vision worker (`/guess`). Internal: only the game server calls it,
+- **`iguess-ai`** is the vision worker (`/guess`). Internal: only the game server calls it,
   server-side. Stays on its `*.workers.dev` URL (no custom domain). Mock provider by default.
-- **`iguess-game`** — the game server: the `GameRoom` Durable Object (one per room) + serves
+- **`iguess-game`** is the game server: the `GameRoom` Durable Object (one per room) + serves
   the client SPA (`[assets]`) + the `/rooms/:id/ws` WebSocket. Custom domain, free tier.
 
 The room DO is SQLite-backed and created automatically by the `new_sqlite_classes` migration on
-first deploy — no separate command (unlike D1).
+first deploy, with no separate command (unlike D1).
 
 `wrangler deploy` also registers the game-server's cron (`[triggers]` in its `wrangler.toml`),
 which half-hourly checks that the ai-worker is up and not silently on the mock provider. Failures
@@ -35,7 +35,7 @@ step 1 gave you a different URL, edit the `deploy` script in
 wrangler deploy --var AI_WORKER_URL:https://iguess-ai.aidenjang.workers.dev
 ```
 
-(Drop the flag to ship without AI — classic mode is unaffected; AI modes tell the room the AI
+(Drop the flag to ship without AI: classic mode is unaffected; AI modes tell the room the AI
 is unavailable.)
 
 ## 3. Deploy the game server
