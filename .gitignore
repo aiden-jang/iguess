@@ -8,6 +8,7 @@ dist/
 # Local secrets for `wrangler dev` (the .example is committed, the real file is not).
 .dev.vars
 
-# Playwright
-/test-results/
-/playwright-report/
+# Playwright. Unanchored, or a leading slash matches only the repo root and the copies under
+# packages/*/ get committed.
+test-results/
+playwright-report/
