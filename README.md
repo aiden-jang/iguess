@@ -34,9 +34,10 @@ pnpm --filter @iguess/client build
 pnpm run dev:server
 ```
 
-In another terminal:
+In separate terminals, also from the repository root:
 
 ```sh
+pnpm --filter @iguess/ai-worker exec wrangler dev --local --var VISION_PROVIDER:mock
 pnpm run dev:client
 ```
 
@@ -44,10 +45,11 @@ Open the URL printed by Vite (normally `http://127.0.0.1:33100`). The client pro
 room sockets to the local game server. A client build is needed because the game
 server’s asset binding points to its output directory.
 
-Local games do not require an AI key. Without an AI worker URL, the room reports
-that AI guessing is unavailable; human play and the curated AI drawer still work.
-The test configuration starts a separate AI worker pinned to the mock provider.
-Do not point local testing at a paid production provider.
+Local games do not require an AI key. The server’s development command points to
+the local mock AI worker. Mock guesses exercise the game flow without recognizing
+the drawing. If that worker is stopped, AI guessing reports that it is unavailable;
+human play and the curated AI drawer still work. Automated tests also pin the AI
+worker to mock mode. Do not point local testing at a paid production provider.
 
 ## Development
 
