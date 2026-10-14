@@ -15,6 +15,10 @@ or secret is needed. Inactive checkpoints expire after a day. A recovered game r
 clock from the last completed checkpoint. Old clients with only claimed player IDs rejoin
 with fresh identities after upgrading; their IDs cannot prove ownership.
 
+The development toolchain uses Wrangler 4. The native rate limiter uses the supported
+[`ratelimits` binding](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/)
+with the existing namespace and connection budget.
+
 `wrangler deploy` also registers the game-server's cron (`[triggers]` in its `wrangler.toml`),
 which half-hourly checks that the AI worker is up, uses a real provider, and has its shared
 secret configured. It does not confirm that both Workers have matching secrets; verify that

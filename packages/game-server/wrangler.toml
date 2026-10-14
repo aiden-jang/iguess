@@ -31,11 +31,8 @@ new_sqlite_classes = ["GameRoom"]
 
 # Native per-IP rate limiting, checked in the Worker before a room DO is created (see worker.ts).
 # Caps new-connection spam so one client can't spin up unbounded rooms. period must be 10 or 60.
-# NB: on Wrangler 3 the rate-limit binding lives under [[unsafe.bindings]] (the top-level
-# [[ratelimits]] key is Wrangler 4+); using the form this repo's pinned Wrangler recognizes.
-[[unsafe.bindings]]
+[[ratelimits]]
 name = "RATE_LIMITER"
-type = "ratelimit"
 namespace_id = "1001"
 simple = { limit = 30, period = 60 }
 

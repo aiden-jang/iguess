@@ -39,10 +39,13 @@ export function ogSvg(room: string, mode: string): string {
 }
 
 export async function ogPng(room: string, mode: string): Promise<Uint8Array> {
+  const font: unknown = interFont;
+  if (!(font instanceof ArrayBuffer))
+    throw new Error("The Worker font must be bundled as binary data");
   return rasterize(ogSvg(room, mode), {
     fitTo: { mode: "width", value: W },
     font: {
-      fontBuffers: [new Uint8Array(interFont)],
+      fontBuffers: [new Uint8Array(font)],
       defaultFontFamily: "Inter",
       loadSystemFonts: false,
     },

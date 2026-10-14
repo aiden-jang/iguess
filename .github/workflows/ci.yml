@@ -18,6 +18,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --audit-level moderate
       # typecheck, lint, the size ceilings, the test floors, then the build. Same command
       # locally, so CI can't be the first place a check runs.
       - run: pnpm run verify

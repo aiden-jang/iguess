@@ -7,7 +7,8 @@ Keep gameplay rules server-authoritative. Shared client/server rules belong in
 `shared/`; AI behavior belongs in modes or the AI worker. Keep join rendering,
 room effects and transport logic separate.
 
-Run `pnpm run verify` and relevant end-to-end tests. For UI changes, also inspect
+Run `pnpm run verify` and relevant end-to-end tests. CI also runs the full dependency audit
+with `pnpm audit --audit-level moderate`. For UI changes, also inspect
 desktop and mobile layouts, keyboard use, reduced motion and loading/error states.
 State any unavailable browser or physical-device checks in the pull request.
 Never use a paid production vision endpoint for routine validation.

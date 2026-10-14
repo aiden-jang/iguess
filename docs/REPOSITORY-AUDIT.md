@@ -47,7 +47,9 @@ still public access to its room, not an account or private-room authentication s
 ## Validation record
 
 The repository gate and complete Chromium/WebKit browser suite passed on the final sources.
-The production dependency audit reported no known advisories. A separate local Worker restart
+The full dependency audit, including development tools, reported no known advisories. CI rejects
+moderate-or-higher advisories; patched Wrangler and Vite versions retain Node.js 22 support.
+A separate local Worker restart
 restored a live room's identity, private drawer word, active turn, score and exact canvas;
 the observer still received only a masked word. This used local storage and no vision provider.
 
@@ -73,12 +75,26 @@ reconnect. Room credentials expire and are scoped to a browser session and room;
 means rejoining with a fresh identity. A host kick revokes that credential, not the person’s
 ability to visit a public room with a new browser identity.
 
-Vision rasterization is an approximation of client drawing: it flattens stroke width and does
-not reproduce flood fills or transparency erasing. Client replay/export preserves those tools.
+Vision rendering shares midpoint curves, pressure segments and scanline fill rules with the
+browser. It preserves transparent erasing, operation order and undo before adding the white
+export background. Canvas and SVG antialiasing and viewport-dependent fill boundaries can differ.
 Mock tests establish flow and fallback behavior, not paid-model recognition quality. HTTP
 provider requests can be aborted; a Workers AI binding invocation may continue remotely after
 the local deadline, although its result is ignored.
 
 Physical phone keyboards, haptic hardware, native share sheets, constrained-device performance,
-manual screen-reader use and paid recognition require their own environments. Production
-deployment, account secrets and GitHub metadata are outside this local commit.
+manual screen-reader use and paid recognition require their own environments. Provider secrets
+remain managed by Cloudflare rather than being copied into this repository.
+
+## GitHub configuration
+
+The repository description, live website link and topics match the product. Private vulnerability
+reporting, dependency graph, Dependabot alerts, malware alerts and grouped security-fix pull
+requests are enabled. CodeQL default setup covers JavaScript/TypeScript and GitHub Actions;
+its initial setup scan completed successfully.
+Secret scanning and secret push protection were already enabled. Branch protection remains
+unchanged at the owner's request. The owner is handling the social-preview image upload.
+
+The rendering follow-up shares pressure-aware midpoint paths and scanline fills between the
+browser and vision export. Pixel regression tests use the real rasterizer to check transparent
+erasing, refilling, operation order, clear and undo. Browser checks exercise the same tools.

@@ -88,7 +88,7 @@ AI requests happen outside socket message handling. A slow or failed call does
 not pause the room. Guess cadence responds to new ink, and attempt and room
 budgets limit paid requests. Provider attempts have deadlines; late responses cannot
 speak, draw or score after loop disposal. The AI Worker validates bounded input and
-shares one WASM initializer with explicit renderer resource disposal for vision and invite cards. Provider failures and mock fallback are disclosed
+shares one WASM initializer with explicit renderer resource disposal for vision and invite cards. Vision exports preserve fills, transparent erasing, pressure widths, stroke order and undo through shared drawing rules. Provider failures and mock fallback are disclosed
 rather than presented as normal vision guesses. Per-room commentary avoids recent punchlines and acknowledges unavailable vision.
 
 The AI drawer is not an image generator. It reveals curated vector strokes over
@@ -133,7 +133,7 @@ See [DEPLOY.md](DEPLOY.md) for configuration.
 
 - Recovery resumes the last completed checkpoint, not every in-flight pointer event.
 - Room-local possession credentials are not accounts or private-room authorization.
-- Vision rasterization does not reproduce fills, erasing or pressure widths; client replay/export does.
+- Vision and browser rendering share stroke geometry and scanline fill rules; antialiasing can differ between renderers.
 - Raster fill replay at different sizes is visually close rather than bit-identical.
 - Mock-based tests do not establish paid-provider quality or real-device performance.
 

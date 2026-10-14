@@ -10,6 +10,8 @@
     "./awards": "./awards.ts",
     "./protocol": "./protocol.ts",
     "./serverProtocol": "./serverProtocol.ts",
-    "./reconnectProtocol": "./reconnectProtocol.ts"
+    "./reconnectProtocol": "./reconnectProtocol.ts",
+    "./strokePath": "./strokePath.ts",
+    "./floodFill": "./floodFill.ts"
   }
 }

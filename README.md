@@ -57,6 +57,7 @@ binding and check its provider before each AI request. Do not point local testin
 ```sh
 pnpm run verify    # types, lint, repository checks, tests and production build
 pnpm run test:e2e  # real local Workers, room sockets and browser flows
+pnpm audit --audit-level moderate  # runtime and development dependency advisories
 ```
 
 - [Architecture](ARCHITECTURE.md): client boundaries, game engine, modes and AI flow.

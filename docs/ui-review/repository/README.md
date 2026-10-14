@@ -29,6 +29,13 @@ scrolling. A controlled delayed settings response checks that newer custom-word 
 The full suite also covers existing entry, gameplay, recovery, results, exports,
 accessibility and service-worker behavior.
 
+`render-tools-*` captures exercise the production browser painter with disposable drawing
+operations. They verify transparent erasing, refilling and pressure segments in both browsers.
+The vision tests decode real PNG pixels to check matching fill boundaries, layering and undo.
+The browser case also requests a PNG from the local mock Worker's test-only entry and checks
+its colors against the browser canvas. Production does not expose that test route. These cases
+do not call a vision provider or insert artwork into production rooms.
+
 Browser emulation does not establish physical-device keyboard behavior, haptic hardware,
 native sharing, manual screen-reader usability or paid-provider recognition quality. Broader
 architecture and verification details are in the [repository audit](../../REPOSITORY-AUDIT.md).
