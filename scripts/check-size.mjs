@@ -10,7 +10,7 @@ const SLACK = 40;
 const CEILINGS = {
   "packages/client/src/App.tsx": 20,
   "packages/client/src/Room.tsx": 298,
-  "packages/client/src/styles.ts": 350,
+  "packages/client/src/styles.ts": 326,
   "packages/client/src/useWebSocket.ts": 350,
   "packages/client/src/DrawingCanvas.tsx": 287,
   "packages/game-server/src/GameRoom.ts": 430,

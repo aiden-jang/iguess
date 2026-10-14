@@ -40,7 +40,7 @@ test.describe("the join screen", () => {
     await page.evaluate(() => localStorage.clear());
     await page.reload();
     await page.getByText("Change face", { exact: false }).click();
-    await page.getByLabel("Avatar 🦊", { exact: true }).click();
+    await page.locator('.avatar-grid button[data-avatar="🦊"]').click();
     await page
       .getByRole("textbox", { name: "Your name", exact: true })
       .fill("Tester");
@@ -49,13 +49,15 @@ test.describe("the join screen", () => {
       .click();
     await page.locator(".room-roster summary").click();
     await expect(page.getByText("Tester", { exact: true })).toBeVisible();
-    await expect(page.locator(".player-avatar").first()).toContainText("🦊");
+    await expect(page.locator(".player-avatar").first()).toHaveAttribute(
+      "data-avatar",
+      "🦊",
+    );
     await page.reload();
     await page.getByText("Change face", { exact: false }).click();
-    await expect(page.getByLabel("Avatar 🦊", { exact: true })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    await expect(
+      page.locator('.avatar-grid button[data-avatar="🦊"]'),
+    ).toHaveAttribute("aria-pressed", "true");
   });
 });
 

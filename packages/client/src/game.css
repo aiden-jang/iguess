@@ -56,7 +56,7 @@
   min-width: 0;
 }
 .room-code {
-  font-size: 11px;
+  font-size: 12px;
   max-width: 190px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -64,11 +64,11 @@
 }
 .room-mode {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .room-connection {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -94,7 +94,7 @@
   border: 1px solid var(--line);
   border-radius: 5px;
   padding: 10px 14px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text);
   background: transparent;
   white-space: nowrap;
@@ -147,7 +147,7 @@
   margin-bottom: 14px;
 }
 .roster-heading > span:last-child {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
 }
 .player-avatar {
@@ -170,7 +170,7 @@
   white-space: nowrap;
 }
 .player-role {
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.4;
   color: var(--muted);
   overflow-wrap: anywhere;
@@ -237,7 +237,7 @@
   min-width: 200px;
 }
 .lobby-welcome .eyebrow {
-  font-size: 9px;
+  font-size: 11px;
 }
 .lobby-welcome h1 {
   font-family: "Inter Variable", sans-serif;
@@ -253,7 +253,7 @@
 }
 .lobby-status {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
   color: var(--muted);
 }
@@ -265,7 +265,7 @@
 }
 .lobby-actions > button {
   border-radius: 5px !important;
-  font-size: 11px !important;
+  font-size: 12px !important;
   padding-inline: 14px !important;
 }
 .lobby-start {
@@ -278,7 +278,7 @@
 }
 .host-settings {
   position: relative;
-  font-size: 11px;
+  font-size: 12px;
   min-width: 0;
 }
 .host-settings summary {
@@ -296,7 +296,7 @@
   display: none;
 }
 .settings-compact {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 400;
   color: var(--muted);
 }
@@ -324,7 +324,7 @@
 }
 .settings-guidance {
   grid-column: 1 / -1;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--muted);
   margin: 0;
@@ -332,7 +332,7 @@
 .settings-fields label {
   display: grid !important;
   gap: 7px !important;
-  font-size: 10px !important;
+  font-size: 12px !important;
 }
 .settings-fields :is(input, select) {
   width: 100% !important;
@@ -396,7 +396,7 @@
   overflow-wrap: anywhere;
 }
 .word-difficulty {
-  font-size: 8px;
+  font-size: 11px;
   color: #626b5e;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -470,7 +470,7 @@
   border: 1px solid transparent;
   border-radius: 4px;
   padding: 8px;
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 .tool-button[aria-pressed="true"] {
@@ -489,7 +489,7 @@
   accent-color: var(--teal);
 }
 .brush-size output {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -498,7 +498,7 @@
   gap: 2px;
 }
 .viewer-note {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
 }
 .draw-toolbar[data-editable="false"] {
@@ -506,7 +506,7 @@
 }
 .clear-note {
   grid-column: 1 / -1;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--bad);
 }
 .canvas-wrap {
@@ -533,7 +533,7 @@
   background: #fcfcf4e8 !important;
   color: #65705e !important;
   font-weight: 400 !important;
-  font-size: 10px !important;
+  font-size: 12px !important;
 }
 .board-watermark {
   position: absolute;
@@ -556,7 +556,7 @@
   letter-spacing: -0.04em;
 }
 .board-watermark > small {
-  font-size: 10px;
+  font-size: 12px;
 }
 .chat-panel {
   min-width: 0;
@@ -575,15 +575,15 @@
   border-bottom: 1px solid var(--line);
 }
 .chat-heading > span:first-child {
-  font-size: 10px !important;
+  font-size: 12px !important;
   font-weight: 500 !important;
 }
 .chat-hint {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
 }
 .system-line {
-  font-size: 10px !important;
+  font-size: 12px !important;
   font-style: normal !important;
   line-height: 1.5;
   color: var(--muted);
@@ -598,7 +598,7 @@
 .chat-author {
   overflow-wrap: anywhere;
   font-weight: 500 !important;
-  font-size: 11px;
+  font-size: 12px;
 }
 .chat-compose {
   display: flex;
@@ -651,7 +651,7 @@
 }
 .play-banner[data-phase="ended"] > button {
   border-radius: 4px !important;
-  font-size: 11px !important;
+  font-size: 12px !important;
 }
 .app-layout[data-phase="ended"] :is(.canvas-wrap, .draw-toolbar) {
   display: none;
@@ -678,7 +678,7 @@
 }
 .gallery-heading button {
   border-radius: 4px !important;
-  font-size: 11px !important;
+  font-size: 12px !important;
 }
 .gallery-strip {
   display: grid;
@@ -698,7 +698,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 8px;
+  font-size: 11px;
   color: #65705e;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -726,12 +726,12 @@
 .exhibit-artist {
   display: block;
   color: #65705e;
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 4px;
   overflow-wrap: anywhere;
 }
 .drawing-card p {
-  font-size: 11px;
+  font-size: 12px;
   color: #65705e;
   line-height: 1.6;
   margin: 14px 0 0;
@@ -744,7 +744,7 @@
   border: 1px solid #d6d8cd;
   background: transparent;
   color: #202522;
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 12px;
   border-radius: 3px;
 }
@@ -761,11 +761,11 @@
 .gallery-awards li {
   display: grid;
   gap: 6px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .gallery-awards li > span:last-child {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .empty-gallery {
   margin-block: 20px;
@@ -790,7 +790,7 @@
   margin-block: 10px;
 }
 .turn-recap p {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .confirmation p {
@@ -900,14 +900,14 @@
   }
   .room-code {
     max-width: 190px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .room-mode {
-    font-size: 9px;
+    font-size: 11px;
   }
   .room-connection {
     display: inline-flex;
-    font-size: 9px;
+    font-size: 11px;
   }
   .room-actions {
     width: 100%;
@@ -920,12 +920,12 @@
   .room-roster summary {
     justify-content: space-between;
     min-height: 36px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 6px 10px;
   }
   .room-actions > button {
     min-height: 36px;
-    font-size: 10px;
+    font-size: 12px;
     padding: 7px 10px;
   }
   .room-actions > .room-sound {
@@ -966,7 +966,7 @@
     margin-block: 6px;
   }
   .lobby-status {
-    font-size: 10px;
+    font-size: 12px;
   }
   .lobby-actions {
     margin-top: 12px;
@@ -976,7 +976,7 @@
   }
   .lobby-actions > button {
     min-height: 40px;
-    font-size: 10px !important;
+    font-size: 12px !important;
     padding-inline: 10px !important;
   }
   .lobby-actions .host-settings {
@@ -986,7 +986,7 @@
     min-height: 40px;
     padding: 8px;
     gap: 6px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .host-settings .settings-compact {
     display: none;
@@ -1011,7 +1011,7 @@
     gap: 6px;
   }
   .play-banner[data-phase="playing"] > span:first-child {
-    font-size: 10px !important;
+    font-size: 12px !important;
   }
   .word-tiles[role="img"] > span {
     min-width: 22px !important;
@@ -1039,7 +1039,7 @@
     font-size: 20px;
   }
   .word-choice > span {
-    font-size: 9px !important;
+    font-size: 11px !important;
   }
   .play-banner[data-phase="choosing"] .word-tiles > button:not(.word-choice) {
     min-height: 36px;
@@ -1066,7 +1066,7 @@
   }
   .tool-button {
     padding-inline: 6px;
-    font-size: 10px;
+    font-size: 12px;
     min-height: 38px !important;
   }
   .brush-size {
@@ -1095,7 +1095,7 @@
     overflow: hidden;
   }
   .viewer-note {
-    font-size: 9px;
+    font-size: 11px;
   }
   .canvas-wrap {
     min-height: 160px !important;
@@ -1105,7 +1105,7 @@
     text-align: center;
   }
   .board-watermark > small {
-    font-size: 9px;
+    font-size: 11px;
   }
   .board-watermark .club-face {
     width: 45px;
@@ -1169,7 +1169,7 @@
     padding: 9px;
   }
   .exhibit-label {
-    font-size: 7px;
+    font-size: 11px;
     letter-spacing: 0.04em;
   }
   .exhibit-word {
@@ -1271,7 +1271,7 @@
     color: var(--text);
     padding: 8px 12px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 12px;
   }
   .gallery-strip[data-count="1"] {
     grid-template-columns: minmax(0, 1fr);
@@ -1320,3 +1320,14 @@
     grid-row: 3;
   }
 }
+.room-actions > button, .room-roster > summary, .host-settings > summary { font-size: 13px; }
+.chat-hint, .viewer-note, .lobby-status, .system-line, .player-role { font-size: 12px !important; }
+.player-name, .chat-author { font-size: 13px; }
+.exhibit-label { font-size: 11px; gap: 12px; flex-wrap: wrap; }
+.score-row[data-guessed="true"] .player-role { color: var(--good); }
+@media (max-width: 880px) {
+ .room-actions > button, .room-roster > summary, .host-settings > summary { font-size: 12px; }
+ .room-code { max-width: min(42vw,190px); }
+ .room-context { overflow: hidden; }
+}
+@media (min-width: 881px) and (max-width: 1100px) { .room-context { max-width: 150px; } .room-header { gap: 12px; } }

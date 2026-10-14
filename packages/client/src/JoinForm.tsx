@@ -1,4 +1,4 @@
-import { AVATARS } from "@iguess/shared";
+import { AvatarPicker } from "./AvatarPicker";
 import { newRoomCode } from "@iguess/shared/roomCode";
 import { useState } from "react";
 import { VisionNotice } from "./VisionNotice";
@@ -208,26 +208,7 @@ export function JoinForm(p: JoinProps) {
           </p>
         </div>
       </details>
-      <details className="avatar-options">
-        <summary>
-          <span aria-hidden>{p.avatar}</span>
-          <span>Change face</span>
-          <span aria-hidden>+</span>
-        </summary>
-        <div className="avatar-grid">
-          {AVATARS.map((avatar) => (
-            <button
-              key={avatar}
-              type="button"
-              aria-label={`Avatar ${avatar}`}
-              aria-pressed={avatar === p.avatar}
-              onClick={() => p.setAvatar(avatar)}
-            >
-              {avatar}
-            </button>
-          ))}
-        </div>
-      </details>
+      <AvatarPicker value={p.avatar} onChange={p.setAvatar} />
       {p.stats.games > 0 && (
         <p className="join-stats">
           {p.stats.games} games · {p.stats.wins} wins · best streak{" "}

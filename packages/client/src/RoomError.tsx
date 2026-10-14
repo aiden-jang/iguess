@@ -1,4 +1,4 @@
-import { styles } from "./styles";
+import { ClubFace } from "./ClubFace";
 
 export function RoomError({
   reason,
@@ -8,29 +8,17 @@ export function RoomError({
   onLeave: () => void;
 }) {
   return (
-    <div style={styles.gate}>
-      <div className="glass pop-in" style={styles.card} role="alert">
-        <div style={styles.brand}>
-          <span aria-hidden style={{ fontSize: 40 }}>
-            🚪
-          </span>
-          <h1 style={{ fontWeight: 700, fontSize: 24, margin: 0 }}>
-            Couldn’t join this room
-          </h1>
-        </div>
-        <p
-          style={{ color: "var(--muted)", lineHeight: 1.5, margin: "0 0 20px" }}
-        >
-          {reason}
-        </p>
-        <button
-          className="lift"
-          style={{ ...styles.button, ...styles.buttonBig }}
-          onClick={onLeave}
-        >
-          Back to join
+    <main className="room-error">
+      <section role="alert" aria-labelledby="room-error-title">
+        <ClubFace />
+        <p className="eyebrow">A small detour</p>
+        <h1 id="room-error-title">Couldn’t join this room</h1>
+        <p>{reason}</p>
+        <button type="button" onClick={onLeave}>
+          Back to join <span aria-hidden>↗</span>
         </button>
-      </div>
-    </div>
+        <a href="mailto:me@aidenjang.com">Get help</a>
+      </section>
+    </main>
   );
 }

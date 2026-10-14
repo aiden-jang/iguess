@@ -1,5 +1,6 @@
 import type { PlayerInfo, PublicGameState } from "@iguess/shared";
 import { isAI } from "./roomView";
+import { AvatarFace } from "./AvatarFace";
 import { ConfirmButton } from "./ConfirmButton";
 import { styles } from "./styles";
 
@@ -40,6 +41,7 @@ export function Scoreboard({
           <li
             key={player.id}
             className="score-row"
+            data-guessed={guessed}
             style={{
               ...styles.scoreRow,
               ...(me ? styles.scoreRowMe : null),
@@ -47,8 +49,16 @@ export function Scoreboard({
             }}
           >
             <span style={styles.rank}>{index + 1}</span>
-            <span className="player-avatar" aria-hidden>
-              {isAI(player.id) ? "✳" : (player.avatar ?? "☺")}
+            <span
+              className="player-avatar"
+              data-avatar={player.avatar}
+              aria-hidden
+            >
+              {isAI(player.id) ? (
+                "✳"
+              ) : (
+                <AvatarFace value={player.avatar ?? "🐶"} />
+              )}
             </span>
             <div className="player-identity">
               <span title={player.name} className="player-name">

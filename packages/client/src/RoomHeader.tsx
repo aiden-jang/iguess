@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useDismissibleDetails } from "./useDismissibleDetails";
 import { connectionLabel, inviteLabel, type InviteResult } from "./labels";
+import { Icon } from "./Icon";
 import { ResourceLinks } from "./ResourceDialog";
 import { ClubFace } from "./ClubFace";
 import { ConfirmButton } from "./ConfirmButton";
@@ -42,7 +43,7 @@ export function RoomHeader(p: Props) {
         <details {...roster} className="room-roster">
           <summary>
             <span>Players & scores</span>
-            <span aria-hidden>⌄</span>
+            <Icon name="chevron" />
           </summary>
           <div className="roster-popover">
             <div className="roster-heading">
@@ -62,7 +63,7 @@ export function RoomHeader(p: Props) {
           </div>
         </details>
         <button type="button" className="room-invite" onClick={p.onInvite}>
-          {inviteLabel(p.inviteResult)} <span aria-hidden>↗</span>
+          {inviteLabel(p.inviteResult)} <Icon name="arrow" />
         </button>
         <button
           type="button"

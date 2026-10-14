@@ -1,24 +1,6 @@
 import type React from "react";
 
 export const styles = {
-  gate: {
-    minHeight: "100%",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 16,
-    padding: 24,
-  },
-  card: {
-    width: "100%",
-    maxWidth: 440,
-    border: "1px solid var(--line)",
-    borderRadius: 20,
-    padding: 28,
-    boxShadow: "0 24px 60px var(--shadow-deep)",
-  },
-  brand: { display: "flex", alignItems: "center", gap: 14, marginBottom: 22 },
   sectionLabel: {
     fontSize: 11,
     fontWeight: 700,
@@ -320,12 +302,6 @@ export const styles = {
     background: "var(--grad)",
     color: "var(--on-accent)",
     boxShadow: "none",
-  },
-  buttonBig: {
-    width: "100%",
-    marginTop: 18,
-    padding: "13px 16px",
-    fontSize: 15,
   },
   xButton: {
     padding: "10px 14px",

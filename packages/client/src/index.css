@@ -292,3 +292,18 @@ button:disabled {
 button:not(:disabled) {
   -webkit-tap-highlight-color: transparent;
 }
+.ui-icon { display: inline-block; width: 18px; height: 18px; flex-shrink: 0; vertical-align: -3px; }
+.avatar-portrait { display: inline-flex; width: 36px; height: 36px; flex-shrink: 0; vertical-align: middle; }
+.avatar-portrait svg { width: 100%; height: 100%; }
+.player-avatar .avatar-portrait { width: 30px; height: 30px; }
+button:disabled { opacity: .6; }
+button:not(:disabled):active { transform: translateY(1px); }
+:focus-visible { outline-width: 3px; }
+.room-error { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
+.room-error section { width: min(100%,480px); padding: 32px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.room-error .club-face { width: 70px; color: var(--sticker); }
+.room-error h1 { font-size: clamp(28px,5vw,40px); letter-spacing: -.05em; font-weight: 500; line-height: 1.1; }
+.room-error p:not(.eyebrow) { color: var(--muted); font-size: 15px; line-height: 1.7; overflow-wrap: anywhere; }
+.room-error button { min-height: 48px; width: 100%; padding: 12px 16px; border: 0; background: var(--sticker); color: var(--ink); border-radius: 4px; display: flex; justify-content: space-between; margin-top: 28px; }
+.room-error a { display: inline-flex; min-height: 44px; align-items: center; margin-top: 12px; color: var(--muted); font-size: 13px; }
+@media (forced-colors: active) { button[aria-pressed="true"] { outline: 2px solid Highlight; } .color-swatch > span { forced-color-adjust: none; } }
