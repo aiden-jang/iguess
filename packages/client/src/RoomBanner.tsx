@@ -29,7 +29,12 @@ export function RoomBanner(props: RoomBannerProps) {
     (player) => !player.spectator && game?.scores[player.id] === highScore,
   );
   return (
-    <div key={phase} className="glass play-banner" data-phase={phase}>
+    <div
+      key={phase}
+      className="glass play-banner"
+      data-phase={phase}
+      data-long-word={inGame && wordLetters.length > 10}
+    >
       {phase === "lobby" && <LobbyControls {...props} />}
       {phase === "ended" && (
         <>

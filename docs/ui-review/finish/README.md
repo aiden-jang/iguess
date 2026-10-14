@@ -81,6 +81,8 @@ The finishing pass is recorded in six Conventional Commits on `main`; nothing wa
 
 The [long-chat follow-up](../chat/README.md) records the later fix for history expanding
 past the composer, including scroll-following and keyboard-focus regressions.
+The [room viewport follow-up](../room-fit/README.md) records shorter screens, long words,
+landscape word selection and keyboard layout.
 
 Browser emulation is not a physical iPhone or Android device. The visual-viewport test simulates
 keyboard resizing; it does not operate an actual OS keyboard. Automated accessibility audits and
