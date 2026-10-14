@@ -85,6 +85,8 @@ The [room viewport follow-up](../room-fit/README.md) records shorter screens, lo
 landscape word selection and keyboard layout.
 The [reaction picker follow-up](../reactions/README.md) records the updated choices,
 descriptive labels and compatibility for previous room tabs.
+The [mode-switch follow-up](../mode-switch/README.md) records fresh-room selection
+after Leave or browser Back, refresh and explicit Rejoin behavior.
 
 Browser emulation is not a physical iPhone or Android device. The visual-viewport test simulates
 keyboard resizing; it does not operate an actual OS keyboard. Automated accessibility audits and

@@ -16,8 +16,12 @@ export function useRoomEntry() {
   return {
     joined,
     enter: (entry: Entry) => {
-      const query = new URLSearchParams({ room: entry.room, mode: entry.mode });
-      window.history.pushState(null, "", `#${query.toString()}`);
+      const query = new URLSearchParams({ mode: entry.mode });
+      window.history.pushState(
+        null,
+        "",
+        `/r/${encodeURIComponent(entry.room)}?${query.toString()}`,
+      );
       setJoined(entry);
     },
     leave: () => {

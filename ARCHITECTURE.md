@@ -8,6 +8,9 @@ and a vision worker. Shared types and pure rules live in `shared/`.
 `useJoinDraft` owns entry drafts, explicit fresh/rejoin intent, invitations and avatar selection; `useRoomEntry` owns entry, leaving, and browser Back behavior. `App` composes them. `JoinScreen` renders the
 join form and a clearly labeled static drawing example through `JoinForm` and `DoodlePoster`. `roomLinks` parses
 current and legacy invitations; `playerStats` owns browser-local statistics.
+After entry, the join draft prepares a fresh room so Leave and browser Back cannot
+silently reuse a running game. Rejoin explicitly selects the previous room. Entry writes
+the current room and requested mode into the URL so refresh preserves the destination.
 
 `RoomGate` loads the game chunk only after entry, with a loading screen and error boundary.
 `Room` connects the socket to the board, banner, compact room header, scoreboard and chat.

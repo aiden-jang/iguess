@@ -46,6 +46,7 @@ export function useJoinDraft(enter: (entry: Entry) => void) {
     setLastRoom(room);
     setEntryError("");
     enter({ name, room, mode: draftMode });
+    selectRoom();
   };
   return {
     draftName,
