@@ -39,6 +39,7 @@ do not call a vision provider or insert artwork into production rooms.
 `join-ready-*` records the enabled entry action at desktop and phone widths in both palettes.
 The authored button appearance and immediate background change keep foreground/background
 contrast aligned during enablement, including Linux WebKit's offscreen painting behavior.
+The phase banner moves without fading so its small text keeps full contrast during arrival.
 
 Browser emulation does not establish physical-device keyboard behavior, haptic hardware,
 native sharing, manual screen-reader usability or paid-provider recognition quality. Broader
