@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { RoomSettings } from "@iguess/shared";
 import { PACK_NAMES } from "@iguess/shared/words";
 import { customWordDraft } from "./customWords";
@@ -23,11 +23,28 @@ export function HostSettings({
   const wordsHint = useId();
   const customWords = settings.customWords.join(", ");
   const [draftWords, setDraftWords] = useState(customWords);
+  const currentDraft = useRef(customWords);
+  const dirty = useRef(false);
   const preview = customWordDraft(draftWords);
   const saveWords = () => {
-    if (!preview.error && youAreHost) onChange({ customWords: preview.words });
+    if (preview.error || !youAreHost) return;
+    if (preview.words.join(", ") === customWords) {
+      dirty.current = false;
+      currentDraft.current = customWords;
+      setDraftWords(customWords);
+    }
+    onChange({ customWords: preview.words });
   };
-  useEffect(() => setDraftWords(customWords), [customWords]);
+  useEffect(() => {
+    const latest = customWordDraft(currentDraft.current);
+    const acknowledged =
+      !latest.error && latest.words.join(", ") === customWords;
+    // A delayed acknowledgement must not replace edits made after saving.
+    if (dirty.current && youAreHost && !acknowledged) return;
+    dirty.current = false;
+    currentDraft.current = customWords;
+    setDraftWords(customWords);
+  }, [customWords, youAreHost]);
   return (
     <details className="host-settings" {...disclosure}>
       <summary>
@@ -107,7 +124,11 @@ export function HostSettings({
             disabled={!youAreHost}
             placeholder="your own words, comma separated"
             value={draftWords}
-            onChange={(event) => setDraftWords(event.target.value)}
+            onChange={(event) => {
+              dirty.current = true;
+              currentDraft.current = event.target.value;
+              setDraftWords(event.target.value);
+            }}
             aria-describedby={wordsHint}
             aria-invalid={!!preview.error}
             onBlur={saveWords}

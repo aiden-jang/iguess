@@ -1,18 +1,11 @@
-import { initWasm, Resvg } from "@resvg/resvg-wasm";
+import { rasterize } from "./rasterize.ts";
 import interFont from "./fonts/inter-latin.woff2";
-import resvgWasm from "@resvg/resvg-wasm/index_bg.wasm";
 
 // A link preview naming the actual room, instead of the same picture for every invite. It lives
 // in this worker because this is the one with the SVG-to-PNG converter already in it.
 
 const W = 1200;
 const H = 630;
-
-let wasmReady: Promise<void> | null = null;
-function ensureWasm(): Promise<void> {
-  if (!wasmReady) wasmReady = initWasm(resvgWasm);
-  return wasmReady;
-}
 
 // Room codes are tame, but this draws whatever it is given, so escape it anyway.
 function esc(s: string): string {
@@ -46,8 +39,7 @@ export function ogSvg(room: string, mode: string): string {
 }
 
 export async function ogPng(room: string, mode: string): Promise<Uint8Array> {
-  await ensureWasm();
-  const resvg = new Resvg(ogSvg(room, mode), {
+  return rasterize(ogSvg(room, mode), {
     fitTo: { mode: "width", value: W },
     font: {
       fontBuffers: [new Uint8Array(interFont)],
@@ -55,5 +47,4 @@ export async function ogPng(room: string, mode: string): Promise<Uint8Array> {
       loadSystemFonts: false,
     },
   });
-  return resvg.render().asPng();
 }

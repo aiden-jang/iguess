@@ -1,3 +1,4 @@
+import type { DrawProgress } from "../modes/modeState.ts";
 import type { DrawOp, Point } from "@iguess/shared";
 import type { EngineContext, TurnContext } from "../modes/GameMode.ts";
 import { doodleFor } from "../doodles.ts";
@@ -12,6 +13,7 @@ const PAUSE_TICKS = 4; // beat between strokes, where a person lifts the pen
 export interface DrawLoopOpts {
   requestDrawing?: (word: string) => Promise<DrawOp[][]>;
   tickMs?: number;
+  progress?: DrawProgress;
 }
 
 // One tick's worth of ops. Empty = the pen is lifted between strokes.
@@ -24,13 +26,19 @@ function toSteps(strokes: DrawOp[][]): Step[] {
   for (const ops of strokes) {
     const start = ops.find((o) => o.kind === "start");
     if (!start || start.kind !== "start") continue;
-    const rest: Point[] = ops.flatMap((o) => (o.kind === "move" ? o.points : []));
+    const rest: Point[] = ops.flatMap((o) =>
+      o.kind === "move" ? o.points : [],
+    );
     // Per stroke, not per tick: a confident line and a careful one in the same drawing.
     const perTick = 2 + Math.floor(Math.random() * 3);
     steps.push([start]);
     for (let i = 0; i < rest.length; i += perTick) {
       steps.push([
-        { kind: "move", strokeId: start.strokeId, points: rest.slice(i, i + perTick) },
+        {
+          kind: "move",
+          strokeId: start.strokeId,
+          points: rest.slice(i, i + perTick),
+        },
       ]);
     }
     steps.push([{ kind: "end", strokeId: start.strokeId }]);
@@ -44,11 +52,17 @@ function toSteps(strokes: DrawOp[][]): Step[] {
 export function startDrawLoop(
   turn: TurnContext,
   ctx: EngineContext,
-  opts: DrawLoopOpts = {}
+  opts: DrawLoopOpts = {},
 ): () => void {
+  const progress = opts.progress ?? { index: 0 };
+  let stopped = false;
   let interval: ReturnType<typeof setInterval> | null = null;
   const stop = () => {
-    if (interval) { clearInterval(interval); interval = null; }
+    stopped = true;
+    if (interval) {
+      clearInterval(interval);
+      interval = null;
+    }
   };
 
   const getDrawing = async (): Promise<DrawOp[][]> => {
@@ -64,18 +78,29 @@ export function startDrawLoop(
   };
 
   void (async () => {
-    const steps = toSteps(await getDrawing());
-    if (ctx.currentWord() !== turn.word) return; // turn outlived a slow generator
-    let i = 0;
+    if (!progress.steps) progress.steps = toSteps(await getDrawing());
+    if (stopped || ctx.currentWord() !== turn.word) return;
+    const steps = progress.steps;
     const tick = () => {
-      if (ctx.currentWord() !== turn.word || i >= steps.length) { stop(); return; }
-      for (const op of steps[i]!) ctx.draw(op);
-      i++;
+      if (
+        stopped ||
+        ctx.currentWord() !== turn.word ||
+        progress.index >= steps.length
+      ) {
+        stop();
+        return;
+      }
+      for (const op of steps[progress.index]!) ctx.draw(op);
+      progress.index++;
     };
     tick();
     const paced = Math.round(TARGET_MS / Math.max(1, steps.length));
-    const tickMs = opts.tickMs ?? Math.min(MAX_TICK_MS, Math.max(MIN_TICK_MS, paced));
-    interval = setInterval(tick, tickMs);
+    const tickMs =
+      progress.tickMs ??
+      opts.tickMs ??
+      Math.min(MAX_TICK_MS, Math.max(MIN_TICK_MS, paced));
+    progress.tickMs = tickMs;
+    if (!stopped) interval = setInterval(tick, tickMs);
   })();
 
   return stop;

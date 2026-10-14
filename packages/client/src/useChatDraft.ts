@@ -1,21 +1,26 @@
-import { useEffect, useState } from "react";
-
+import { useState } from "react";
+const drafts = new Map<string, string>();
+function read(key: string) {
+  if (drafts.has(key)) return drafts.get(key)!;
+  try {
+    return sessionStorage.getItem(key) ?? "";
+  } catch {
+    return "";
+  }
+}
 export function useChatDraft(room: string) {
   const key = `iguess_chat_${room}`;
-  const [text, setText] = useState(() => {
+  const [draft, setDraft] = useState(() => ({ key, text: read(key) }));
+  const text = draft.key === key ? draft.text : read(key);
+  const update = (next: string) => {
+    drafts.set(key, next);
+    setDraft({ key, text: next });
     try {
-      return sessionStorage.getItem(key) ?? "";
-    } catch {
-      return "";
-    }
-  });
-  useEffect(() => {
-    try {
-      if (text) sessionStorage.setItem(key, text);
+      if (next) sessionStorage.setItem(key, next);
       else sessionStorage.removeItem(key);
     } catch {
-      /* The live draft still works when browser storage is blocked. */
+      /* Keep the live draft when browser storage is blocked. */
     }
-  }, [key, text]);
-  return [text, setText] as const;
+  };
+  return [text, update] as const;
 }

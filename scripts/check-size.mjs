@@ -1,6 +1,4 @@
-// Line ceilings for the files that have a history of sprawling. A ceiling is a promise that the
-// file will not grow, so entries only ever move down: shrink a file, lower its number in the
-// same commit. SLACK exists so ordinary edits don't fail the check, not so ceilings can drift.
+// Ceilings only decrease. Slack tolerates small edits, not a growing ceiling.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
@@ -11,17 +9,17 @@ const CEILINGS = {
   "packages/client/src/App.tsx": 20,
   "packages/client/src/Room.tsx": 282,
   "packages/client/src/styles.ts": 284,
-  "packages/client/src/useWebSocket.ts": 342,
-  "packages/client/src/DrawingCanvas.tsx": 287,
-  "packages/game-server/src/GameRoom.ts": 430,
-  "packages/game-server/src/engine.ts": 380,
-  "packages/game-server/src/doodles.ts": 360,
-  "packages/game-server/src/ai/aiGuessLoop.ts": 190,
-  "packages/ai-worker/src/visionProviders.ts": 230,
-  "shared/events.ts": 275,
-  "scripts/check-size.mjs": 100,
-  "scripts/check-tests.mjs": 80,
-  "scripts/check-comments.mjs": 70,
+  "packages/client/src/useWebSocket.ts": 150,
+  "packages/client/src/DrawingCanvas.tsx": 166,
+  "packages/game-server/src/GameRoom.ts": 384,
+  "packages/game-server/src/engine.ts": 365,
+  "packages/game-server/src/doodles.ts": 11,
+  "packages/game-server/src/ai/aiGuessLoop.ts": 181,
+  "packages/ai-worker/src/visionProviders.ts": 168,
+  "shared/events.ts": 229,
+  "scripts/check-size.mjs": 90,
+  "scripts/check-tests.mjs": 51,
+  "scripts/check-comments.mjs": 65,
 };
 
 // Anything this big should be under a ceiling, so a new god file can't appear unnoticed.
@@ -34,7 +32,7 @@ const SKIP_DIRS = new Set([
   "test-results",
   "playwright-report",
 ]);
-const SOURCE = /\.(ts|tsx|mjs)$/;
+const SOURCE = /\.(ts|tsx|mjs|cjs|js)$/;
 
 function sources(dir, out = []) {
   for (const entry of readdirSync(dir)) {

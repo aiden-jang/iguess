@@ -1,7 +1,8 @@
 import type { GamePhase, PlayerInfo, PublicGameState } from "@iguess/shared";
 
 /** The server seats the AI as a virtual player, and its ids carry this prefix. */
-export const isAI = (id?: string | null): boolean => !!id && id.startsWith("ai-");
+export const isAI = (id?: string | null): boolean =>
+  !!id && id.startsWith("ai-");
 
 export interface RoomView {
   phase: GamePhase | "lobby";
@@ -44,11 +45,12 @@ export function roomView(
     canDraw:
       (phase === "playing" && isDrawer) ||
       ((phase === "lobby" || phase === "ended") && !youAreWatching),
-    // Not the same as canDraw. Everyone can scribble in the lobby, but only the person drawing
-    // in a live round is told to stop typing. Using canDraw here silenced the whole lobby.
+    // Lobby scribbling does not suppress chat; only the active drawer must stay silent.
     drawingNow: phase === "playing" && isDrawer,
     inGame: phase === "playing" || phase === "intermission",
-    ranked: [...players].sort((a, b) => (game?.scores[b.id] ?? 0) - (game?.scores[a.id] ?? 0)),
+    ranked: [...players].sort(
+      (a, b) => (game?.scores[b.id] ?? 0) - (game?.scores[a.id] ?? 0),
+    ),
     hasAI,
     aiGuessedRight: hasAI && (game?.guessedIds ?? []).some((id) => isAI(id)),
     soloWaiting: !hasAI && players.filter((p) => !isAI(p.id)).length <= 1,

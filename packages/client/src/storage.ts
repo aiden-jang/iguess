@@ -1,6 +1,4 @@
-// A browser set to block site data throws on `localStorage` itself, not just on write, and some
-// of these reads happen during render. Forgetting a name or a mute setting costs nothing; a
-// white screen costs everything.
+// Accessing localStorage itself can throw when site data is blocked, including during render.
 export function readStored(key: string): string | null {
   try {
     return localStorage.getItem(key);

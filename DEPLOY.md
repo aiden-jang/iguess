@@ -7,10 +7,13 @@
   `/og`. It prefers configured OpenAI or Anthropic keys, then Cloudflare Workers AI, and uses mock
   only as a last resort.
 - **`iguess-game`** is the game server: the `GameRoom` Durable Object (one per room) + serves
-  the client SPA (`[assets]`) + the `/rooms/:id/ws` WebSocket. Custom domain, free tier.
+  the client SPA (`[assets]`) + the `/rooms/:id/ws` WebSocket. Custom domain and bound assets.
 
 The room DO is SQLite-backed and created automatically by the `new_sqlite_classes` migration on
-first deploy, with no separate command (unlike D1).
+first deploy. Versioned recovery checkpoints use that existing storage; no new migration
+or secret is needed. Inactive checkpoints expire after a day. A recovered game resumes its
+clock from the last completed checkpoint. Old clients with only claimed player IDs rejoin
+with fresh identities after upgrading; their IDs cannot prove ownership.
 
 `wrangler deploy` also registers the game-server's cron (`[triggers]` in its `wrangler.toml`),
 which half-hourly checks that the AI worker is up, uses a real provider, and has its shared
@@ -102,7 +105,7 @@ Run each command in a separate terminal, all from the repository root. Pinning t
 to mock mode keeps local play away from real vision providers and needs no shared secret.
 
 ```bash
-pnpm --filter @iguess/ai-worker exec wrangler dev --port 33400 --inspector-port 9233 --local --var VISION_PROVIDER:mock
+pnpm run dev:ai
 pnpm run dev:server
 pnpm run dev:client
 ```

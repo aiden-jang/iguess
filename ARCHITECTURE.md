@@ -25,9 +25,9 @@ Room effects have separate owners:
 - `evidenceCard`: bounded image export with artist captions and missing-preview fallbacks; native sharing stays in `shareDelivery`.
 - `useChatDraft`: session-scoped unsent chat, preserved across refresh and cleared after sending.
 - `useDrawingShortcuts`: drawing-area shortcuts that leave text fields and dialogs alone.
-- `useGameSocket`: socket connection, server messages, outgoing actions and draw subscriptions.
+- `useGameSocket`: composes transport, state and outgoing actions. `roomTransport` owns retries and listeners; `roomMessages` reduces checked server messages. Drawing subscriptions bypass React state.
 
-`DrawingCanvas` renders local strokes immediately for the drawer. It replays
+`DrawingCanvas` owns rendering and resize replay; `useCanvasPointer` owns pointer identity, animation-frame batching and final-batch flushing. The canvas renders local strokes immediately for the drawer. It replays
 server operations for everyone else. Coordinates are normalized, and shared
 undo rules keep client and server stroke handling aligned. The eraser removes
 pixels rather than painting white, so fill remains consistent with transparency.
@@ -51,13 +51,19 @@ invalid actions. The secret word is sent only to the drawer.
 
 Sockets are pinned rather than hibernating because the engine’s timers need the
 object to stay resident. This trades idle-room efficiency for a straightforward
-live timeline. Room state is currently in memory rather than persisted in the
-object’s SQLite storage: eviction can end a game.
+live timeline. `RoomPersistence` coalesces changes into versioned checkpoints through
+`CheckpointStore`, using the existing durable storage. Checkpoints expire after a day of
+inactivity. Atomic bounded chunks retain the engine, mode progress, roster, settings, ink,
+word memory, AI budget and hashed reconnect credentials. Chat and browser galleries are not
+server history. After a restart the clock resumes from the last completed checkpoint;
+previous seats have a short reconnect window.
 
 ## Engine and modes
 
 `GameEngine` owns phase changes, word selection timing, hints, scoring and turn
-transitions. A `GameMode` supplies drawing order, word choices and chat rules.
+transitions. `EngineState` owns serializable game data; `GameClock` owns cancellable
+deadlines. Disposing an engine cancels all deadlines and mode loops. Modes snapshot their
+rotation, bets and AI progress and resume without starting a fresh turn. A `GameMode` supplies drawing order, word choices and chat rules.
 The engine does not contain separate branches for human and AI players.
 
 Classic is the base human mode. AI Guesser adds a virtual player; AI Drawer emits
@@ -80,7 +86,9 @@ The public `/play-status` route checks cached worker health, never a vision requ
 
 AI requests happen outside socket message handling. A slow or failed call does
 not pause the room. Guess cadence responds to new ink, and attempt and room
-budgets limit paid requests. Provider failures and mock fallback are disclosed
+budgets limit paid requests. Provider attempts have deadlines; late responses cannot
+speak, draw or score after loop disposal. The AI Worker validates bounded input and
+shares one WASM initializer with explicit renderer resource disposal for vision and invite cards. Provider failures and mock fallback are disclosed
 rather than presented as normal vision guesses. Per-room commentary avoids recent punchlines and acknowledges unavailable vision.
 
 The AI drawer is not an image generator. It reveals curated vector strokes over
@@ -90,10 +98,18 @@ request-drawing seam without adding AI-specific logic to the engine.
 ## Reconnects and limits
 
 A reconnecting player has a grace window that preserves their role and score.
-The reconnect ID is client-asserted; it is not a signed identity token. This is a
-known trust limit, not account authentication.
+The server issues an opaque room-local reconnect credential; a public player ID cannot
+reclaim a seat. Only the credential digest is checkpointed. WebSocket negotiation carries the credential
+without putting it in request URLs or invitation links. The browser keeps the credential
+in session storage with an in-memory fallback when storage is blocked. Opening the same
+credential again replaces the former socket, and a host kick revokes it. Legacy claimed IDs
+are ignored. This proves possession of a room credential, not account authentication.
 
-Room capacity, spectators, connection rate limits, message limits and AI request
+`RoomRoster` owns seats, ready states, host transfer and reconnect reservations. `RoomCanvas`
+bounds retained operations. `roomActions` checks host/player permissions. Shared wire
+decoders validate message shapes, point ranges, batch sizes and reactions before dispatch.
+Cross-origin browser socket requests are rejected. Room capacity, spectators, connection
+rate limits, message limits and AI request
 budgets bound the app’s abuse surface. Watchers can be promoted into available
 seats. The edge rate limiter can be absent in local development; production
 bindings are configured in the game Worker’s Wrangler file.
@@ -115,10 +131,10 @@ See [DEPLOY.md](DEPLOY.md) for configuration.
 
 ## Known limits
 
-- In-memory rooms do not survive eviction.
-- Reconnect IDs can be claimed by another client; signed tokens would close that gap.
+- Recovery resumes the last completed checkpoint, not every in-flight pointer event.
+- Room-local possession credentials are not accounts or private-room authorization.
+- Vision rasterization does not reproduce fills, erasing or pressure widths; client replay/export does.
 - Raster fill replay at different sizes is visually close rather than bit-identical.
 - Mock-based tests do not establish paid-provider quality or real-device performance.
 
-Persisted room state and signed reconnect tokens are separate product changes;
-UI cleanup does not silently implement either.
+The [repository audit](docs/REPOSITORY-AUDIT.md) records the boundaries, regressions and verification limits.

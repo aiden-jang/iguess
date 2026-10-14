@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": [
+      "node",
+      "./packages/game-server/node_modules/@cloudflare/workers-types"
+    ]
+  },
+  "include": [
+    "e2e",
+    "playwright.config.ts",
+    "packages/**/*.test.ts",
+    "packages/client/src/vite-env.d.ts",
+    "packages/ai-worker/src/wasm.d.ts"
+  ]
+}

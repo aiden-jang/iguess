@@ -1,17 +1,17 @@
-import type { Env } from './env.ts';
+import type { Env } from "./env.ts";
 
 /*
  * One dataset across every app, so the columns mean the same thing everywhere:
  *   index1/blob1 app   blob2 event   blob3 variant   blob4 detail
  *   double1 count (always 1)   double2 magnitude
  */
-const APP = 'iguess';
+const APP = "iguess";
 
 export function writeEvent(
   env: Env,
   name: string,
-  variant = '',
-  detail = '',
+  variant = "",
+  detail = "",
   magnitude = 0,
 ): void {
   if (!env.EVENTS) return;

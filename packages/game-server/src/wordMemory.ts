@@ -8,9 +8,17 @@ const LIMIT = 150;
 export class WordMemory {
   private recent: string[] = [];
 
+  snapshot() {
+    return [...this.recent];
+  }
+  restore(words: string[]) {
+    this.recent = words.slice(-LIMIT);
+  }
+
   remember(word: string): void {
     this.recent.push(word);
-    if (this.recent.length > LIMIT) this.recent.splice(0, this.recent.length - LIMIT);
+    if (this.recent.length > LIMIT)
+      this.recent.splice(0, this.recent.length - LIMIT);
   }
 
   // Words to skip when picking from `pool`. Capped at half the pool so a small pool

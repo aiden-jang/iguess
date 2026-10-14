@@ -14,6 +14,10 @@ test("a lobby resets only when the joiner picked a different mode", () => {
 
 test("a game in progress is never reset — you join it", () => {
   for (const phase of ["choosing", "playing", "intermission"]) {
-    assert.equal(shouldResetRoom(phase, "ai", "classic"), false, `should not reset during ${phase}`);
+    assert.equal(
+      shouldResetRoom(phase, "ai", "classic"),
+      false,
+      `should not reset during ${phase}`,
+    );
   }
 });

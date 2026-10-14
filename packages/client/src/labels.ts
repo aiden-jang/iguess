@@ -40,7 +40,7 @@ export function lobbyStatus({
   watchingCount,
 }: LobbyCounts): string {
   if (youAreWatching)
-    return "Room is full. You’re watching until a seat opens.";
+    return "You’re watching. Join the next game when a seat opens.";
   if (!soloWaiting) {
     const watchers = watchingCount ? ` · ${watchingCount} watching` : "";
     return `Lobby · ${readyCount}/${humanCount} ready${watchers}`;

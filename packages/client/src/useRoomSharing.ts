@@ -33,7 +33,7 @@ export function useRoomSharing({
   const [inviteResult, setInviteResult] = useState<"copied" | "shared" | null>(
     null,
   );
-  const [resultsCopied, setFlexed] = useState(false);
+  const [resultsCopied, setResultsCopied] = useState(false);
   const [savingEvidence, setSavingEvidence] = useState(false);
   useEffect(() => {
     if (!inviteResult) return;
@@ -42,7 +42,7 @@ export function useRoomSharing({
   }, [inviteResult]);
   useEffect(() => {
     if (!resultsCopied) return;
-    const timer = setTimeout(() => setFlexed(false), 1800);
+    const timer = setTimeout(() => setResultsCopied(false), 1800);
     return () => clearTimeout(timer);
   }, [resultsCopied]);
   const handleInvite = async () => {
@@ -113,7 +113,7 @@ export function useRoomSharing({
   const copyResults = async () => {
     const ok = await copyText(resultSummary());
     if (ok) {
-      setFlexed(true);
+      setResultsCopied(true);
     } else {
       showToast("Couldn’t copy the results. Please try again.");
     }

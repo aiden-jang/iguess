@@ -16,13 +16,23 @@ export const CLOSE_KICKED = 4010;
 
 // Should this joiner have to watch rather than play? A reconnect (an existing/pending slot
 // returning) always gets its seat back — it replaces a slot rather than taking a new one.
-export function atCapacity(currentPlayers: number, isReconnect: boolean): boolean {
+export function atCapacity(
+  currentPlayers: number,
+  isReconnect: boolean,
+): boolean {
   if (isReconnect) return false;
   return currentPlayers >= MAX_PLAYERS_PER_ROOM;
 }
 
 /** Refuse outright: no seat to play in and no room left in the gallery either. */
-export function roomIsFull(currentPlayers: number, currentSpectators: number, isReconnect: boolean): boolean {
+export function roomIsFull(
+  currentPlayers: number,
+  currentSpectators: number,
+  isReconnect: boolean,
+): boolean {
   if (isReconnect) return false;
-  return currentPlayers >= MAX_PLAYERS_PER_ROOM && currentSpectators >= MAX_SPECTATORS_PER_ROOM;
+  return (
+    currentPlayers >= MAX_PLAYERS_PER_ROOM &&
+    currentSpectators >= MAX_SPECTATORS_PER_ROOM
+  );
 }

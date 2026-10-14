@@ -1,3 +1,4 @@
+import type { ModeSnapshot, DrawProgress } from "./modeState.ts";
 import type { DrawOp } from "@iguess/shared";
 import type { EngineContext, PlayerRef, TurnContext } from "./GameMode.ts";
 import { ClassicMode } from "./ClassicMode.ts";
@@ -9,6 +10,7 @@ import { AI_NAME } from "../ai/persona.ts";
 const AI_ID = "ai-drawer";
 
 export class AIDrawerMode extends ClassicMode {
+  private drawProgress: DrawProgress = { index: 0 };
   override readonly id = "ai-drawer";
 
   override readonly minHumans = 1;
@@ -26,7 +28,10 @@ export class AIDrawerMode extends ClassicMode {
     super();
   }
 
-  override configure(_humans: PlayerRef[], ctx: EngineContext): { totalTurns: number } {
+  override configure(
+    _humans: PlayerRef[],
+    ctx: EngineContext,
+  ): { totalTurns: number } {
     this.drawOrder = [AI_ID]; // only the AI ever draws
     this.usedDoodles.clear();
     ctx.addParticipant({ id: AI_ID, name: AI_NAME, isAI: true });
@@ -40,9 +45,13 @@ export class AIDrawerMode extends ClassicMode {
   // Only words there is a doodle for. Start the pool over once every one has been used.
   override pickWord(): string {
     if (this.usedDoodles.size >= DOODLE_WORDS.length) this.usedDoodles.clear();
-    const avoid = new Set([...this.usedDoodles, ...(this.wordMemory?.avoidFor(DOODLE_WORDS) ?? [])]);
+    const avoid = new Set([
+      ...this.usedDoodles,
+      ...(this.wordMemory?.avoidFor(DOODLE_WORDS) ?? []),
+    ]);
     let pool = DOODLE_WORDS.filter((w) => !avoid.has(w));
-    if (pool.length === 0) pool = DOODLE_WORDS.filter((w) => !this.usedDoodles.has(w));
+    if (pool.length === 0)
+      pool = DOODLE_WORDS.filter((w) => !this.usedDoodles.has(w));
     const word = pool[Math.floor(Math.random() * pool.length)]!;
     this.usedDoodles.add(word);
     this.wordMemory?.remember(word);
@@ -59,10 +68,37 @@ export class AIDrawerMode extends ClassicMode {
   }
 
   override onTurnStart(turn: TurnContext, ctx: EngineContext): void {
+    this.drawProgress = { index: 0 };
+    this.bets.clear();
+    this.onTurnResume(turn, ctx);
+  }
+  override onTurnResume(turn: TurnContext, ctx: EngineContext): void {
     // Deliberately does not call super. That sends the word to the drawer, and here the
     // drawer is the AI, so it would be handing the answer to nobody who should have it.
     this.stop?.();
-    this.stop = startDrawLoop(turn, ctx, { requestDrawing: this.requestDrawing });
+    this.stop = startDrawLoop(turn, ctx, {
+      requestDrawing: this.requestDrawing,
+      progress: this.drawProgress,
+    });
+  }
+
+  override snapshot(): ModeSnapshot {
+    return {
+      ...super.snapshot(),
+      usedDoodles: [...this.usedDoodles],
+      drawProgress: this.drawProgress,
+    };
+  }
+  override restore(saved: ModeSnapshot) {
+    super.restore(saved);
+    if (saved.usedDoodles !== undefined)
+      this.usedDoodles = new Set(saved.usedDoodles);
+    if (saved.drawProgress !== undefined)
+      this.drawProgress = saved.drawProgress;
+  }
+  dispose() {
+    this.stop?.();
+    this.stop = null;
   }
 
   override onTurnEnd(turn: TurnContext, ctx: EngineContext): void {

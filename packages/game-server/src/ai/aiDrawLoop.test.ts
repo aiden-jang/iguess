@@ -6,7 +6,10 @@ import { startDrawLoop } from "./aiDrawLoop.ts";
 
 function harness(word: string) {
   const ops: DrawOp[] = [];
-  const ctx = { draw: (op: DrawOp) => ops.push(op), currentWord: () => word } as unknown as EngineContext;
+  const ctx = {
+    draw: (op: DrawOp) => ops.push(op),
+    currentWord: () => word,
+  } as unknown as EngineContext;
   const turn = { word } as TurnContext;
   return { ops, ctx, turn };
 }
@@ -19,10 +22,16 @@ test("a stroke arrives in pieces, not all at once", async () => {
   await new Promise((r) => setTimeout(r, 300));
   stop();
   const moves = ops.filter((o) => o.kind === "move");
-  assert.ok(moves.length > ops.filter((o) => o.kind === "start").length,
-    "each stroke should take several move ops to appear");
+  assert.ok(
+    moves.length > ops.filter((o) => o.kind === "start").length,
+    "each stroke should take several move ops to appear",
+  );
   for (const m of moves) {
-    if (m.kind === "move") assert.ok(m.points.length <= 4, "a tick should drip a few points, not a whole stroke");
+    if (m.kind === "move")
+      assert.ok(
+        m.points.length <= 4,
+        "a tick should drip a few points, not a whole stroke",
+      );
   }
 });
 

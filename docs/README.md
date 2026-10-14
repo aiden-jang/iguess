@@ -20,3 +20,5 @@ suite does not establish visual fidelity.
 The finishing checklist, screen inventory and verification limits live in
 [the acceptance record](ui-review/finish/README.md). Its captures supersede the
 [historical studio review](ui-review/studio/README.md) and earlier layout captures. See `DESIGN.md` for the product direction and role-specific priorities.
+
+The [repository audit](REPOSITORY-AUDIT.md) covers architecture, comments, recovery and repository gates.

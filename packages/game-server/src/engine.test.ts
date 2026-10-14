@@ -52,6 +52,7 @@ function makeHarness(names: Record<string, string>, rounds = 1) {
     sendToPlayer: (id, m) => (sent[id] ??= []).push(m),
     clearCanvas: () => {},
     drawOp: () => {},
+    canvasOpCount: () => 0,
     getName: (id) => names[id] ?? id,
     addVirtualPlayer: () => {},
     removeVirtualPlayer: () => {},
@@ -81,7 +82,7 @@ function wordSentTo(sent: Record<string, ServerMessage[]>, id: string): string {
 function settleChoosing(
   engine: GameEngine,
   broadcasts: ServerMessage[],
-  sent: Record<string, ServerMessage[]>
+  sent: Record<string, ServerMessage[]>,
 ) {
   let st: PublicGameState;
   try {
@@ -108,10 +109,8 @@ test("startGame is rejected with fewer than 2 players", () => {
   engine.startGame(["a"]);
   assert.equal(engine.currentPhase, "lobby");
   assert.ok(
-    broadcasts.some(
-      (m) => m.type === "system" && /at least 2/i.test(m.text)
-    ),
-    "should warn that 2 players are required"
+    broadcasts.some((m) => m.type === "system" && /at least 2/i.test(m.text)),
+    "should warn that 2 players are required",
   );
 });
 
@@ -141,8 +140,14 @@ test("a correct guess scores the guesser and the drawer, and ends the turn", () 
   const st = latestState(broadcasts);
   // Both are paid on how fast it was guessed, and the guesser always out-earns the drawer.
   assert.ok(st.scores["b"]! >= 50, `guesser=${st.scores["b"]}`);
-  assert.ok(st.scores["a"]! >= 10 && st.scores["a"]! <= 80, `drawer=${st.scores["a"]}`);
-  assert.ok(st.scores["a"]! < st.scores["b"]!, "the guesser should out-earn the drawer");
+  assert.ok(
+    st.scores["a"]! >= 10 && st.scores["a"]! <= 80,
+    `drawer=${st.scores["a"]}`,
+  );
+  assert.ok(
+    st.scores["a"]! < st.scores["b"]!,
+    "the guesser should out-earn the drawer",
+  );
   assert.deepEqual(st.guessedIds, ["b"]);
   // All non-drawers guessed → turn ends → intermission.
   assert.equal(st.phase, "intermission");
@@ -198,13 +203,20 @@ test("hints start fully masked and reveal letters as the turn progresses", () =>
   let revealedCount = 0;
   for (let i = 0; i < word.length; i++) {
     if (hint1[i] !== "_") {
-      assert.equal(hint1[i], word[i], `revealed char ${i} should match the word`);
+      assert.equal(
+        hint1[i],
+        word[i],
+        `revealed char ${i} should match the word`,
+      );
       revealedCount++;
     }
   }
   assert.ok(revealedCount >= 1, "should reveal at least one letter");
   assert.ok(revealedCount < word.length, "must never reveal the whole word");
-  assert.ok(revealedCount <= Math.ceil(word.length / 3), "reveal cap respected");
+  assert.ok(
+    revealedCount <= Math.ceil(word.length / 3),
+    "reveal cap respected",
+  );
 });
 
 test("a turn that times out with no correct guess announces the whiff", () => {
@@ -218,9 +230,12 @@ test("a turn that times out with no correct guess announces the whiff", () => {
 
   assert.ok(
     broadcasts.some(
-      (m) => m.type === "system" && m.text.includes("nobody got") && m.text.includes(word)
+      (m) =>
+        m.type === "system" &&
+        m.text.includes("nobody got") &&
+        m.text.includes(word),
     ),
-    "an empty turn should announce that nobody guessed the word"
+    "an empty turn should announce that nobody guessed the word",
   );
 });
 
@@ -271,24 +286,25 @@ test("winnerLine announces a sole winner, a tie, and a scoreless game", () => {
   // A tiny EngineContext stub exposing only what winnerLine reads.
   const stub = (
     scores: Record<string, number>,
-    names: Record<string, string>
+    names: Record<string, string>,
   ): EngineContext =>
     ({
       scores: () => scores,
-      participants: () => Object.keys(names).map((id) => ({ id, name: names[id]! })),
+      participants: () =>
+        Object.keys(names).map((id) => ({ id, name: names[id]! })),
       getName: (id: string) => names[id] ?? id,
     }) as unknown as EngineContext;
 
   assert.match(
     winnerLine(stub({ a: 120, b: 90 }, { a: "alice", b: "bob" })),
-    /🏆 alice wins with 120 points!/
+    /🏆 alice wins with 120 points!/,
   );
   const tie = winnerLine(stub({ a: 100, b: 100 }, { a: "alice", b: "bob" }));
   assert.match(tie, /tie/i);
   assert.match(tie, /alice & bob/);
   assert.match(
     winnerLine(stub({ a: 0, b: 0 }, { a: "alice", b: "bob" })),
-    /nobody scored/i
+    /nobody scored/i,
   );
 });
 
@@ -304,27 +320,45 @@ test("the engine broadcasts a winner announcement when the game ends", () => {
 
   assert.equal(latestState(broadcasts).phase, "ended");
   assert.ok(
-    broadcasts.some((m) => m.type === "system" && /🏆|nobody scored/.test(m.text)),
-    "a winner/tie line should be broadcast at game end"
+    broadcasts.some(
+      (m) => m.type === "system" && /🏆|nobody scored/.test(m.text),
+    ),
+    "a winner/tie line should be broadcast at game end",
   );
 });
 
 test("pickWord never repeats within a game until the pool is exhausted", () => {
   const mode = new ClassicMode();
   const ctx = {} as never; // pickWord ignores ctx
-  mode.configure([{ id: "a", name: "a" }, { id: "b", name: "b" }], ctx);
+  mode.configure(
+    [
+      { id: "a", name: "a" },
+      { id: "b", name: "b" },
+    ],
+    ctx,
+  );
 
   // Drawing exactly WORDS.length times should yield every word once — a
   // permutation with no repeats.
   const seen = WORDS.map(() => mode.pickWord(ctx));
-  assert.equal(new Set(seen).size, WORDS.length, "all picks within a game are unique");
+  assert.equal(
+    new Set(seen).size,
+    WORDS.length,
+    "all picks within a game are unique",
+  );
 
   // The pool is now exhausted; the next pick resets and reuses, never throwing.
   const after = mode.pickWord(ctx);
   assert.ok(WORDS.includes(after));
 
   // A fresh game clears history, so it can pick freely again.
-  mode.configure([{ id: "a", name: "a" }, { id: "b", name: "b" }], ctx);
+  mode.configure(
+    [
+      { id: "a", name: "a" },
+      { id: "b", name: "b" },
+    ],
+    ctx,
+  );
   assert.ok(WORDS.includes(mode.pickWord(ctx)));
 });
 
@@ -366,10 +400,19 @@ test("the drawer is offered word choices and picking one starts the turn", () =>
 
   // Options go only to the drawer.
   const offer = (sent["a"] ?? []).find((m) => m.type === "word_choices");
-  assert.ok(offer && offer.type === "word_choices", "drawer should be offered words");
+  assert.ok(
+    offer && offer.type === "word_choices",
+    "drawer should be offered words",
+  );
   assert.ok(offer.words.length >= 2, "at least two options");
-  assert.ok(!(sent["b"] ?? []).some((m) => m.type === "word_choices"), "guesser sees none");
-  assert.ok(!(sent["a"] ?? []).some((m) => m.type === "your_word"), "no word until picked");
+  assert.ok(
+    !(sent["b"] ?? []).some((m) => m.type === "word_choices"),
+    "guesser sees none",
+  );
+  assert.ok(
+    !(sent["a"] ?? []).some((m) => m.type === "your_word"),
+    "no word until picked",
+  );
 
   // The drawer picks one → the turn begins with exactly that word.
   const pick = offer.words[1]!;
@@ -388,7 +431,11 @@ test("a choice from a non-drawer or off the menu is ignored", () => {
 
   engine.handleChooseWord("b", offer.words[0]!); // not the drawer
   engine.handleChooseWord("a", "definitely-not-an-option");
-  assert.equal(latestState(broadcasts).phase, "choosing", "still waiting on a valid pick");
+  assert.equal(
+    latestState(broadcasts).phase,
+    "choosing",
+    "still waiting on a valid pick",
+  );
 });
 
 test("an undecided drawer is auto-assigned a word when the clock runs out", () => {
@@ -401,7 +448,10 @@ test("an undecided drawer is auto-assigned a word when the clock runs out", () =
 
   const st = latestState(broadcasts);
   assert.equal(st.phase, "playing");
-  assert.ok(offer.words.includes(wordSentTo(sent, "a")), "auto-pick is one of the options");
+  assert.ok(
+    offer.words.includes(wordSentTo(sent, "a")),
+    "auto-pick is one of the options",
+  );
 });
 
 test("isClose flags one-edit near-misses but not exact or distant guesses", () => {
@@ -432,11 +482,13 @@ test("a near-miss privately nudges only the guesser and stays public chat", () =
   // The guesser got a private "so close" nudge; the drawer did not.
   assert.ok(
     (sent["b"] ?? []).some((m) => m.type === "system" && /close/i.test(m.text)),
-    "guesser should receive a private close nudge"
+    "guesser should receive a private close nudge",
   );
   assert.ok(
-    !(sent["a"] ?? []).some((m) => m.type === "system" && /close/i.test(m.text)),
-    "nudge must not leak to the drawer"
+    !(sent["a"] ?? []).some(
+      (m) => m.type === "system" && /close/i.test(m.text),
+    ),
+    "nudge must not leak to the drawer",
   );
 });
 
@@ -457,20 +509,32 @@ test("a skip swaps every option, and only works once per game", () => {
 
   engine.handleSkipWord(drawer);
   const after = choicesFor(drawer);
-  for (const w of after.words) assert.ok(!before.words.includes(w), `${w} survived the skip`);
+  for (const w of after.words)
+    assert.ok(!before.words.includes(w), `${w} survived the skip`);
   assert.equal(after.canSkip, false, "the skip should be spent");
 
   engine.handleSkipWord(drawer);
-  assert.deepEqual(choicesFor(drawer).words, after.words, "a second skip should do nothing");
+  assert.deepEqual(
+    choicesFor(drawer).words,
+    after.words,
+    "a second skip should do nothing",
+  );
 });
 
 test("only the drawer can skip", () => {
   const { engine, sent } = makeHarness({ a: "Ann", b: "Bob" });
   engine.startGame(["a", "b"]);
-  const drawerInbox = () => (sent["a"] ?? []).concat(sent["b"] ?? []).filter((m) => m.type === "word_choices");
+  const drawerInbox = () =>
+    (sent["a"] ?? [])
+      .concat(sent["b"] ?? [])
+      .filter((m) => m.type === "word_choices");
   const before = drawerInbox().length;
   engine.handleSkipWord("nobody");
-  assert.equal(drawerInbox().length, before, "a non-drawer should not get new choices");
+  assert.equal(
+    drawerInbox().length,
+    before,
+    "a non-drawer should not get new choices",
+  );
 });
 
 test("room settings change the clock and the round count", () => {
@@ -481,11 +545,18 @@ test("room settings change the clock and the round count", () => {
   const st = latestState(broadcasts);
   assert.equal(st.totalRounds, 5);
   const secondsLeft = ((st.turnEndsAt ?? 0) - Date.now()) / 1000;
-  assert.ok(secondsLeft > 20 && secondsLeft <= 25, `turn was ${secondsLeft}s, wanted 25`);
+  assert.ok(
+    secondsLeft > 20 && secondsLeft <= 25,
+    `turn was ${secondsLeft}s, wanted 25`,
+  );
 });
 
 test("settings are clamped, not trusted", () => {
-  const wild = sanitizeSettings({ turnSeconds: 99999, rounds: -4, aiSkill: "godlike" as never });
+  const wild = sanitizeSettings({
+    turnSeconds: 99999,
+    rounds: -4,
+    aiSkill: "godlike" as never,
+  });
   assert.equal(wild.turnSeconds, 180);
   assert.equal(wild.rounds, 1);
   assert.equal(wild.aiSkill, "normal");
@@ -498,12 +569,16 @@ test("garbage settings fall back to the defaults", () => {
 });
 
 test("a room's own words are cleaned before they can be drawn", () => {
-  const s = sanitizeSettings({ customWords: ["  Ross's HAIR ", "!!!", "ok", "café", "x", "Ross's hair"] });
+  const s = sanitizeSettings({
+    customWords: ["  Ross's HAIR ", "!!!", "ok", "café", "x", "Ross's hair"],
+  });
   assert.deepEqual(s.customWords, ["rosss hair", "ok", "cafe"]);
 });
 
 test("custom words cannot flood the pool", () => {
-  const many = Array.from({ length: 500 }, (_, i) => `word${i}`.replace(/\d/g, "a"));
+  const many = Array.from({ length: 500 }, (_, i) =>
+    `word${i}`.replace(/\d/g, "a"),
+  );
   assert.ok(sanitizeSettings({ customWords: many }).customWords.length <= 40);
 });
 
@@ -516,7 +591,11 @@ test("a score target ends the game the moment someone reaches it", () => {
   const guesser = drawer === "a" ? "b" : "a";
   engine.handleChat(guesser, wordSentTo(sent, drawer)); // 50..100 → clears 60
   flush();
-  assert.equal(latestState(broadcasts).phase, "ended", "should not have played all 8 rounds");
+  assert.equal(
+    latestState(broadcasts).phase,
+    "ended",
+    "should not have played all 8 rounds",
+  );
 });
 
 test("with no target the game plays out its rounds", () => {
@@ -528,5 +607,71 @@ test("with no target the game plays out its rounds", () => {
   const guesser = drawer === "a" ? "b" : "a";
   engine.handleChat(guesser, wordSentTo(sent, drawer));
   flush();
-  assert.notEqual(latestState(broadcasts).phase, "ended", "one guess should not end a 3-round game");
+  assert.notEqual(
+    latestState(broadcasts).phase,
+    "ended",
+    "one guess should not end a 3-round game",
+  );
+});
+
+test("guesses cannot score during intermission or from outside the match", () => {
+  const { engine, broadcasts, sent } = makeHarness({ a: "a", b: "b" });
+  engine.startGame(["a", "b"]);
+  settleChoosing(engine, broadcasts, sent);
+  const word = wordSentTo(sent, "a");
+  assert.equal(engine.handleChat("outsider", word), false);
+  engine.handleChat("b", word);
+  const scores = { ...latestState(broadcasts).scores };
+  assert.equal(engine.handleChat("a", word), false);
+  assert.deepEqual(latestState(broadcasts).scores, scores);
+  assert.equal(engine.canDraw("a"), false);
+});
+
+test("disposing an engine cancels the pending intermission transition", () => {
+  const { engine, broadcasts, sent } = makeHarness({ a: "a", b: "b" });
+  engine.startGame(["a", "b"]);
+  assert.equal(engine.canDraw("a"), false, "no ink during word selection");
+  settleChoosing(engine, broadcasts, sent);
+  engine.handleChat("b", wordSentTo(sent, "a"));
+  engine.dispose();
+  const count = broadcasts.length;
+  flush(5000);
+  assert.equal(broadcasts.length, count);
+});
+
+test("a departed guesser cannot count toward completion of later guesses", () => {
+  const { engine, broadcasts, sent } = makeHarness({
+    a: "a",
+    b: "b",
+    c: "c",
+    d: "d",
+  });
+  engine.startGame(["a", "b", "c", "d"]);
+  settleChoosing(engine, broadcasts, sent);
+  const word = wordSentTo(sent, "a");
+  engine.handleChat("b", word);
+  engine.onPlayerLeave("b");
+  engine.handleChat("c", word);
+  assert.equal(engine.currentPhase, "playing");
+  assert.deepEqual(latestState(broadcasts).guessedIds, ["c"]);
+  engine.handleChat("d", word);
+  assert.equal(engine.currentPhase, "intermission");
+});
+test("the turn completes when the only remaining guessers already finished", () => {
+  const { engine, broadcasts, sent } = makeHarness({ a: "a", b: "b", c: "c" });
+  engine.startGame(["a", "b", "c"]);
+  settleChoosing(engine, broadcasts, sent);
+  engine.handleChat("b", wordSentTo(sent, "a"));
+  engine.onPlayerLeave("c");
+  assert.equal(engine.currentPhase, "intermission");
+});
+test("a Classic game ends when too few humans remain to play", () => {
+  const { engine, broadcasts, sent } = makeHarness({ a: "a", b: "b" });
+  engine.startGame(["a", "b"]);
+  settleChoosing(engine, broadcasts, sent);
+  engine.onPlayerLeave("b");
+  assert.equal(engine.currentPhase, "ended");
+  const count = broadcasts.length;
+  flush(60000);
+  assert.equal(broadcasts.length, count);
 });

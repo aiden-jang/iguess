@@ -33,8 +33,7 @@ export function thumbnailOf(canvas: HTMLCanvasElement): string {
   return out.toDataURL("image/png");
 }
 
-// Checks every third pixel, not every seventh. At seven, a thin one-stroke drawing gets missed
-// and thrown away as blank, which is worse than the empty card this is here to catch.
+// A dense sample preserves thin strokes when detecting blank thumbnails.
 function isBlank(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
   const { data } = ctx.getImageData(0, 0, w, h);
   for (let i = 0; i < data.length; i += 4 * 3) {

@@ -1,4 +1,3 @@
-/* Classic config keeps Phase 0 simple; flat config can come later if needed. */
 module.exports = {
   root: true,
   parser: "@typescript-eslint/parser",
@@ -6,17 +5,10 @@ module.exports = {
   plugins: ["@typescript-eslint"],
   extends: ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
   env: { node: true, browser: true, es2022: true },
-  ignorePatterns: [
-    "dist",
-    "build",
-    "node_modules",
-    ".wrangler",
-    "*.config.ts",
-    "*.config.js",
-  ],
+  ignorePatterns: ["dist", "build", "node_modules", ".wrangler"],
   rules: {
     "@typescript-eslint/no-unused-vars": [
-      "warn",
+      "error",
       { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
     ],
   },

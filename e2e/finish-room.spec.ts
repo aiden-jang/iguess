@@ -16,13 +16,24 @@ test("invalid custom words remain editable and never overwrite the saved room ru
   browser,
 }) => {
   const room = code();
+  let releaseEcho: (() => void) | undefined;
+  await page.routeWebSocket("**/rooms/**/ws?**", (socket) => {
+    const server = socket.connectToServer();
+    server.onMessage((data) => {
+      const message = JSON.parse(String(data)) as { type: string };
+      if (message.type === "settings") releaseEcho = () => socket.send(data);
+      else socket.send(data);
+    });
+  });
   await enter(page, room);
   await page.getByText("Game settings", { exact: true }).click();
   const words = page.getByLabel("Custom words", { exact: true });
   await words.fill("moon, teapot");
   await words.press("Enter");
+  await expect.poll(() => !!releaseEcho).toBe(true);
   await words.fill("x");
   await words.press("Enter");
+  releaseEcho!();
   await expect(words).toHaveAttribute("aria-invalid", "true");
   await expect(page.getByRole("alert")).toContainText("needs 2–24 letters");
   const guest = await browser.newPage();

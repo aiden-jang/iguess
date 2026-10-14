@@ -1,12 +1,25 @@
-import type { GameMode, EngineContext, PlayerRef, TurnContext } from "./GameMode.ts";
-import { WORDS, TIERS, TIER_MULTIPLIER, poolFor, tierOf, type Tier } from "@iguess/shared/words";
+import type { ModeSnapshot } from "./modeState.ts";
+import type {
+  GameMode,
+  EngineContext,
+  PlayerRef,
+  TurnContext,
+} from "./GameMode.ts";
+import {
+  WORDS,
+  TIERS,
+  TIER_MULTIPLIER,
+  poolFor,
+  tierOf,
+  type Tier,
+} from "@iguess/shared/words";
 import { normalizeGuess, isClose } from "../text.ts";
 import type { WordMemory } from "../wordMemory.ts";
 import { SETTINGS_LIMITS, type RoomSettings } from "@iguess/shared";
 
 const CALL_REWARD = 40;
 
-export { WORDS }; // re-export so AIGuesserMode's fallback can reuse it
+export { WORDS };
 
 export class ClassicMode implements GameMode {
   readonly id: string = "classic";
@@ -36,16 +49,17 @@ export class ClassicMode implements GameMode {
   useSettings(settings: RoomSettings): void {
     // Chasing a score means "as long as it takes", so run to the round cap and let the engine
     // stop it when somebody gets there.
-    this.rounds = settings.scoreTarget > 0
-      ? SETTINGS_LIMITS.rounds.max
-      : Math.max(1, settings.rounds);
+    this.rounds =
+      settings.scoreTarget > 0
+        ? SETTINGS_LIMITS.rounds.max
+        : Math.max(1, settings.rounds);
     this.packs = settings.packs;
     this.customWords = settings.customWords;
   }
 
   configure(
     humans: PlayerRef[],
-    _ctx: EngineContext
+    _ctx: EngineContext,
   ): { totalTurns: number; turnsPerRound?: number } {
     this.drawOrder = humans.map((h) => h.id);
     this.usedWords.clear();
@@ -61,6 +75,7 @@ export class ClassicMode implements GameMode {
 
   onPlayerLeave(playerId: string, _ctx: EngineContext): void {
     // Out of the rotation, or a later turn picks someone who left and nothing gets drawn.
+    this.bets.delete(playerId);
     this.drawOrder = this.drawOrder.filter((id) => id !== playerId);
   }
 
@@ -87,19 +102,44 @@ export class ClassicMode implements GameMode {
     // A room's own words go in the easy slot. Nothing outside the built-in list has a
     // difficulty, so there is nothing else to score them by.
     const base = tier ? poolFor(tier, this.packs) : WORDS;
-    const pool = tier === "easy" && this.customWords.length ? [...this.customWords, ...base] : base;
+    const pool =
+      tier === "easy" && this.customWords.length
+        ? [...this.customWords, ...base]
+        : base;
     // Check the pool we are actually drawing from. Easy can run dry long before the full
     // used-list looks anywhere near finished.
     if (pool.every((w) => this.usedWords.has(w))) this.usedWords.clear();
-    const avoid = new Set([...this.usedWords, ...(this.memory?.avoidFor(pool) ?? [])]);
+    const avoid = new Set([
+      ...this.usedWords,
+      ...(this.memory?.avoidFor(pool) ?? []),
+    ]);
     const roll = () => pool[Math.floor(Math.random() * pool.length)]!;
     let word = roll();
     for (let i = 0; i < 20 && avoid.has(word); i++) word = roll();
     if (avoid.has(word)) {
-      word = pool.find((w) => !avoid.has(w)) ?? pool.find((w) => !this.usedWords.has(w)) ?? word;
+      word =
+        pool.find((w) => !avoid.has(w)) ??
+        pool.find((w) => !this.usedWords.has(w)) ??
+        word;
     }
     this.memory?.remember(word);
     return word;
+  }
+
+  snapshot(): ModeSnapshot {
+    return {
+      drawOrder: [...this.drawOrder],
+      usedWords: [...this.usedWords],
+      bets: [...this.bets],
+    };
+  }
+  restore(saved: ModeSnapshot) {
+    this.drawOrder = [...saved.drawOrder];
+    this.usedWords = new Set(saved.usedWords);
+    this.bets = new Map(saved.bets);
+  }
+  onTurnResume(turn: TurnContext, ctx: EngineContext) {
+    ctx.sendToPlayer(turn.drawerId, { type: "your_word", word: turn.word });
   }
 
   onTurnStart(turn: TurnContext, ctx: EngineContext): void {
@@ -110,12 +150,19 @@ export class ClassicMode implements GameMode {
   // "?dog" bets on what the machine will say next. It is not a guess at the word.
   // Any mode that writes its own onChat must call this FIRST: normalizeGuess throws the "?"
   // away, so an unhandled call counts as a plain answer and wins the round.
-  protected takeCall(playerId: string, text: string, ctx: EngineContext): boolean {
+  protected takeCall(
+    playerId: string,
+    text: string,
+    ctx: EngineContext,
+  ): boolean {
     if (!text.trimStart().startsWith("?")) return false;
     const call = normalizeGuess(text.trimStart().slice(1));
     if (call) {
       this.bets.set(playerId, call);
-      ctx.sendToPlayer(playerId, { type: "system", text: `📞 called it: the machine says "${call}"` });
+      ctx.sendToPlayer(playerId, {
+        type: "system",
+        text: `📞 called it: the machine says "${call}"`,
+      });
     }
     return true; // consumed either way: a bare "?" is not chat worth broadcasting
   }
@@ -162,7 +209,10 @@ export class ClassicMode implements GameMode {
   onTurnEnd(turn: TurnContext, ctx: EngineContext): void {
     // Nobody got it. The word is already public in turn_end, so saying it here leaks nothing.
     if (ctx.guessedIds().length === 0) {
-      ctx.broadcast({ type: "system", text: `oof, nobody got "${turn.word}" 💀` });
+      ctx.broadcast({
+        type: "system",
+        text: `oof, nobody got "${turn.word}" 💀`,
+      });
     }
   }
 
@@ -177,13 +227,16 @@ export class ClassicMode implements GameMode {
     // Hints arrive free on a timer, so the only way to make them cost anything is to pay
     // people who didn't need them.
     const unaided = ctx.hintsRevealed() === 0;
-    const points = Math.round(base * comebackBonus(playerId, ctx) * (unaided ? 1.2 : 1));
+    const points = Math.round(
+      base * comebackBonus(playerId, ctx) * (unaided ? 1.2 : 1),
+    );
     ctx.awardPoints(playerId, points);
     ctx.markGuessed(playerId);
 
     // Pay the drawer by how fast this person read it, so a clear sketch beats a scribble.
     const drawerId = ctx.currentDrawerId();
-    if (drawerId) ctx.awardPoints(drawerId, Math.round((10 + frac * 40) * mult));
+    if (drawerId)
+      ctx.awardPoints(drawerId, Math.round((10 + frac * 40) * mult));
 
     ctx.broadcast({
       type: "system",
@@ -197,9 +250,7 @@ export class ClassicMode implements GameMode {
 
   protected maybeEndTurn(ctx: EngineContext): void {
     const drawerId = ctx.currentDrawerId();
-    const expected = ctx
-      .participants()
-      .filter((p) => p.id !== drawerId).length;
+    const expected = ctx.participants().filter((p) => p.id !== drawerId).length;
     if (ctx.guessedIds().length >= expected) ctx.endTurn();
   }
 }

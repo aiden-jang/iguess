@@ -7,16 +7,16 @@ compatibility_flags = ["nodejs_compat"]
 [dev]
 port = 33400
 
-# Free, real vision with no API key: Cloudflare Workers AI (LLaVA), reached via this binding.
+# Workers AI uses the bound account and its usage limits.
 # It's the default when no paid key (OPENAI_API_KEY / ANTHROPIC_API_KEY) is set.
 [ai]
 binding = "AI"
 
 # Provider keys are secrets (wrangler secret put OPENAI_API_KEY / ANTHROPIC_API_KEY). With none of
-# those, the worker uses Workers AI (free) — or the mock if the [ai] binding is unavailable.
+# those, the worker uses Workers AI — or the mock if the [ai] binding is unavailable.
 # VISION_PROVIDER can force one ("mock" | "openai" | "anthropic" | "workers").
 
-# Workers Logs — native, free-tier error/log observability. Tail live with `wrangler tail`;
+# Workers Logs — native error/log observability. Tail live with `wrangler tail`;
 # browse + query in the dashboard (Workers & Pages → the worker → Logs).
 [observability]
 enabled = true

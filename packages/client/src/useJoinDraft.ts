@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AVATARS } from "@iguess/shared";
+import { AVATARS, isAvatar } from "@iguess/shared";
 import { newRoomCode } from "@iguess/shared/roomCode";
 import { readStored, writeStored } from "./storage";
 import { AVATAR_KEY, lifetimeStats } from "./playerStats";
@@ -20,7 +20,7 @@ export function useJoinDraft(enter: (entry: Entry) => void) {
   );
   const [avatar, setAvatar] = useState(
     () =>
-      readStored(AVATAR_KEY) ??
+      (isAvatar(readStored(AVATAR_KEY)) ? readStored(AVATAR_KEY)! : null) ??
       AVATARS[Math.floor(Math.random() * AVATARS.length)]!,
   );
   const [entryError, setEntryError] = useState("");

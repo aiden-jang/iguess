@@ -5,7 +5,9 @@ import { humanize } from "./humanize.ts";
 
 function points(strokes: ReturnType<typeof doodleFor>) {
   return strokes.flatMap((ops) =>
-    ops.flatMap((op) => (op.kind === "start" ? [op.point] : op.kind === "move" ? op.points : []))
+    ops.flatMap((op) =>
+      op.kind === "start" ? [op.point] : op.kind === "move" ? op.points : [],
+    ),
   );
 }
 
@@ -31,7 +33,10 @@ test("the wobble stays on the canvas", () => {
   for (const word of DOODLE_WORDS) {
     for (let i = 0; i < 20; i++) {
       for (const p of points(doodleFor(word))) {
-        assert.ok(p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1, `${word} left the canvas at ${p.x},${p.y}`);
+        assert.ok(
+          p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1,
+          `${word} left the canvas at ${p.x},${p.y}`,
+        );
       }
     }
   }
@@ -45,7 +50,7 @@ test("the subject is still recognisable: bounds stay near the original", () => {
       for (const k of ["x0", "x1", "y0", "y1"] as const) {
         assert.ok(
           Math.abs(after[k] - before[k]) < 0.14,
-          `${word} ${k} moved ${Math.abs(after[k] - before[k]).toFixed(3)}`
+          `${word} ${k} moved ${Math.abs(after[k] - before[k]).toFixed(3)}`,
         );
       }
     }

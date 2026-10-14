@@ -27,7 +27,10 @@ test("a room of nothing but spectators seats them rather than deadlocking", () =
   // the host comes from players, and spectators are only seated when a host starts one.
   const only = seats("s", "s", "s");
   const after = seatSpectators(only);
-  assert.deepEqual(after.map((s) => s.spectator), [false, false, false]);
+  assert.deepEqual(
+    after.map((s) => s.spectator),
+    [false, false, false],
+  );
   assert.equal(pickHost(after, null), "c0");
 });
 
@@ -39,7 +42,11 @@ test("seating stops at the player cap", () => {
 });
 
 test("seating fills only the seats that are actually free", () => {
-  const nearlyFull = seats(...Array<"p">(MAX_PLAYERS_PER_ROOM - 1).fill("p"), "s", "s");
+  const nearlyFull = seats(
+    ...Array<"p">(MAX_PLAYERS_PER_ROOM - 1).fill("p"),
+    "s",
+    "s",
+  );
   const after = seatSpectators(nearlyFull);
   assert.equal(after.filter((s) => !s.spectator).length, MAX_PLAYERS_PER_ROOM);
 });

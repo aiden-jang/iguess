@@ -19,9 +19,15 @@ function densify(points: Point[]): Point[] {
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1]!;
     const b = points[i]!;
-    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / MAX_SEG));
+    const steps = Math.max(
+      1,
+      Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / MAX_SEG),
+    );
     for (let s = 1; s <= steps; s++) {
-      out.push({ x: a.x + ((b.x - a.x) * s) / steps, y: a.y + ((b.y - a.y) * s) / steps });
+      out.push({
+        x: a.x + ((b.x - a.x) * s) / steps,
+        y: a.y + ((b.y - a.y) * s) / steps,
+      });
     }
   }
   return out;
@@ -42,7 +48,10 @@ function overshoot(points: Point[], rng: Rng): Point[] {
   if (points.length < 2) return points;
   let total = 0;
   for (let i = 1; i < points.length; i++) {
-    total += Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y);
+    total += Math.hypot(
+      points[i]!.x - points[i - 1]!.x,
+      points[i]!.y - points[i - 1]!.y,
+    );
   }
   const last = points[points.length - 1]!;
   const prev = points[points.length - 2]!;
@@ -51,7 +60,10 @@ function overshoot(points: Point[], rng: Rng): Point[] {
   const len = Math.hypot(dx, dy);
   if (len < 1e-6) return points;
   const extra = Math.min((0.4 + rng() * 1.6) * MAX_SEG, total * 0.05);
-  return [...points, { x: last.x + (dx / len) * extra, y: last.y + (dy / len) * extra }];
+  return [
+    ...points,
+    { x: last.x + (dx / len) * extra, y: last.y + (dy / len) * extra },
+  ];
 }
 
 function transformStroke(points: Point[], rng: Rng, g: Global): Point[] {
@@ -101,7 +113,10 @@ function pointsOf(ops: DrawOp[]): Point[] {
 }
 
 // Stroke ids and their order are kept exactly as they were.
-export function humanize(strokes: DrawOp[][], rng: Rng = Math.random): DrawOp[][] {
+export function humanize(
+  strokes: DrawOp[][],
+  rng: Rng = Math.random,
+): DrawOp[][] {
   const angle = (rng() - 0.5) * 0.14; // about +/- 4 degrees
   const g: Global = {
     cos: Math.cos(angle),
@@ -119,9 +134,16 @@ export function humanize(strokes: DrawOp[][], rng: Rng = Math.random): DrawOp[][
     const [first, ...rest] = moved;
     const width = Math.max(2, Math.round(start.width + (rng() - 0.5) * 2.4));
     const out: DrawOp[] = [
-      { kind: "start", strokeId: start.strokeId, color: start.color, width, point: first! },
+      {
+        kind: "start",
+        strokeId: start.strokeId,
+        color: start.color,
+        width,
+        point: first!,
+      },
     ];
-    if (rest.length) out.push({ kind: "move", strokeId: start.strokeId, points: rest });
+    if (rest.length)
+      out.push({ kind: "move", strokeId: start.strokeId, points: rest });
     out.push({ kind: "end", strokeId: start.strokeId });
     return out;
   });

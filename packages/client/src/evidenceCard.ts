@@ -1,8 +1,5 @@
 import { isAI } from "./roomView";
-// One shareable PNG of every drawing, its word, and what the AI thought it was.
-// Drawn on a canvas rather than screenshotting the page: the thumbnails are already images and
-// the layout is a plain grid, so turning the real DOM into a picture would need a whole library
-// to do a worse job.
+// Render the first eight drawings directly from their thumbnails; no DOM screenshot dependency.
 
 const BG = "#f2f2e9";
 const PANEL = "#fcfcf4";

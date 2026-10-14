@@ -7,6 +7,9 @@
     "./strokeLog": "./strokeLog.ts",
     "./roomCode": "./roomCode.ts",
     "./words": "./words.ts",
-    "./awards": "./awards.ts"
+    "./awards": "./awards.ts",
+    "./protocol": "./protocol.ts",
+    "./serverProtocol": "./serverProtocol.ts",
+    "./reconnectProtocol": "./reconnectProtocol.ts"
   }
 }

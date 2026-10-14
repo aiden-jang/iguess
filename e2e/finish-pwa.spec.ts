@@ -20,7 +20,7 @@ test("the installed shell never replays cached AI availability", async ({
       );
   });
   const result = await page.evaluate(async () => {
-    const cache = await caches.open("iguess-v7");
+    const cache = await caches.open("iguess-v8");
     await cache.put(
       "/play-status",
       new Response(JSON.stringify({ vision: "ready" }), {

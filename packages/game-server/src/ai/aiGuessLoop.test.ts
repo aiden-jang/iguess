@@ -1,6 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { matchesWord, phraseGuess, startGuessLoop, nextGuessDelay } from "./aiGuessLoop.ts";
+import {
+  matchesWord,
+  phraseGuess,
+  startGuessLoop,
+  nextGuessDelay,
+} from "./aiGuessLoop.ts";
 import type { EngineContext, TurnContext } from "../modes/GameMode.ts";
 
 test("matchesWord accepts exact and case-insensitive matches", () => {
@@ -36,7 +41,10 @@ test("a phrased guess still matches the secret word", () => {
   // Personality must never change whether a guess counts.
   for (let i = 0; i < 200; i++) {
     const phrased = phraseGuess("dog");
-    assert.ok(matchesWord(phrased, "dog"), `phrasing broke matching: "${phrased}"`);
+    assert.ok(
+      matchesWord(phrased, "dog"),
+      `phrasing broke matching: "${phrased}"`,
+    );
   }
 });
 
@@ -70,22 +78,38 @@ function loopHarness(word: string) {
     hintsRevealed: () => 0,
     broadcast: (m: { type: string; text?: string; isGuess?: boolean }) => {
       if (m.type === "chat") {
-        assert.equal(m.isGuess, true, "AI guesses must be distinct from post-round commentary");
+        assert.equal(
+          m.isGuess,
+          true,
+          "AI guesses must be distinct from post-round commentary",
+        );
         chats.push(m.text ?? "");
       }
     },
   } as unknown as EngineContext;
-  return { chats, ctx, turn: { word } as TurnContext, markCorrect: () => { guessed = true; } };
+  return {
+    chats,
+    ctx,
+    turn: { word } as TurnContext,
+    markCorrect: () => {
+      guessed = true;
+    },
+  };
 }
 
 test("saying the right word as a runner-up still wins the turn", async () => {
   const { chats, ctx, turn, markCorrect } = loopHarness("guitar");
   let won = false;
   const stop = startGuessLoop(turn, ctx, {
-    aiId: "ai", aiName: "AI",
+    aiId: "ai",
+    aiName: "AI",
     requestGuess: async () => ({ guess: "horse", alternatives: ["guitar"] }),
-    onCorrect: () => { won = true; markCorrect(); },
-    firstGuessMs: 1, intervalMs: 1,
+    onCorrect: () => {
+      won = true;
+      markCorrect();
+    },
+    firstGuessMs: 1,
+    intervalMs: 1,
   });
   await new Promise((r) => setTimeout(r, 30));
   stop();
@@ -97,10 +121,15 @@ test("with teasing off, a win lands straight away", async () => {
   const { chats, ctx, turn } = loopHarness("guitar");
   let won = 0;
   const stop = startGuessLoop(turn, ctx, {
-    aiId: "ai", aiName: "AI",
+    aiId: "ai",
+    aiName: "AI",
     requestGuess: async () => ({ guess: "guitar", alternatives: ["horse"] }),
-    onCorrect: () => { won++; },
-    firstGuessMs: 1, intervalMs: 500, teaseChance: 0,
+    onCorrect: () => {
+      won++;
+    },
+    firstGuessMs: 1,
+    intervalMs: 500,
+    teaseChance: 0,
   });
   await new Promise((r) => setTimeout(r, 30));
   stop();
@@ -112,10 +141,14 @@ test("a wrong shortlist keeps the turn going", async () => {
   const { chats, ctx, turn } = loopHarness("guitar");
   let won = false;
   const stop = startGuessLoop(turn, ctx, {
-    aiId: "ai", aiName: "AI",
+    aiId: "ai",
+    aiName: "AI",
     requestGuess: async () => ({ guess: "horse", alternatives: ["cow"] }),
-    onCorrect: () => { won = true; },
-    firstGuessMs: 1, intervalMs: 1,
+    onCorrect: () => {
+      won = true;
+    },
+    firstGuessMs: 1,
+    intervalMs: 1,
   });
   await new Promise((r) => setTimeout(r, 30));
   stop();
@@ -128,11 +161,18 @@ test("an AI that can't answer says so once, not every attempt", async () => {
   let down = 0;
   let calls = 0;
   const stop = startGuessLoop(turn, ctx, {
-    aiId: "ai", aiName: "AI",
-    requestGuess: async () => { calls++; throw new Error("budget spent"); },
+    aiId: "ai",
+    aiName: "AI",
+    requestGuess: async () => {
+      calls++;
+      throw new Error("budget spent");
+    },
     onCorrect: () => {},
-    onUnavailable: () => { down++; },
-    firstGuessMs: 1, intervalMs: 1,
+    onUnavailable: () => {
+      down++;
+    },
+    firstGuessMs: 1,
+    intervalMs: 1,
   });
   await new Promise((r) => setTimeout(r, 40));
   stop();
@@ -147,7 +187,10 @@ test("the AI looks again sooner when a lot has just been drawn", () => {
 });
 
 test("a canvas nobody is touching does not burn guesses", () => {
-  assert.ok(nextGuessDelay(0) >= 15_000, "an idle canvas should wait a long time");
+  assert.ok(
+    nextGuessDelay(0) >= 15_000,
+    "an idle canvas should wait a long time",
+  );
 });
 
 test("stopping the loop mid-turn ends it for good", async () => {
@@ -155,15 +198,23 @@ test("stopping the loop mid-turn ends it for good", async () => {
   const { ctx, turn } = loopHarness("guitar");
   let calls = 0;
   const stop = startGuessLoop(turn, ctx, {
-    aiId: "ai", aiName: "AI",
-    requestGuess: async () => { calls++; return { guess: "horse", alternatives: [] }; },
+    aiId: "ai",
+    aiName: "AI",
+    requestGuess: async () => {
+      calls++;
+      return { guess: "horse", alternatives: [] };
+    },
     onCorrect: () => {},
-    firstGuessMs: 1, intervalMs: 12,
+    firstGuessMs: 1,
+    intervalMs: 12,
   });
   await new Promise((r) => setTimeout(r, 30));
   stop();
   const settled = calls;
-  assert.ok(settled >= 1 && settled < 4, `expected a live loop under the cap, got ${settled}`);
+  assert.ok(
+    settled >= 1 && settled < 4,
+    `expected a live loop under the cap, got ${settled}`,
+  );
   await new Promise((r) => setTimeout(r, 60));
   assert.equal(calls, settled, "the loop re-armed after being stopped");
 });
@@ -173,14 +224,16 @@ test("a turn ending while the AI is mid-request does not re-arm the loop", async
   const { ctx, turn } = loopHarness("guitar");
   let calls = 0;
   const stop = startGuessLoop(turn, ctx, {
-    aiId: "ai", aiName: "AI",
+    aiId: "ai",
+    aiName: "AI",
     requestGuess: async () => {
       calls++;
       await new Promise((r) => setTimeout(r, 40));
       return { guess: "horse", alternatives: [] };
     },
     onCorrect: () => {},
-    firstGuessMs: 1, intervalMs: 5,
+    firstGuessMs: 1,
+    intervalMs: 5,
   });
   await new Promise((r) => setTimeout(r, 15)); // inside the first request
   stop();
@@ -192,26 +245,45 @@ test("a turn ending while the AI is mid-request does not re-arm the loop", async
 test("the AI teases a wrong answer before landing the right one", async () => {
   const { chats, ctx, turn } = loopHarness("guitar");
   let won = 0;
+  const heard: string[] = [];
   const stop = startGuessLoop(turn, ctx, {
-    aiId: "ai", aiName: "AI",
+    aiId: "ai",
+    aiName: "AI",
     requestGuess: async () => ({ guess: "guitar", alternatives: ["horse"] }),
-    onCorrect: () => { won++; },
-    firstGuessMs: 1, intervalMs: 500, teaseMs: 5, teaseChance: 1,
+    onSaid: (word) => heard.push(word),
+    onCorrect: () => {
+      won++;
+    },
+    firstGuessMs: 1,
+    intervalMs: 500,
+    teaseMs: 5,
+    teaseChance: 1,
   });
   await new Promise((r) => setTimeout(r, 60));
   stop();
   assert.equal(won, 1, "the win should land exactly once");
   assert.deepEqual(chats, ["wait… is it a horse?", "guitar"]);
+  assert.deepEqual(
+    heard,
+    ["horse", "guitar"],
+    "bets settle only on words actually spoken",
+  );
 });
 
 test("a turn ending during the tease cancels the late win", async () => {
   const { chats, ctx, turn } = loopHarness("guitar");
   let won = 0;
   const stop = startGuessLoop(turn, ctx, {
-    aiId: "ai", aiName: "AI",
+    aiId: "ai",
+    aiName: "AI",
     requestGuess: async () => ({ guess: "guitar", alternatives: ["horse"] }),
-    onCorrect: () => { won++; },
-    firstGuessMs: 1, intervalMs: 500, teaseMs: 80, teaseChance: 1,
+    onCorrect: () => {
+      won++;
+    },
+    firstGuessMs: 1,
+    intervalMs: 500,
+    teaseMs: 80,
+    teaseChance: 1,
   });
   await new Promise((r) => setTimeout(r, 20));
   stop(); // turn ran out mid-tease
@@ -225,8 +297,13 @@ test("a brutal AI looks sooner and more often than an easy one", async () => {
     const { ctx, turn } = loopHarness("guitar");
     let calls = 0;
     const stop = startGuessLoop(turn, ctx, {
-      aiId: "ai", aiName: "AI", skill,
-      requestGuess: async () => { calls++; return { guess: "horse", alternatives: [] }; },
+      aiId: "ai",
+      aiName: "AI",
+      skill,
+      requestGuess: async () => {
+        calls++;
+        return { guess: "horse", alternatives: [] };
+      },
       onCorrect: () => {},
     });
     await new Promise((r) => setTimeout(r, ms));
@@ -244,10 +321,16 @@ test("an easy AI gives up after fewer guesses than a brutal one", async () => {
     const { ctx, turn } = loopHarness("guitar");
     let calls = 0;
     const stop = startGuessLoop(turn, ctx, {
-      aiId: "ai", aiName: "AI", skill,
-      requestGuess: async () => { calls++; return { guess: "horse", alternatives: [] }; },
+      aiId: "ai",
+      aiName: "AI",
+      skill,
+      requestGuess: async () => {
+        calls++;
+        return { guess: "horse", alternatives: [] };
+      },
       onCorrect: () => {},
-      firstGuessMs: 1, intervalMs: 3,
+      firstGuessMs: 1,
+      intervalMs: 3,
     });
     await new Promise((r) => setTimeout(r, 150));
     stop();
@@ -255,4 +338,58 @@ test("an easy AI gives up after fewer guesses than a brutal one", async () => {
   };
   assert.equal(await spent("easy"), 2);
   assert.equal(await spent("brutal"), 7);
+});
+
+test("word fragments do not win: cat is not caterpillar", () => {
+  assert.equal(matchesWord("caterpillar", "cat"), false);
+  assert.equal(matchesWord("a hot dog", "dog"), true);
+});
+test("a late successful response after disposal cannot speak or score", async () => {
+  const { ctx, turn, chats } = loopHarness("guitar");
+  let resolve!: (value: { guess: string; alternatives: string[] }) => void;
+  let started!: () => void;
+  const pending = new Promise<void>((done) => {
+    started = done;
+  });
+  let scored = 0;
+  const stop = startGuessLoop(turn, ctx, {
+    aiId: "ai",
+    aiName: "AI",
+    firstGuessMs: 1,
+    requestGuess: () => {
+      started();
+      return new Promise((done) => {
+        resolve = done;
+      });
+    },
+    onCorrect: () => {
+      scored++;
+    },
+  });
+  await pending;
+  stop();
+  resolve({ guess: "guitar", alternatives: [] });
+  await new Promise((done) => setTimeout(done, 10));
+  assert.equal(scored, 0);
+  assert.deepEqual(chats, []);
+});
+test("a pending tease cannot start another paid guess", async () => {
+  const { ctx, turn } = loopHarness("guitar");
+  let calls = 0;
+  const stop = startGuessLoop(turn, ctx, {
+    aiId: "ai",
+    aiName: "AI",
+    firstGuessMs: 1,
+    intervalMs: 1,
+    teaseMs: 100,
+    teaseChance: 1,
+    requestGuess: async () => {
+      calls++;
+      return { guess: "guitar", alternatives: ["horse"] };
+    },
+    onCorrect() {},
+  });
+  await new Promise((done) => setTimeout(done, 30));
+  stop();
+  assert.equal(calls, 1);
 });

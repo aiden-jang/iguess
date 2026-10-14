@@ -37,7 +37,7 @@ pnpm run dev:server
 In separate terminals, also from the repository root:
 
 ```sh
-pnpm --filter @iguess/ai-worker exec wrangler dev --local --var VISION_PROVIDER:mock
+pnpm run dev:ai
 pnpm run dev:client
 ```
 
@@ -46,9 +46,10 @@ room sockets to the local game server. A client build is needed because the game
 server’s asset binding points to its output directory.
 
 Local games do not require an AI key. The server’s development command points to
-the local mock AI worker. Mock guesses exercise the game flow without recognizing
+the local mock AI worker. The AI development command uses its binding-free
+`wrangler.mock.toml`; optional local secrets have per-Worker `.dev.vars.example` files. Mock guesses exercise the game flow without recognizing
 the drawing. If that worker is stopped, AI guessing reports that it is unavailable;
-human play and the curated AI drawer still work. Automated tests use a separate mock-only configuration with no Workers AI
+human play and the curated AI drawer still work. Automated tests use the same mock-only configuration with no Workers AI
 binding and check its provider before each AI request. Do not point local testing at a paid production provider.
 
 ## Development
@@ -61,8 +62,10 @@ pnpm run test:e2e  # real local Workers, room sockets and browser flows
 - [Architecture](ARCHITECTURE.md): client boundaries, game engine, modes and AI flow.
 - [Contributing](CONTRIBUTING.md): changes, validation and commit conventions.
 - [Repository conventions](CONVENTIONS.md): code and verification requirements.
+- [Security reports](SECURITY.md): private reporting and room trust boundaries.
 - [Deployment](DEPLOY.md): Cloudflare setup and secrets.
 - [Visual evidence](docs/README.md): screenshot provenance and refresh guidance.
+- [Repository audit](docs/REPOSITORY-AUDIT.md): architecture, cleanup and recovery verification.
 - [Finishing checklist](docs/ui-review/finish/README.md): acceptance evidence and device-testing limits.
 
 Built with React, TypeScript, Canvas, Cloudflare Workers, Durable Objects and raw
@@ -71,7 +74,9 @@ WebSockets. CI verifies pull requests; pushes to `main` deploy after checks pass
 ## Data and support
 
 Your name is visible to your room. Preferences and lifetime stats are saved in
-this browser. Live room state is held in memory. In AI guessing modes, drawings
+this browser. Temporary room checkpoints preserve recovery state for up to a day
+after inactivity; chat is not stored in those checkpoints. Room-local reconnect credentials
+prove seat ownership, and only their digests are retained on the server. In AI guessing modes, drawings
 and masked hints may be sent to the configured vision provider; the secret word
 is not supplied to the AI guesser. Anonymous product events count game starts
 and finishes by mode.

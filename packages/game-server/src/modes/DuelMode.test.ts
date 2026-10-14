@@ -24,7 +24,8 @@ function makeCtx(frac = 1) {
     sendToPlayer: () => {},
     draw: () => {},
     clearCanvas: () => {},
-    awardPoints: (id: string, pts: number) => (scores[id] = (scores[id] ?? 0) + pts),
+    awardPoints: (id: string, pts: number) =>
+      (scores[id] = (scores[id] ?? 0) + pts),
     scores: () => scores,
     markGuessed: (id: string) => guessed.add(id),
     guessedIds: () => [...guessed],
@@ -37,7 +38,9 @@ function makeCtx(frac = 1) {
     hintsRevealed: () => 0,
     turnFractionRemaining: () => frac,
     syncState: () => {},
-    endTurn: () => { ended = true; },
+    endTurn: () => {
+      ended = true;
+    },
   } as unknown as EngineContext;
   return {
     ctx,
@@ -45,7 +48,10 @@ function makeCtx(frac = 1) {
     scores,
     guessed,
     isEnded: () => ended,
-    setTurn: (d: string | null, w: string | null) => { drawerId = d; word = w; },
+    setTurn: (d: string | null, w: string | null) => {
+      drawerId = d;
+      word = w;
+    },
     aiId: () => [...roster.keys()].find((id) => id !== "you")!,
   };
 }
@@ -73,14 +79,22 @@ test("on its own turn the AI only draws words it can render, without repeats", (
     mode.pickDrawer(t); // odd → AI draws (latches the AI-turn flag)
     picks.push(mode.pickWord({} as EngineContext));
   }
-  for (const w of picks) assert.ok(DOODLE_WORDS.includes(w), `not renderable: ${w}`);
-  assert.equal(new Set(picks).size, DOODLE_WORDS.length, "repeated a doodle within one cycle");
+  for (const w of picks)
+    assert.ok(DOODLE_WORDS.includes(w), `not renderable: ${w}`);
+  assert.equal(
+    new Set(picks).size,
+    DOODLE_WORDS.length,
+    "repeated a doodle within one cycle",
+  );
 });
 
 test("you get a choosing phase on your turn; the AI picks its own word", () => {
   const { mode, ctx } = configured();
   mode.pickDrawer(0); // your turn
-  assert.ok((mode.pickWordChoices(ctx)?.length ?? 0) >= 2, "you should get word choices");
+  assert.ok(
+    (mode.pickWordChoices(ctx)?.length ?? 0) >= 2,
+    "you should get word choices",
+  );
   mode.pickDrawer(1); // AI turn
   assert.equal(mode.pickWordChoices(ctx), null, "AI turns skip choosing");
 });
@@ -92,7 +106,11 @@ test("only you can draw by hand, and only on your turn", () => {
   assert.equal(mode.canDraw("you", ctx), true);
   mode.pickDrawer(1);
   setTurn(aiId(), "sun");
-  assert.equal(mode.canDraw("you", ctx), false, "you can't draw on the AI's turn");
+  assert.equal(
+    mode.canDraw("you", ctx),
+    false,
+    "you can't draw on the AI's turn",
+  );
 });
 
 test("on an AI-draw turn, your correct guess pays you AND the AI its drawer bonus", () => {
@@ -102,8 +120,16 @@ test("on an AI-draw turn, your correct guess pays you AND the AI its drawer bonu
   setTurn(ai, "sun");
   const handled = mode.onChat("you", "SUN", ctx);
   assert.equal(handled, true);
-  assert.equal(scores["you"], 120, "guesser paid by speed, +20% for needing no hints");
-  assert.equal(scores[ai], 50, "AI drawer paid by how fast you read it: full time → 10 + 40");
+  assert.equal(
+    scores["you"],
+    120,
+    "guesser paid by speed, +20% for needing no hints",
+  );
+  assert.equal(
+    scores[ai],
+    50,
+    "AI drawer paid by how fast you read it: full time → 10 + 40",
+  );
   assert.ok(isEnded(), "sole guesser correct → turn ends");
 });
 
@@ -115,15 +141,25 @@ test("the end verdict reflects who out-scored whom", () => {
   mode.onGameEnd(ctx);
   const last = broadcasts.at(-1);
   assert.equal(last?.type, "system");
-  assert.match((last as { text: string }).text, /you beat the machine, 220-130/);
+  assert.match(
+    (last as { text: string }).text,
+    /you beat the machine, 220-130/,
+  );
 });
 
 test("the room's round count sets the length of a duel", () => {
   const { mode, ctx } = configured();
   mode.useSettings(sanitizeSettings({ rounds: 5 }));
-  const { totalTurns, turnsPerRound } = mode.configure([{ id: "you", name: "you" }], ctx);
+  const { totalTurns, turnsPerRound } = mode.configure(
+    [{ id: "you", name: "you" }],
+    ctx,
+  );
   assert.equal(turnsPerRound, 2, "a duel round is one draw each");
-  assert.equal(totalTurns, 10, "5 rounds should be 10 turns, not a hardcoded 6");
+  assert.equal(
+    totalTurns,
+    10,
+    "5 rounds should be 10 turns, not a hardcoded 6",
+  );
 });
 
 test("the default duel is unchanged at three rounds each", () => {

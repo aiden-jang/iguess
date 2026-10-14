@@ -1,0 +1,5 @@
+# Optional local settings. Copy this file to .dev.vars in this directory.
+# Copy the game-server example too so the local secrets match.
+# The dev command uses wrangler.mock.toml, without Workers AI, and forces mock.
+VISION_PROVIDER=mock
+AI_SHARED_SECRET=local-development-only

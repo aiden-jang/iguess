@@ -60,8 +60,13 @@ test("a dropped socket preserves the draft and restores usable controls", async 
 test("refreshing and rejoining retains the drawer identity and current word", async ({
   page,
 }) => {
-  await join(page, roomFor());
-  const pid = await page.evaluate(() => sessionStorage.getItem("iguess_pid"));
+  const room = roomFor();
+  await join(page, room);
+  const credential = await page.evaluate(
+    (code) => sessionStorage.getItem(`iguess_reconnect_${code}`),
+    room,
+  );
+  expect(credential).toMatch(/^[a-f0-9]{64}$/);
   await page.getByRole("button", { name: "Start game", exact: true }).click();
   await page.locator(".word-tiles button").first().click();
   await expect(page.locator(".play-banner")).toHaveAttribute(
@@ -74,9 +79,12 @@ test("refreshing and rejoining retains the drawer identity and current word", as
   await page.reload();
   await page.getByRole("button", { name: /Enter room|Join the room/i }).click();
   await expect(page.getByText("Connected", { exact: true })).toBeVisible();
-  expect(await page.evaluate(() => sessionStorage.getItem("iguess_pid"))).toBe(
-    pid,
-  );
+  expect(
+    await page.evaluate(
+      (code) => sessionStorage.getItem(`iguess_reconnect_${code}`),
+      room,
+    ),
+  ).toBe(credential);
   await expect(page.locator(".word-zone [role=img]")).toHaveAttribute(
     "aria-label",
     word!,

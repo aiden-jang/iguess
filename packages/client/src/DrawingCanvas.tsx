@@ -1,3 +1,4 @@
+import { useCanvasPointer } from "./useCanvasPointer";
 import { useEffect, useRef } from "react";
 import type { DrawOp, Point } from "@iguess/shared";
 import { dropStroke } from "@iguess/shared/strokeLog";
@@ -38,9 +39,6 @@ export function DrawingCanvas({
   const dims = useRef({ w: 0, h: 0 });
   // Resizing a canvas wipes it, so keep every stroke and paint them all again afterwards.
   const opLog = useRef<DrawOp[]>([]);
-
-  const brush = useRef({ color, width, erasing, filling });
-  brush.current = { color, width, erasing, filling };
 
   function render(op: DrawOp | { kind: "reset" }) {
     const ctx = ctxRef.current;
@@ -99,129 +97,15 @@ export function DrawingCanvas({
     };
   }, [subscribeDraw]);
 
-  const drawing = useRef(false);
-  const strokeId = useRef<string | null>(null);
-  const buffer = useRef<Point[]>([]);
-  const widthBuffer = useRef<number[]>([]);
-  const lastSample = useRef<Point | null>(null);
-  const rafPending = useRef(false);
-
-  // Round hard. Full precision is about 18 characters per number, sent constantly to everyone
-  // in the room, and a thousandth of a canvas is smaller than one pixel anyway.
-  function toNorm(e: React.PointerEvent): Point {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    return {
-      x: Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 1000,
-      y: Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 1000,
-    };
-  }
-
-  // A stylus reports real pressure. A mouse always says 0.5 and a finger usually says 0, so
-  // those fall back to speed: move fast, get a thinner line, like a real pen.
-  function widthAt(e: React.PointerEvent, p: Point): number {
-    const base = brush.current.width;
-    const usable =
-      e.pointerType === "pen" && e.pressure > 0 && e.pressure !== 0.5;
-    let scale: number;
-    if (usable) {
-      scale = 0.45 + e.pressure * 1.1;
-    } else {
-      const prev = lastSample.current;
-      const speed = prev ? Math.hypot(p.x - prev.x, p.y - prev.y) : 0;
-      scale = 1.15 - Math.min(0.6, speed * 12);
-    }
-    lastSample.current = p;
-    return Math.round(Math.max(1, base * scale) * 10) / 10;
-  }
-
-  // A stroke message a frame is fine on wifi and far too many on a bad link. When the socket
-  // is already backed up, hold the points and send one larger message later — the drawing is
-  // identical either way, and the alternative is a queue that never drains.
-  const BACKLOG_BYTES = 24_000;
-  const MAX_HELD_POINTS = 240;
-
-  function flush() {
-    rafPending.current = false;
-    if (!strokeId.current || buffer.current.length === 0) return;
-    if (
-      socketBacklog &&
-      socketBacklog() > BACKLOG_BYTES &&
-      buffer.current.length < MAX_HELD_POINTS
-    ) {
-      rafPending.current = true;
-      requestAnimationFrame(flush);
-      return;
-    }
-    const points = buffer.current;
-    const widths = widthBuffer.current;
-    buffer.current = [];
-    widthBuffer.current = [];
-    const varies = widths.some((w) => w !== widths[0]);
-    const op: DrawOp = varies
-      ? { kind: "move", strokeId: strokeId.current, points, widths }
-      : { kind: "move", strokeId: strokeId.current, points };
-    applyOp(op);
-    sendDraw(op);
-  }
-
-  function onPointerDown(e: React.PointerEvent) {
-    if (!canDraw) return;
-    if (brush.current.filling) {
-      const op: DrawOp = {
-        kind: "fill",
-        strokeId: Math.random().toString(36).slice(2, 10),
-        color: brush.current.color,
-        point: toNorm(e),
-      };
-      applyOp(op);
-      sendDraw(op);
-      return;
-    }
-    e.currentTarget.setPointerCapture(e.pointerId);
-    drawing.current = true;
-    strokeId.current = Math.random().toString(36).slice(2, 10);
-    const point = toNorm(e);
-    lastSample.current = point;
-    const op: DrawOp = {
-      kind: "start",
-      strokeId: strokeId.current,
-      color: brush.current.color,
-      width: brush.current.width,
-      erase: brush.current.erasing,
-      point,
-    };
-    applyOp(op);
-    sendDraw(op);
-  }
-
-  function onPointerMove(e: React.PointerEvent) {
-    if (canDraw) onCursor?.(toNorm(e));
-    if (!drawing.current) return;
-    const p = toNorm(e);
-    buffer.current.push(p);
-    widthBuffer.current.push(widthAt(e, p));
-    if (!rafPending.current) {
-      rafPending.current = true;
-      requestAnimationFrame(flush);
-    }
-  }
-
-  function onPointerLeave() {
-    if (canDraw) onCursor?.(null);
-    onPointerUp();
-  }
-
-  function onPointerUp() {
-    if (!drawing.current) return;
-    flush(); // emit any trailing buffered points
-    drawing.current = false;
-    if (strokeId.current) {
-      const op: DrawOp = { kind: "end", strokeId: strokeId.current };
-      applyOp(op);
-      sendDraw(op);
-      strokeId.current = null;
-    }
-  }
+  const pointer = useCanvasPointer({
+    canvas: canvasRef,
+    canDraw,
+    brush: { color, width, erasing, filling },
+    apply: applyOp,
+    send: sendDraw,
+    cursor: onCursor,
+    backlog: socketBacklog,
+  });
 
   const d = Math.max(6, Math.min(width, 48));
   const s = d + 4;
@@ -263,12 +147,7 @@ export function DrawingCanvas({
             : "Live drawing to guess"
         }
         ref={canvasRef}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerLeave={onPointerLeave}
-        onPointerCancel={onPointerUp}
-        onLostPointerCapture={onPointerUp}
+        {...pointer}
         tabIndex={canDraw ? 0 : -1}
         style={{
           width: "100%",

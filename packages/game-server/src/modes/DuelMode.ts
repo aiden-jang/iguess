@@ -1,3 +1,4 @@
+import type { ModeSnapshot, DrawProgress, GuessProgress } from "./modeState.ts";
 import type { DrawOp } from "@iguess/shared";
 import type { EngineContext, PlayerRef, TurnContext } from "./GameMode.ts";
 import { ClassicMode } from "./ClassicMode.ts";
@@ -13,6 +14,12 @@ const AI_ID = "ai-duel";
 // You and the machine swap roles every turn, and both of you are paid for guessing AND for
 // drawing. Team Battle is the other shape: a race where only the winning side scores.
 export class DuelMode extends ClassicMode {
+  private drawProgress: DrawProgress = { index: 0 };
+  private guessProgress: GuessProgress = {
+    attempts: 0,
+    notifiedDown: false,
+    seenOps: 0,
+  };
   override readonly id = "duel";
 
   override readonly minHumans = 1;
@@ -25,7 +32,7 @@ export class DuelMode extends ClassicMode {
 
   constructor(
     private requestGuess?: () => Promise<AIGuess>,
-    private requestDrawing?: (word: string) => Promise<DrawOp[][]>
+    private requestDrawing?: (word: string) => Promise<DrawOp[][]>,
   ) {
     super();
   }
@@ -37,7 +44,10 @@ export class DuelMode extends ClassicMode {
     this.skill = settings.aiSkill;
   }
 
-  override configure(humans: PlayerRef[], ctx: EngineContext): { totalTurns: number; turnsPerRound: number } {
+  override configure(
+    humans: PlayerRef[],
+    ctx: EngineContext,
+  ): { totalTurns: number; turnsPerRound: number } {
     this.humans = humans.map((h) => h.id);
     this.usedDoodles.clear();
     ctx.addParticipant({ id: AI_ID, name: AI_NAME, isAI: true });
@@ -75,18 +85,34 @@ export class DuelMode extends ClassicMode {
   }
 
   override onTurnStart(turn: TurnContext, ctx: EngineContext): void {
+    this.drawProgress = { index: 0 };
+    this.guessProgress = { attempts: 0, notifiedDown: false, seenOps: 0 };
+    this.bets.clear();
+    this.onTurnResume(turn, ctx);
+  }
+  override onTurnResume(turn: TurnContext, ctx: EngineContext): void {
     this.stopLoop?.();
 
     if (this.aiDrawsThisTurn) {
-      ctx.broadcast({ type: "system", text: "🤖 the machine is drawing. read it and call it 👀" });
-      this.stopLoop = startDrawLoop(turn, ctx, { requestDrawing: this.requestDrawing });
+      ctx.broadcast({
+        type: "system",
+        text: "🤖 the machine is drawing. read it and call it 👀",
+      });
+      this.stopLoop = startDrawLoop(turn, ctx, {
+        requestDrawing: this.requestDrawing,
+        progress: this.drawProgress,
+      });
     } else {
-      ctx.broadcast({ type: "system", text: "your turn. make the machine guess it 🎨" });
-      super.onTurnStart(turn, ctx); // deliver the secret word to you, the drawer
+      ctx.broadcast({
+        type: "system",
+        text: "your turn. make the machine guess it 🎨",
+      });
+      super.onTurnResume(turn, ctx); // deliver the secret word to you, the drawer
       this.stopLoop = startGuessLoop(turn, ctx, {
         aiId: AI_ID,
         aiName: AI_NAME,
         skill: this.skill,
+        progress: this.guessProgress,
         onSaid: (g) => this.settleBets(g, ctx),
         requestGuess: this.requestGuess,
         onCorrect: () => this.acceptGuess(AI_ID, ctx),
@@ -99,6 +125,33 @@ export class DuelMode extends ClassicMode {
     }
   }
 
+  override snapshot(): ModeSnapshot {
+    return {
+      ...super.snapshot(),
+      humans: this.humans,
+      aiDrawsThisTurn: this.aiDrawsThisTurn,
+      usedDoodles: [...this.usedDoodles],
+      drawProgress: this.drawProgress,
+      guessProgress: this.guessProgress,
+    };
+  }
+  override restore(saved: ModeSnapshot) {
+    super.restore(saved);
+    if (saved.humans !== undefined) this.humans = saved.humans;
+    if (saved.aiDrawsThisTurn !== undefined)
+      this.aiDrawsThisTurn = saved.aiDrawsThisTurn;
+    if (saved.usedDoodles !== undefined)
+      this.usedDoodles = new Set(saved.usedDoodles);
+    if (saved.drawProgress !== undefined)
+      this.drawProgress = saved.drawProgress;
+    if (saved.guessProgress !== undefined)
+      this.guessProgress = saved.guessProgress;
+  }
+  dispose() {
+    this.stopLoop?.();
+    this.stopLoop = null;
+  }
+
   override onTurnEnd(turn: TurnContext, ctx: EngineContext): void {
     this.stopLoop?.();
     this.stopLoop = null;
@@ -107,6 +160,7 @@ export class DuelMode extends ClassicMode {
 
   // Out of the rotation, or a later turn picks someone who has gone.
   override onPlayerLeave(playerId: string): void {
+    this.bets.delete(playerId);
     this.humans = this.humans.filter((id) => id !== playerId);
   }
 
@@ -115,9 +169,12 @@ export class DuelMode extends ClassicMode {
     const ai = scores[AI_ID] ?? 0;
     const you = Math.max(0, ...this.humans.map((id) => scores[id] ?? 0));
     let verdict: string;
-    if (you === ai) verdict = `dead heat, ${you}-${ai}. the machine lives to draw another day 🤝`;
-    else if (you > ai) verdict = `🏆 you beat the machine, ${you}-${ai}. humanity holds the line.`;
-    else verdict = `🤖 the machine wins, ${ai}-${you}. it says "good effort… i guess."`;
+    if (you === ai)
+      verdict = `dead heat, ${you}-${ai}. the machine lives to draw another day 🤝`;
+    else if (you > ai)
+      verdict = `🏆 you beat the machine, ${you}-${ai}. humanity holds the line.`;
+    else
+      verdict = `🤖 the machine wins, ${ai}-${you}. it says "good effort… i guess."`;
     ctx.broadcast({ type: "system", text: `game over. ${verdict}` });
   }
 }

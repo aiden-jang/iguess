@@ -1,3 +1,4 @@
+import type { ModeSnapshot, DrawProgress, GuessProgress } from "./modeState.ts";
 import type { DrawOp } from "@iguess/shared";
 import type { EngineContext, PlayerRef, TurnContext } from "./GameMode.ts";
 import { ClassicMode } from "./ClassicMode.ts";
@@ -18,6 +19,12 @@ type Team = "human" | "ai";
 // travel as chat messages on purpose, rather than being added to the shared game state, because
 // no other mode has teams.
 export class TeamBattleMode extends ClassicMode {
+  private drawProgress: DrawProgress = { index: 0 };
+  private guessProgress: GuessProgress = {
+    attempts: 0,
+    notifiedDown: false,
+    seenOps: 0,
+  };
   override readonly id = "team-battle";
 
   override readonly minHumans = 1;
@@ -30,7 +37,7 @@ export class TeamBattleMode extends ClassicMode {
 
   constructor(
     private requestGuess?: () => Promise<AIGuess>,
-    private requestDrawing?: (word: string) => Promise<DrawOp[][]>
+    private requestDrawing?: (word: string) => Promise<DrawOp[][]>,
   ) {
     super();
   }
@@ -42,7 +49,10 @@ export class TeamBattleMode extends ClassicMode {
     this.skill = settings.aiSkill;
   }
 
-  override configure(humans: PlayerRef[], ctx: EngineContext): { totalTurns: number; turnsPerRound: number } {
+  override configure(
+    humans: PlayerRef[],
+    ctx: EngineContext,
+  ): { totalTurns: number; turnsPerRound: number } {
     this.humans = humans.map((h) => h.id);
     this.wins = { human: 0, ai: 0 };
     ctx.addParticipant({ id: AI_ID, name: AI_NAME, isAI: true });
@@ -76,7 +86,13 @@ export class TeamBattleMode extends ClassicMode {
   }
 
   override onTurnStart(turn: TurnContext, ctx: EngineContext): void {
+    this.drawProgress = { index: 0 };
+    this.guessProgress = { attempts: 0, notifiedDown: false, seenOps: 0 };
+    this.bets.clear();
     this.roundDecided = false;
+    this.onTurnResume(turn, ctx);
+  }
+  override onTurnResume(turn: TurnContext, ctx: EngineContext): void {
     this.stopLoop?.();
 
     if (this.aiDrawsThisTurn) {
@@ -84,17 +100,21 @@ export class TeamBattleMode extends ClassicMode {
         type: "system",
         text: `Round ${turn.turnIndex + 1}: 🤖 Team AI is drawing. Team Human, guess!`,
       });
-      this.stopLoop = startDrawLoop(turn, ctx, { requestDrawing: this.requestDrawing });
+      this.stopLoop = startDrawLoop(turn, ctx, {
+        requestDrawing: this.requestDrawing,
+        progress: this.drawProgress,
+      });
     } else {
       ctx.broadcast({
         type: "system",
         text: `Round ${turn.turnIndex + 1}: Team Human is drawing. 🤖 AI is racing you to guess!`,
       });
-      super.onTurnStart(turn, ctx); // deliver the secret word to the human drawer
+      super.onTurnResume(turn, ctx); // deliver the secret word to the human drawer
       this.stopLoop = startGuessLoop(turn, ctx, {
         aiId: AI_ID,
         aiName: AI_NAME,
         skill: this.skill,
+        progress: this.guessProgress,
         onSaid: (g) => this.settleBets(g, ctx),
         requestGuess: this.requestGuess,
         onCorrect: () => this.winRound("ai", AI_ID, ctx),
@@ -141,6 +161,35 @@ export class TeamBattleMode extends ClassicMode {
     ctx.endTurn();
   }
 
+  override snapshot(): ModeSnapshot {
+    return {
+      ...super.snapshot(),
+      humans: this.humans,
+      aiDrawsThisTurn: this.aiDrawsThisTurn,
+      roundDecided: this.roundDecided,
+      wins: this.wins,
+      drawProgress: this.drawProgress,
+      guessProgress: this.guessProgress,
+    };
+  }
+  override restore(saved: ModeSnapshot) {
+    super.restore(saved);
+    if (saved.humans !== undefined) this.humans = saved.humans;
+    if (saved.aiDrawsThisTurn !== undefined)
+      this.aiDrawsThisTurn = saved.aiDrawsThisTurn;
+    if (saved.roundDecided !== undefined)
+      this.roundDecided = saved.roundDecided;
+    if (saved.wins !== undefined) this.wins = saved.wins;
+    if (saved.drawProgress !== undefined)
+      this.drawProgress = saved.drawProgress;
+    if (saved.guessProgress !== undefined)
+      this.guessProgress = saved.guessProgress;
+  }
+  dispose() {
+    this.stopLoop?.();
+    this.stopLoop = null;
+  }
+
   // Deliberately does not call super. This mode writes its own end-of-turn message with the
   // team scores in it, so the base "nobody got it" line would just repeat it.
   override onTurnEnd(_turn: TurnContext, ctx: EngineContext): void {
@@ -154,10 +203,18 @@ export class TeamBattleMode extends ClassicMode {
     }
   }
 
-  onGameEnd(ctx: EngineContext): void {
+  override onPlayerLeave(playerId: string) {
+    this.bets.delete(playerId);
+    this.humans = this.humans.filter((id) => id !== playerId);
+  }
+  override onGameEnd(ctx: EngineContext): void {
     const { human, ai } = this.wins;
     const verdict =
-      human === ai ? "it's a tie! 🤝" : human > ai ? "🏆 Team Human wins!" : "🏆 Team AI wins!";
+      human === ai
+        ? "it's a tie! 🤝"
+        : human > ai
+          ? "🏆 Team Human wins!"
+          : "🏆 Team AI wins!";
     ctx.broadcast({
       type: "system",
       text: `game over. Humans ${human} : ${ai} AI. ${verdict}`,

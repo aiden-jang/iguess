@@ -11,17 +11,14 @@ export function blip(freqs: number[], muted: boolean) {
         .webkitAudioContext;
     audioCtx = audioCtx ?? new Ctor();
     const ctx = audioCtx;
-    // Audio built before the first click starts paused. Nothing else wakes it, so without this
-    // every sound schedules perfectly and plays to nobody, all session.
+    // Browsers require user interaction before a suspended audio context can play.
     if (ctx.state === "suspended") void ctx.resume();
     freqs.forEach((f, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "triangle";
       osc.frequency.value = f;
-      // The 20ms is headroom, not spacing. Booking a note at exactly "now" puts it very
-      // slightly in the past, and the start of it gets skipped. It sounds like a quiet first
-      // beep rather than an obvious fault, which is why it is easy to miss.
+      // Scheduling slightly ahead keeps the first note out of the audio context's past.
       const t = ctx.currentTime + 0.02 + i * 0.09;
       gain.gain.setValueAtTime(0.0001, t);
       gain.gain.exponentialRampToValueAtTime(0.18, t + 0.02);

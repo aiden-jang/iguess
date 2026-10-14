@@ -1,30 +1,26 @@
-// Mirrors the securityHeaders core the sibling Hono workers use. This Worker is fully same-origin,
-// so `connect-src 'self'` covers the ws/wss upgrade per CSP3. The Web Analytics beacon is listed in
-// script-src as well as connect-src, because it is a script: allowing it in connect-src alone
-// never loads it.
-
+// Same-origin assets and sockets; only the configured analytics beacon needs an external host.
 const DEFAULT_CSP = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   "script-src 'self' https://static.cloudflareinsights.com https://cloudflareinsights.com",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
-  "font-src 'self' https://fonts.gstatic.com data:",
+  "font-src 'self' data:",
   "connect-src 'self' https://static.cloudflareinsights.com https://cloudflareinsights.com",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  'upgrade-insecure-requests',
-].join('; ');
+  "upgrade-insecure-requests",
+].join("; ");
 
 const SECURITY_HEADERS: Record<string, string> = {
-  'Content-Security-Policy': DEFAULT_CSP,
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-  'Permissions-Policy':
-    'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()',
+  "Content-Security-Policy": DEFAULT_CSP,
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+  "Permissions-Policy":
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
 };
 
 // Return a copy of `res` with the security headers stamped on. Static-asset responses from
@@ -33,5 +29,9 @@ const SECURITY_HEADERS: Record<string, string> = {
 export function withSecurityHeaders(res: Response): Response {
   const headers = new Headers(res.headers);
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) headers.set(k, v);
-  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+  return new Response(res.body, {
+    status: res.status,
+    statusText: res.statusText,
+    headers,
+  });
 }

@@ -41,7 +41,7 @@ test("a watcher is told why they are watching, not that they are waiting", () =>
     humanCount: 8,
     watchingCount: 2,
   });
-  assert.match(s, /Room is full/);
+  assert.match(s, /watching.*next game/);
 });
 
 test("a filling lobby counts who is ready, and mentions watchers only when there are some", () => {

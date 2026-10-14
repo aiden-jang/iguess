@@ -124,15 +124,19 @@ function ResourceContent({ resource }: { resource: Resource }) {
         <p>
           We save your name, room code, avatar, sound, haptic and motion
           preferences, and lifetime game statistics locally. Unsent chat drafts
-          and a reconnect identifier are kept for this browser session. Clear
-          this site’s browser data to remove them.
+          and a room reconnect credential are kept for this browser session.
+          Clear this site’s browser data to remove them.
         </p>
         <h3>What leaves it</h3>
         <p>
-          Live room state is held in server memory and is not a permanent
-          archive. In AI guessing modes, drawing snapshots and masked hints may
-          be sent to OpenAI, Anthropic, or Cloudflare, depending on the
-          configured provider. The secret answer is not sent to the AI guesser.
+          Temporary recovery checkpoints store room names, avatars, settings,
+          drawings, scores and game progress on the server. They expire after a
+          day of inactivity. Reconnect credentials are stored as hashes; chat
+          messages are not included in checkpoints. This is not a permanent
+          drawing archive. In AI guessing modes, drawing snapshots and masked
+          hints may be sent to OpenAI, Anthropic, or Cloudflare, depending on
+          the configured provider. The secret answer is not sent to the AI
+          guesser.
         </p>
         <p>
           Anonymous product events count game starts, finishes, and AI

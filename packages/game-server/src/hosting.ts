@@ -21,7 +21,14 @@ export function seatSpectators(seats: Seat[]): Seat[] {
   });
 }
 
-export function pickHost(seats: Seat[], currentHostId: string | null): string | null {
-  if (currentHostId && seats.some((s) => s.id === currentHostId && !s.spectator)) return currentHostId;
+export function pickHost(
+  seats: Seat[],
+  currentHostId: string | null,
+): string | null {
+  if (
+    currentHostId &&
+    seats.some((s) => s.id === currentHostId && !s.spectator)
+  )
+    return currentHostId;
   return seats.find((s) => !s.spectator)?.id ?? null;
 }

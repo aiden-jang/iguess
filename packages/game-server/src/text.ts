@@ -1,4 +1,3 @@
-
 // Tidy a word so two of them can be compared: lowercase, accents off, punctuation gone.
 export function normalizeGuess(s: string): string {
   return s

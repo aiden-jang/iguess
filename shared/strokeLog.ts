@@ -8,7 +8,7 @@ import type { DrawOp } from "./events.ts";
 export function lastStrokeId(ops: DrawOp[]): string | null {
   for (let i = ops.length - 1; i >= 0; i--) {
     const op = ops[i]!;
-    if (op.kind === "start") return op.strokeId;
+    if (op.kind === "start" || op.kind === "fill") return op.strokeId;
   }
   return null;
 }

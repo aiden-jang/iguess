@@ -20,7 +20,8 @@ function makeCtx(frac: number, word: string) {
     sendToPlayer: () => {},
     draw: () => {},
     clearCanvas: () => {},
-    awardPoints: (id: string, pts: number) => (scores[id] = (scores[id] ?? 0) + pts),
+    awardPoints: (id: string, pts: number) =>
+      (scores[id] = (scores[id] ?? 0) + pts),
     scores: () => scores,
     markGuessed: (id: string) => guessed.add(id),
     guessedIds: () => [...guessed],
@@ -102,7 +103,10 @@ test("a trailing player earns more per guess than the leader would", () => {
   mode2.onChat("you", "apple", h2.ctx);
   const leading = h2.scores["you"]! - 1000;
 
-  assert.ok(trailing > leading, `trailing ${trailing} should beat leading ${leading}`);
+  assert.ok(
+    trailing > leading,
+    `trailing ${trailing} should beat leading ${leading}`,
+  );
 });
 
 test("the comeback bonus cannot exceed a third", () => {
@@ -121,14 +125,17 @@ test("the comeback bonus cannot exceed a third", () => {
 
 test("reading the drawing before any letter appears pays extra", () => {
   const aided = makeCtx(1, "apple");
-  (aided.ctx as unknown as { hintsRevealed: () => number }).hintsRevealed = () => 2;
+  (aided.ctx as unknown as { hintsRevealed: () => number }).hintsRevealed =
+    () => 2;
   new ClassicMode().onChat("you", "apple", aided.ctx);
 
   const unaided = makeCtx(1, "apple");
   new ClassicMode().onChat("you", "apple", unaided.ctx);
 
-  assert.ok(unaided.scores["you"]! > aided.scores["you"]!,
-    `no-hint ${unaided.scores["you"]} should beat hinted ${aided.scores["you"]}`);
+  assert.ok(
+    unaided.scores["you"]! > aided.scores["you"]!,
+    `no-hint ${unaided.scores["you"]} should beat hinted ${aided.scores["you"]}`,
+  );
 });
 
 test("calling the machine's guess pays when it lands, and is never read as a guess", () => {
@@ -140,7 +147,9 @@ test("calling the machine's guess pays when it lands, and is never read as a gue
   mode.onChat("you", "?guitar", ctx);
   assert.equal(scores["you"] ?? 0, 0, "a call is not a guess");
 
-  (mode as unknown as { settleBets: (s: string, c: typeof ctx) => void }).settleBets("guitar", ctx);
+  (
+    mode as unknown as { settleBets: (s: string, c: typeof ctx) => void }
+  ).settleBets("guitar", ctx);
   assert.ok((scores["you"] ?? 0) > 0, "a correct call should pay");
 });
 
@@ -149,7 +158,9 @@ test("a wrong call pays nothing and is spent", () => {
   const { ctx, scores } = makeCtx(1, "guitar");
   mode.onTurnStart({ turnIndex: 0, drawerId: "drawer", word: "guitar" }, ctx);
   mode.onChat("you", "?horse", ctx);
-  const settle = (mode as unknown as { settleBets: (s: string, c: typeof ctx) => void }).settleBets.bind(mode);
+  const settle = (
+    mode as unknown as { settleBets: (s: string, c: typeof ctx) => void }
+  ).settleBets.bind(mode);
   settle("cow", ctx);
   assert.equal(scores["you"] ?? 0, 0);
   settle("horse", ctx); // the call is gone; saying it later must not pay
@@ -162,6 +173,8 @@ test("a new turn clears last turn's calls", () => {
   mode.onTurnStart({ turnIndex: 0, drawerId: "drawer", word: "guitar" }, ctx);
   mode.onChat("you", "?horse", ctx);
   mode.onTurnStart({ turnIndex: 1, drawerId: "drawer", word: "apple" }, ctx);
-  (mode as unknown as { settleBets: (s: string, c: typeof ctx) => void }).settleBets("horse", ctx);
+  (
+    mode as unknown as { settleBets: (s: string, c: typeof ctx) => void }
+  ).settleBets("horse", ctx);
   assert.equal(scores["you"] ?? 0, 0);
 });

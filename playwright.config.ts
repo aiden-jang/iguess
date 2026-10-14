@@ -31,7 +31,7 @@ export default defineConfig({
       // This separate config has no Workers AI binding or adjacent provider credentials.
       // Every AI test also checks /health before POSTing; a broken mock pin fails closed.
       command:
-        "pnpm --filter @iguess/ai-worker exec wrangler dev --config ../../e2e/ai-worker.toml --port 33400 --var VISION_PROVIDER:mock",
+        "pnpm --filter @iguess/ai-worker exec wrangler dev --config wrangler.mock.toml --port 33400 --var VISION_PROVIDER:mock",
       url: "http://127.0.0.1:33400/health",
       reuseExistingServer: false,
       timeout: 120_000,

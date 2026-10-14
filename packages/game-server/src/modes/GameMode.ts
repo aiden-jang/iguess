@@ -1,3 +1,4 @@
+import type { ModeSnapshot } from "./modeState.ts";
 import type { ServerMessage, DrawOp, RoomSettings } from "@iguess/shared";
 import type { WordMemory } from "../wordMemory.ts";
 
@@ -62,6 +63,11 @@ export interface GameMode {
   // Applied before configure(). A mode that ignores this keeps its own defaults.
   useSettings?(settings: RoomSettings): void;
 
+  snapshot(): ModeSnapshot;
+  restore(saved: ModeSnapshot): void;
+  dispose?(): void;
+  onTurnResume?(turn: TurnContext, ctx: EngineContext): void;
+
   readonly id: string;
 
   // Classic needs 2, because somebody has to guess. AI modes need only 1: the AI is the
@@ -72,7 +78,7 @@ export interface GameMode {
   // up one round if that isn't the whole game.
   configure(
     humans: PlayerRef[],
-    ctx: EngineContext
+    ctx: EngineContext,
   ): { totalTurns: number; turnsPerRound?: number };
 
   pickDrawer(turnIndex: number, ctx: EngineContext): string;

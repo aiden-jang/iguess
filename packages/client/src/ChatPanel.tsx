@@ -52,7 +52,7 @@ export function ChatPanel({
   const online = useOnline();
   const [text, setText] = useChatDraft(room);
   const { chatLogRef, hasNewChat, scrollChatToBottom, onChatScroll } =
-    useChatScroll(log.length);
+    useChatScroll(log.at(-1));
 
   return (
     <aside

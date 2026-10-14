@@ -1,3 +1,4 @@
+import type { ModeSnapshot, GuessProgress } from "./modeState.ts";
 import type { EngineContext, PlayerRef, TurnContext } from "./GameMode.ts";
 import { ClassicMode } from "./ClassicMode.ts";
 import { startGuessLoop } from "../ai/aiGuessLoop.ts";
@@ -7,10 +8,12 @@ import type { AiSkill, RoomSettings } from "@iguess/shared";
 
 const AI_ID = "ai-guesser";
 
-// AI-as-competing-guesser. The AI joins as a virtual participant and guesses
-// alongside humans through the same scoring path. The actual guessing loop
-// lives in the shared aiGuessLoop helper, composed here.
 export class AIGuesserMode extends ClassicMode {
+  private guessProgress: GuessProgress = {
+    attempts: 0,
+    notifiedDown: false,
+    seenOps: 0,
+  };
   override readonly id = "ai-guesser";
 
   // The AI is the other player, so one human is enough to start (you vs the AI).
@@ -18,8 +21,7 @@ export class AIGuesserMode extends ClassicMode {
 
   private stop: (() => void) | null = null;
 
-  // requestGuess renders the canvas and asks the vision model. Injected so
-  // the mode stays free of HTTP/Redis. Optional → random stub in tests.
+  // The request seam keeps provider I/O outside the game rules.
   constructor(private requestGuess?: () => Promise<AIGuess>) {
     super();
   }
@@ -46,13 +48,19 @@ export class AIGuesserMode extends ClassicMode {
   }
 
   override onTurnStart(turn: TurnContext, ctx: EngineContext): void {
-    super.onTurnStart(turn, ctx); // deliver word to the human drawer
+    this.guessProgress = { attempts: 0, notifiedDown: false, seenOps: 0 };
+    this.bets.clear();
+    this.onTurnResume(turn, ctx);
+  }
+  override onTurnResume(turn: TurnContext, ctx: EngineContext): void {
+    super.onTurnResume(turn, ctx); // deliver word to the human drawer
     this.stop?.();
-    this.visionUnavailable = false;
+    this.visionUnavailable = this.guessProgress.notifiedDown;
     this.stop = startGuessLoop(turn, ctx, {
       aiId: AI_ID,
       aiName: AI_NAME,
       skill: this.skill,
+      progress: this.guessProgress,
       onSaid: (g) => this.settleBets(g, ctx),
       requestGuess: this.requestGuess,
       onCorrect: () => this.acceptGuess(AI_ID, ctx),
@@ -64,6 +72,19 @@ export class AIGuesserMode extends ClassicMode {
         });
       },
     });
+  }
+
+  override snapshot(): ModeSnapshot {
+    return { ...super.snapshot(), guessProgress: this.guessProgress };
+  }
+  override restore(saved: ModeSnapshot) {
+    super.restore(saved);
+    if (saved.guessProgress !== undefined)
+      this.guessProgress = saved.guessProgress;
+  }
+  dispose() {
+    this.stop?.();
+    this.stop = null;
   }
 
   override onTurnEnd(turn: TurnContext, ctx: EngineContext): void {

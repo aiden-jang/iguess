@@ -13,7 +13,12 @@ export default defineConfig({
     proxy: {
       // 127.0.0.1, not localhost: Node resolves localhost to ::1 while wrangler listens on IPv4.
       "/play-status": { target: "http://127.0.0.1:33300", changeOrigin: true },
-      "/rooms": { target: "http://127.0.0.1:33300", changeOrigin: true, ws: true },
+      // Preserve Host so the game Worker can enforce the browser’s same-origin socket check.
+      "/rooms": {
+        target: "http://127.0.0.1:33300",
+        changeOrigin: false,
+        ws: true,
+      },
     },
   },
 });

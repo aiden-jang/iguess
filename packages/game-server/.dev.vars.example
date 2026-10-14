@@ -1,0 +1,4 @@
+# Optional local settings. Copy this file to .dev.vars in this directory.
+# Copy the ai-worker example too. This value is for local development only.
+# Production uses matching Worker secrets; see DEPLOY.md.
+AI_SHARED_SECRET=local-development-only

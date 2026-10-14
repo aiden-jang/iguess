@@ -4,32 +4,42 @@
 
 // Bump this on any sw.js change: the activate handler deletes every cache that isn't the current
 // one, so a version bump purges stale entries on update.
-const CACHE = 'iguess-v7';
-const SHELL = '/';
+const CACHE = "iguess-v8";
+const SHELL = "/";
 
-self.addEventListener('install', (event) => {
+self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.add(SHELL)));
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))),
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)),
+        ),
+      ),
   );
   self.clients.claim();
 });
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
   // Never cache realtime traffic.
-  if (url.pathname.startsWith('/rooms') || ['/play-status', '/health'].includes(url.pathname)) return;
-  if (request.method !== 'GET') return;
+  if (
+    url.pathname.startsWith("/rooms") ||
+    ["/play-status", "/health"].includes(url.pathname)
+  )
+    return;
+  if (request.method !== "GET") return;
 
   // Navigations: network first, and refresh the cached shell so an offline return visit gets the
   // most recent shell instead of the one frozen at first install.
-  if (request.mode === 'navigate') {
+  if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((res) => {

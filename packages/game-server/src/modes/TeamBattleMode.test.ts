@@ -17,7 +17,8 @@ function makeCtx(word: string, drawerId: string) {
     getName: (id: string) => id,
     broadcast: (m: ServerMessage) => broadcasts.push(m),
     sendToPlayer: () => {},
-    awardPoints: (id: string, pts: number) => (scores[id] = (scores[id] ?? 0) + pts),
+    awardPoints: (id: string, pts: number) =>
+      (scores[id] = (scores[id] ?? 0) + pts),
     scores: () => scores,
     markGuessed: (id: string) => guessed.add(id),
     guessedIds: () => [...guessed],
@@ -28,7 +29,9 @@ function makeCtx(word: string, drawerId: string) {
     hintsRevealed: () => 0,
     canvasOpCount: () => 0,
     syncState: () => {},
-    endTurn: () => { ended = true; },
+    endTurn: () => {
+      ended = true;
+    },
   } as unknown as EngineContext;
   return { ctx, broadcasts, scores, guessed, isEnded: () => ended };
 }
@@ -38,7 +41,13 @@ function humanDrawTurn(word: string) {
   const mode = new TeamBattleMode();
   const drawerId = "drawer";
   const { ctx, ...rec } = makeCtx(word, drawerId);
-  mode.configure([{ id: drawerId, name: "drawer" }, { id: "g", name: "guesser" }], ctx);
+  mode.configure(
+    [
+      { id: drawerId, name: "drawer" },
+      { id: "g", name: "guesser" },
+    ],
+    ctx,
+  );
   mode.pickDrawer(0); // turn 0 → human draws (latches aiDrawsThisTurn=false)
   return { mode, ctx, drawerId, ...rec };
 }
@@ -55,7 +64,11 @@ test("a human's exact answer wins the round (forgiving of formatting)", () => {
 test("a sentence merely containing the word does NOT win", () => {
   const { mode, ctx, scores, isEnded } = humanDrawTurn("dog");
   const handled = mode.onChat("g", "is it a dog or something", ctx);
-  assert.equal(handled, false, "substring match must not count as a human guess");
+  assert.equal(
+    handled,
+    false,
+    "substring match must not count as a human guess",
+  );
   assert.equal(scores["g"], undefined);
   assert.ok(!isEnded());
 });
