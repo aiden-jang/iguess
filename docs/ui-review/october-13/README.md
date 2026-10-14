@@ -20,12 +20,21 @@ score updates and the clear confirmation.
 
 The release verification passed types, lint, source-size limits, comment rules,
 unit tests and the production build. Browser tests passed joining, mobile play,
-multiplayer host permissions, finished-game gallery, replay and sharing. The AI
-provider boundary used a test provider; paid vision was not exercised. An awards
-regression test was checked by temporarily removing its guard, observing failure,
-and restoring the guard before verification.
+multiplayer host permissions, finished-game gallery, replay and sharing. The
+automated AI tests use a mock provider. One separate live round confirmed the
+production OpenAI path responded; it called a chair drawing a triangle, so that
+single round verifies delivery, not recognition quality. An awards regression
+test was checked by temporarily removing its guard, observing failure, and
+restoring the guard before verification.
 
-Safari, physical phones and paid AI remain unverified. Dark UI was reviewed in
+The follow-up browser run covered Chromium and WebKit: interrupted sockets,
+refreshing during a turn, mobile rotation, keyboard joining, drawing downloads,
+clipboard failure feedback, reduced motion and both color schemes. It passed
+with one worker; concurrent engines overloaded the local room stack in an earlier
+run, so CI now uses the same serial schedule. The app store screenshots in the
+manifest now point to the current desktop and phone join screens.
+
+Physical phones and broader paid AI recognition quality remain unverified. Dark UI was reviewed in
 the browser; light tokens and generated share artwork were inspected, without a
 separate light-mode gameplay capture. Local worker rebuilds reset in-memory test
 rooms, so timed game tests were run after the final build completed.

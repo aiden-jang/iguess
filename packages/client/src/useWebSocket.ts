@@ -102,12 +102,13 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
       wsRef.current = ws;
 
       ws.onopen = () => {
+        if (!alive || ws !== wsRef.current) return;
         attempt = 0;
         setConnected(true);
       };
       ws.onclose = (e) => {
+        if (!alive || ws !== wsRef.current) return;
         setConnected(false);
-        if (!alive) return;
         if (e.code === CLOSE_ROOM_FULL) {
           alive = false;
           setFatal(e.reason || "this room is full. try another room name.");
@@ -123,6 +124,7 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
         reconnectTimer = setTimeout(connect, delay);
       };
       ws.onmessage = (e) => {
+        if (!alive || ws !== wsRef.current) return;
         let msg: ServerMessage;
         try {
           msg = JSON.parse(e.data);

@@ -9,6 +9,10 @@ export default defineConfig({
   fullyParallel: false, // rooms are shared state; parallel specs would collide in one room
   retries: process.env.CI ? 1 : 0,
   reporter: [["list"]],
+  projects: [
+    { name: "chromium", use: { browserName: "chromium" } },
+    { name: "webkit", use: { browserName: "webkit" } },
+  ],
   use: {
     baseURL: "http://127.0.0.1:33100",
     trace: "retain-on-failure",
