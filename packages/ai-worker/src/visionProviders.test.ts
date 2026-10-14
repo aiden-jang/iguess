@@ -9,6 +9,7 @@ import {
   type VisionProvider,
 } from './visionProviders.ts';
 import type { AiBinding } from './env.ts';
+import { guessAuthFailure } from './guessAuth.ts';
 
 const throwing = (name: string): VisionProvider => ({
   name,
@@ -66,6 +67,16 @@ test('WorkersAIProvider strips a leading article from the model output', async (
 });
 
 const names = (env: Parameters<typeof selectProviders>[0]) => selectProviders(env).map((p) => p.name);
+
+test('real providers fail closed until the worker shared secret is configured', () => {
+  assert.equal(guessAuthFailure({}, true, null), 'ai_auth_not_configured');
+  assert.equal(guessAuthFailure({ AI_SHARED_SECRET: 'secret' }, true, null), 'unauthorized');
+  assert.equal(guessAuthFailure({ AI_SHARED_SECRET: 'secret' }, true, 'Bearer secret'), null);
+});
+
+test('mock-only mode remains available without a shared secret', () => {
+  assert.equal(guessAuthFailure({}, false, null), null);
+});
 
 test('a paid key falls back to Workers AI then mock (so a 429 key never kills the AI)', () => {
   assert.deepEqual(names({ AI: fakeAI, OPENAI_API_KEY: 'k' }), ['openai', 'workers-ai', 'mock']);

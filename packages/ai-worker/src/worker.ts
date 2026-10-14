@@ -1,6 +1,7 @@
 import type { DrawOp } from '@iguess/shared';
 import type { Env } from './env.ts';
 import { selectProviders, guessWithFallback } from './visionProviders.ts';
+import { guessAuthFailure } from './guessAuth.ts';
 import { opsToPngBase64 } from './strokeRender.ts';
 import { ogPng } from './ogCard.ts';
 
@@ -36,10 +37,13 @@ export default {
     }
 
     if (url.pathname === '/guess' && request.method === 'POST') {
-      // When a shared secret is configured, require it — otherwise this paid vision endpoint is
-      // open to anyone who learns the URL and can burn tokens directly.
-      if (env.AI_SHARED_SECRET && request.headers.get('Authorization') !== `Bearer ${env.AI_SHARED_SECRET}`) {
-        return Response.json({ guess: '', error: 'unauthorized' }, { status: 401 });
+      const usesRealProvider = providers.some((provider) => provider.name !== 'mock');
+      // Fail closed: a public workers.dev URL must never expose a real provider without a shared
+      // secret. This also protects the Workers AI binding from anonymous quota usage.
+      const authFailure = guessAuthFailure(env, usesRealProvider, request.headers.get('Authorization'));
+      if (authFailure) {
+        const status = authFailure === 'unauthorized' ? 401 : 503;
+        return Response.json({ guess: '', error: authFailure }, { status });
       }
       const body = (await request.json().catch(() => null)) as { ops?: DrawOp[]; hint?: string } | null;
       const ops = Array.isArray(body?.ops) ? body.ops : [];

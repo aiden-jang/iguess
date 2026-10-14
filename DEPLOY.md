@@ -2,8 +2,10 @@
 
 **Status: live** at [iguess.aidenjang.com](https://iguess.aidenjang.com). Run the steps below to ship a new version. Two Cloudflare Workers:
 
-- **`iguess-ai`** is the vision worker (`/guess`). Internal: only the game server calls it,
-  server-side. Stays on its `*.workers.dev` URL (no custom domain). Mock provider by default.
+- **`iguess-ai`** is the vision worker (`/guess`). Its `*.workers.dev` URL is public, so real
+  vision providers require a shared Bearer secret; it also serves public share-card images at
+  `/og`. It prefers configured OpenAI or Anthropic keys, then Cloudflare Workers AI, and uses mock
+  only as a last resort.
 - **`iguess-game`** is the game server: the `GameRoom` Durable Object (one per room) + serves
   the client SPA (`[assets]`) + the `/rooms/:id/ws` WebSocket. Custom domain, free tier.
 
@@ -21,8 +23,26 @@ cd packages/ai-worker
 pnpm exec wrangler deploy        # → note the URL, e.g. https://iguess-ai.aidenjang.workers.dev
 ```
 
-Optional real vision (else mock): `echo "<key>" | pnpm exec wrangler secret put ANTHROPIC_API_KEY`
-(or `OPENAI_API_KEY`). Mock needs no key and proves the pipeline end-to-end.
+Set provider keys as Cloudflare Worker secrets. Do not put keys in source or command history.
+Without paid provider keys, the configured Workers AI binding is used; mock is the final fallback.
+
+### Protect the vision endpoint
+
+The live endpoint currently accepts an anonymous empty-canvas probe. The app does not call a model
+for that probe, but the public `/guess` route must be protected before real vision requests are
+safe. The updated worker fails closed whenever a real provider is configured without
+`AI_SHARED_SECRET`; mock-only local development remains available.
+
+Before pushing a deployment with this guard, set the **same** secret on both Workers. Set the game
+server first: it will start sending the token, which the current AI worker ignores until its secret
+is set. Then set the AI worker secret, which immediately starts enforcing it. This avoids an AI
+interruption during rollout. Use a long random value, enter it only at the Wrangler prompt, and
+never commit it. GitHub auto-deploys code but does not set Worker secrets.
+
+```bash
+cd packages/game-server && pnpm exec wrangler secret put AI_SHARED_SECRET
+cd packages/ai-worker   && pnpm exec wrangler secret put AI_SHARED_SECRET
+```
 
 ## 2. Point the game server at it
 

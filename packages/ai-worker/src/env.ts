@@ -19,7 +19,7 @@ export interface Env {
   // Cloudflare Workers AI: free real vision, no key — just the [ai] binding in wrangler.toml.
   AI?: AiBinding;
   WORKERS_AI_MODEL?: string;
-  // Shared secret the game-server must present on /guess. When set, unauthenticated calls are
-  // rejected so the (paid) vision endpoint can't be hit directly. Unset ⇒ open (dev/mock).
+  // Shared secret the game-server must present on /guess. Any real vision provider is disabled
+  // until this is set; mock-only development remains open.
   AI_SHARED_SECRET?: string;
 }

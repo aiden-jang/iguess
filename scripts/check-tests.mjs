@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 const ROOT = new URL("..", import.meta.url).pathname;
 
 const FLOORS = {
-  "@iguess/ai-worker": 27,
+  "@iguess/ai-worker": 29,
   "@iguess/client": 43,
   "@iguess/game-server": 149,
 };
