@@ -3,6 +3,9 @@
 The root README uses the current generated share card. Its source is
 `packages/client/public/og.svg`; regenerate it with the client’s `gen:og` script.
 The favicon and install icons come from `public/icon.svg` through `gen:icons`.
+The acid-green question-eye face has SVG and small PNG tab icons, an Apple touch icon and
+opaque install icons. Versioned icon URLs and the service-worker cache keep updates from
+being hidden by an older cached asset.
 
 The older `join.png`, `choosing.png`, `gameplay.png`, `gameplay-guesser.png` and
 `gameplay.svg` are historical gameplay captures, not references for the current

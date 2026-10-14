@@ -20,7 +20,11 @@ test("the installed shell never replays cached AI availability", async ({
       );
   });
   const result = await page.evaluate(async () => {
-    const cache = await caches.open("iguess-v8");
+    const names = (await caches.keys()).filter((key) =>
+      key.startsWith("iguess-"),
+    );
+    if (names.length !== 1) throw new Error("Expected one active shell cache");
+    const cache = await caches.open(names[0]!);
     await cache.put(
       "/play-status",
       new Response(JSON.stringify({ vision: "ready" }), {
