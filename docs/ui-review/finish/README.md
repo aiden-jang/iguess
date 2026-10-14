@@ -79,6 +79,9 @@ The finishing pass is recorded in six Conventional Commits on `main`; nothing wa
 
 ## Verification limits
 
+The [long-chat follow-up](../chat/README.md) records the later fix for history expanding
+past the composer, including scroll-following and keyboard-focus regressions.
+
 Browser emulation is not a physical iPhone or Android device. The visual-viewport test simulates
 keyboard resizing; it does not operate an actual OS keyboard. Automated accessibility audits and
 keyboard checks do not establish VoiceOver/TalkBack usability. Vibration hardware, native mobile

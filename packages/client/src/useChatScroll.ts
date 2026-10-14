@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 // How close to the bottom still counts as "reading the latest", in pixels.
 const NEAR_BOTTOM_PX = 48;
@@ -35,7 +35,8 @@ export function useChatScroll(revision: unknown) {
     if (atEnd) setHasNewChat(false);
   };
 
-  useEffect(() => {
+  // Follow before paint so pending scroll events cannot mistake new content for scrolling back.
+  useLayoutEffect(() => {
     if (!following.current) {
       setHasNewChat(true);
       return;
