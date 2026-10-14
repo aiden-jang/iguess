@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { MOTION_KEY, preference } from "./usePreference";
 
 const reducedMotion = () =>
-  typeof matchMedia === "function" &&
-  matchMedia("(prefers-reduced-motion: reduce)").matches;
+  !preference(MOTION_KEY, true) ||
+  (typeof matchMedia === "function" &&
+    matchMedia("(prefers-reduced-motion: reduce)").matches);
 interface Piece {
   id: number;
   left: number;

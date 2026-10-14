@@ -78,18 +78,24 @@ export function ChatPanel({
             className="chat-summary-note"
             role={notice ? "status" : undefined}
           >
-            {!online ? "Offline · draft kept" : notice}
+            {ended && !expanded
+              ? !online
+                ? "Offline · draft kept"
+                : notice
+              : null}
           </span>
           <Icon name="chevron" />
         </summary>
         <div className="chat-content">
           <div className="chat-heading">
-            <RoomNotice
-              message={notice}
-              onDismiss={onDismissNotice}
-              reconnecting={reconnecting}
-              offline={!online}
-            />
+            {(!ended || expanded) && (
+              <RoomNotice
+                message={notice}
+                onDismiss={onDismissNotice}
+                reconnecting={reconnecting}
+                offline={!online}
+              />
+            )}
             <span style={styles.sectionLabel}>Chat & guesses</span>
             <span className="chat-hint">
               {drawingNow

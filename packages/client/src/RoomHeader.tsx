@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useDismissibleDetails } from "./useDismissibleDetails";
 import { connectionLabel, inviteLabel, type InviteResult } from "./labels";
+import { FeedbackSettings } from "./FeedbackSettings";
 import { ScoreReadout } from "./ScoreReadout";
 import { Icon } from "./Icon";
 import { ResourceLinks } from "./ResourceDialog";
@@ -55,19 +56,26 @@ export function RoomHeader(p: Props) {
               <span>Everybody has an opinion.</span>
             </div>
             {p.children}
-            <div className="roster-utilities">
-              <button
-                type="button"
-                aria-pressed={!p.muted}
-                onClick={p.onToggleMute}
-              >
-                {p.muted ? "Sound off" : "Sound on"}
-              </button>
-            </div>
+            <FeedbackSettings />
           </div>
         </details>
-        <button type="button" className="room-invite" onClick={p.onInvite}>
-          {inviteLabel(p.inviteResult)} <Icon name="arrow" />
+        <button
+          type="button"
+          className="room-invite"
+          onClick={p.onInvite}
+          aria-label={inviteLabel(p.inviteResult)}
+        >
+          <span className="invite-full" aria-hidden>
+            {inviteLabel(p.inviteResult)}
+          </span>
+          <span className="invite-short" aria-hidden>
+            {p.inviteResult === "copied"
+              ? "Copied ✓"
+              : p.inviteResult === "shared"
+                ? "Shared ✓"
+                : "Invite"}
+          </span>
+          {!p.inviteResult && <Icon name="arrow" />}
         </button>
         <button
           type="button"

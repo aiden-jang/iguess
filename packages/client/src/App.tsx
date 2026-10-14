@@ -1,4 +1,4 @@
-import { Room } from "./Room";
+import { RoomGate as Room } from "./RoomGate";
 import { useRoomEntry } from "./useRoomEntry";
 import { useJoinDraft } from "./useJoinDraft";
 import { JoinScreen } from "./JoinScreen";

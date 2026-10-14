@@ -63,6 +63,7 @@ pnpm run test:e2e  # real local Workers, room sockets and browser flows
 - [Repository conventions](CONVENTIONS.md): code and verification requirements.
 - [Deployment](DEPLOY.md): Cloudflare setup and secrets.
 - [Visual evidence](docs/README.md): screenshot provenance and refresh guidance.
+- [Finishing checklist](docs/ui-review/finish/README.md): acceptance evidence and device-testing limits.
 
 Built with React, TypeScript, Canvas, Cloudflare Workers, Durable Objects and raw
 WebSockets. CI verifies pull requests; pushes to `main` deploy after checks pass.

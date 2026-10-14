@@ -27,7 +27,7 @@ export function LobbyControls(p: RoomBannerProps) {
           {p.settings.turnSeconds}s turns ·{" "}
           {p.settings.scoreTarget
             ? `First to ${p.settings.scoreTarget}`
-            : `${p.settings.rounds} rounds`}{" "}
+            : `${p.settings.rounds} ${p.settings.rounds === 1 ? "round" : "rounds"}`}{" "}
           ·{" "}
           {p.settings.packs.length
             ? `${p.settings.packs.length} word packs`

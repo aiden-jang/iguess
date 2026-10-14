@@ -1,8 +1,3 @@
-// The AI is the app's whole differentiator and it was called "🤖 AI" in four separate files.
-// Naming it after the answer it reaches for is the joke the README already makes.
-
-// No emoji here: every surface that shows an AI already adds its own badge, so baking one
-// into the name renders it twice ("🤖 🤖 dogbot").
 export const AI_NAME = "dogbot";
 
 // Said when it loses a turn it was sure about.
@@ -18,15 +13,29 @@ const SALTY = [
 // Said when it wins.
 const SMUG = [
   "I’ll add art critic to the résumé.",
-  "Two strokes. Modest of me to wait.",
+  "Correct. A rare moment of professional competence.",
   "Recognized it. Tried to be normal about it.",
   "A win. My extensive training finally pays off.",
   "Correct. I’ll need a moment to act surprised.",
 ];
 
-const pick = (xs: string[]) => xs[Math.floor(Math.random() * xs.length)]!;
+const UNAVAILABLE = [
+  "Vision unavailable. Confidence taking a short break.",
+  "I couldn’t see that round. My art criticism will have to wait.",
+  "No vision this turn. An unusually honest review from me.",
+];
 
-/** One line of commentary on a turn that just ended. */
-export function aiComment(word: string, aiWon: boolean): string {
-  return aiWon ? pick(SMUG) : pick(SALTY).replace("%", word);
+/** Per-room memory avoids repeating a punchline on consecutive turns. */
+export function createCommentary(random = Math.random) {
+  const recent: string[] = [];
+  return (word: string, aiWon: boolean, unavailable = false): string => {
+    const pool = unavailable ? UNAVAILABLE : aiWon ? SMUG : SALTY;
+    const available = pool.filter((line) => !recent.includes(line));
+    const choices = available.length ? available : pool;
+    const line = choices[Math.floor(random() * choices.length)]!;
+    recent.push(line);
+    if (recent.length > 2) recent.shift();
+    return line.replace("%", word);
+  };
 }
+export const aiComment = createCommentary();

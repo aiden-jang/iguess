@@ -4,7 +4,7 @@
 
 // Bump this on any sw.js change: the activate handler deletes every cache that isn't the current
 // one, so a version bump purges stale entries on update.
-const CACHE = 'iguess-v6';
+const CACHE = 'iguess-v7';
 const SHELL = '/';
 
 self.addEventListener('install', (event) => {
@@ -24,7 +24,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   // Never cache realtime traffic.
-  if (url.pathname.startsWith('/rooms')) return;
+  if (url.pathname.startsWith('/rooms') || ['/play-status', '/health'].includes(url.pathname)) return;
   if (request.method !== 'GET') return;
 
   // Navigations: network first, and refresh the cached shell so an offline return visit gets the

@@ -1,3 +1,5 @@
+import { galleryProbe } from "./visualProbe";
+import { audit } from "./accessibility";
 import type { Page } from "@playwright/test";
 import { test, expect } from "./fixtures";
 
@@ -146,7 +148,7 @@ test("a finished game shows the gallery, a replay and the shareable card", async
   if (process.env.CAPTURE_UI === "1")
     await page.screenshot({
       animations: "disabled",
-      path: "docs/ui-review/studio/turn-recap-desktop.jpg",
+      path: "docs/ui-review/finish/turn-recap-desktop.jpg",
       fullPage: true,
     });
   // Round over, then the results screen.
@@ -169,29 +171,30 @@ test("a finished game shows the gallery, a replay and the shareable card", async
   if (process.env.CAPTURE_UI === "1") {
     await page.screenshot({
       animations: "disabled",
-      path: "docs/ui-review/studio/results-desktop.jpg",
+      path: "docs/ui-review/finish/results-desktop.jpg",
       fullPage: true,
     });
     await page.emulateMedia({ colorScheme: "dark" });
     await page.screenshot({
       animations: "disabled",
-      path: "docs/ui-review/studio/results-desktop-dark.jpg",
+      path: "docs/ui-review/finish/results-desktop-dark.jpg",
       fullPage: true,
     });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({
       animations: "disabled",
-      path: "docs/ui-review/studio/results-mobile-dark.jpg",
+      path: "docs/ui-review/finish/results-mobile-dark.jpg",
       fullPage: true,
     });
     await page.emulateMedia({ colorScheme: "light" });
     await page.screenshot({
       animations: "disabled",
-      path: "docs/ui-review/studio/results-mobile.jpg",
+      path: "docs/ui-review/finish/results-mobile.jpg",
       fullPage: true,
     });
   }
 
+  await audit(page);
   // The replay swaps the still for a live canvas that redraws the round.
   await page
     .getByRole("button", { name: /replay/i })
@@ -228,7 +231,12 @@ test("a finished game shows the gallery, a replay and the shareable card", async
   expect(evidence.suggestedFilename()).toMatch(/^iguess-evidence-.*\.png$/);
   expect(await evidence.failure()).toBeNull();
   if (process.env.CAPTURE_UI === "1")
-    await evidence.saveAs("docs/ui-review/studio/shared-evidence.png");
+    await evidence.saveAs("docs/ui-review/finish/shared-evidence.png");
+  await page
+    .getByRole("button", { name: /Show still:/ })
+    .first()
+    .click();
+  await galleryProbe(page);
 });
 
 test("Classic waits for another player and only the host can start", async ({

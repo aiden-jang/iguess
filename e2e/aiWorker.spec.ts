@@ -79,6 +79,6 @@ test("an invite preview renders its room with the bundled font", async ({
   expect(png.readUInt32BE(20)).toBe(630);
   if (process.env.CAPTURE_UI === "1") {
     const { writeFile } = await import("node:fs/promises");
-    await writeFile("docs/ui-review/studio/room-invite.png", png);
+    await writeFile("docs/ui-review/finish/room-invite.png", png);
   }
 });

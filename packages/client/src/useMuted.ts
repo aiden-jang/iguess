@@ -1,18 +1,11 @@
-import { useState } from "react";
 import { blip, MUTE_KEY } from "./feedback";
-import { readStored, writeStored } from "./storage";
+import { usePreference } from "./usePreference";
 
 export function useMuted() {
-  const [muted, setMuted] = useState(() => readStored(MUTE_KEY) === "1");
-
-  const toggleMuted = (): void => {
-    setMuted((m) => {
-      const next = !m;
-      writeStored(MUTE_KEY, next ? "1" : "0");
-      if (!next) blip([659], false); // little confirmation chirp when unmuting
-      return next;
-    });
+  const [muted, setMuted] = usePreference(MUTE_KEY, false);
+  const toggleMuted = () => {
+    setMuted(!muted);
+    if (muted) blip([659], false);
   };
-
   return { muted, toggleMuted };
 }

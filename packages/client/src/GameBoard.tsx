@@ -1,4 +1,4 @@
-import { useEffect, useState, type MutableRefObject } from "react";
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import type { DrawOp, Point } from "@iguess/shared";
 import { ClubFace } from "./ClubFace";
 import { DrawingCanvas } from "./DrawingCanvas";
@@ -48,6 +48,11 @@ export function GameBoard({
   phase,
 }: GameBoardProps) {
   const [scribbled, setScribbled] = useState(false);
+  const canvas = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    if (canDraw && phase === "playing")
+      canvas.current?.focus({ preventScroll: true });
+  }, [canDraw, phase]);
   useEffect(() => setScribbled(false), [phase]);
   return (
     <div
@@ -67,7 +72,10 @@ export function GameBoard({
         onCursor={socket.sendCursor}
         peerCursor={socket.peerCursor}
         canDraw={canDraw}
-        onCanvas={onCanvas}
+        onCanvas={(element) => {
+          canvas.current = element;
+          onCanvas(element);
+        }}
       />
       {socket.reactions.map((r) => (
         <span

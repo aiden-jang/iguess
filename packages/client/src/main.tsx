@@ -4,6 +4,9 @@ import "./game.css";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { MOTION_KEY, preference } from "./usePreference";
+
+document.documentElement.dataset.motion = String(preference(MOTION_KEY, true));
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

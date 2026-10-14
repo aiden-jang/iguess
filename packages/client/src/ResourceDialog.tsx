@@ -122,10 +122,10 @@ function ResourceContent({ resource }: { resource: Resource }) {
         </p>
         <h3>What stays in your browser</h3>
         <p>
-          We save your name, room code, avatar, sound preference, and lifetime
-          game statistics locally. Unsent chat drafts and a reconnect identifier
-          are kept for this browser session. Clear this site’s browser data to
-          remove them.
+          We save your name, room code, avatar, sound, haptic and motion
+          preferences, and lifetime game statistics locally. Unsent chat drafts
+          and a reconnect identifier are kept for this browser session. Clear
+          this site’s browser data to remove them.
         </p>
         <h3>What leaves it</h3>
         <p>

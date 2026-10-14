@@ -1,3 +1,4 @@
+import { capture } from "./visualProbe";
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 const code = () =>
@@ -8,7 +9,10 @@ async function enter(page: Page, room: string, name = "Host") {
   await page
     .getByRole("button", { name: "Join the room", exact: true })
     .click();
-  await expect(page.locator(".room-connection")).toHaveAttribute("data-connected", "true");
+  await expect(page.locator(".room-connection")).toHaveAttribute(
+    "data-connected",
+    "true",
+  );
 }
 test("every ink color is reachable on a narrow phone and clear requires confirmation", async ({
   page,
@@ -18,6 +22,7 @@ test("every ink color is reachable on a narrow phone and clear requires confirma
   await page.getByLabel("Ink color: Black", { exact: true }).click();
   for (const button of await page.locator(".ink-choice").all())
     await expect(button).toBeInViewport();
+  await capture(page, "palette-tiny");
   await page.getByRole("button", { name: "Color Blue", exact: true }).click();
   await expect(
     page.getByLabel("Ink color: Blue", { exact: true }),
@@ -28,6 +33,7 @@ test("every ink color is reachable on a narrow phone and clear requires confirma
   await expect(
     page.getByRole("button", { name: "Cancel", exact: true }),
   ).toBeFocused();
+  await capture(page, "clear-confirmation-tiny", false);
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).not.toBeVisible();
 });
@@ -58,7 +64,10 @@ test("a correct guess acknowledges completion and preserves reactions", async ({
       guest.getByRole("textbox", { name: "Your guess", exact: true }),
     ).toHaveCount(0);
     await expect(guest.locator(".reaction-bar button").first()).toBeEnabled();
-    await expect(guest.locator(".score-readout")).toHaveAttribute("aria-label", /Your score: [1-9]\d* points/);
+    await expect(guest.locator(".score-readout")).toHaveAttribute(
+      "aria-label",
+      /Your score: [1-9]\d* points/,
+    );
   } finally {
     await guest.close();
     await third.close();

@@ -5,19 +5,24 @@ and a vision worker. Shared types and pure rules live in `shared/`.
 
 ## Client
 
-`App` owns the join draft; `useRoomEntry` owns entry, leaving, and browser Back behavior. `JoinScreen` renders the
+`useJoinDraft` owns entry drafts, explicit fresh/rejoin intent, invitations and avatar selection; `useRoomEntry` owns entry, leaving, and browser Back behavior. `App` composes them. `JoinScreen` renders the
 join form and a clearly labeled static drawing example through `JoinForm` and `DoodlePoster`. `roomLinks` parses
 current and legacy invitations; `playerStats` owns browser-local statistics.
 
+`RoomGate` loads the game chunk only after entry, with a loading screen and error boundary.
 `Room` connects the socket to the board, banner, compact room header, scoreboard and chat.
 `roomView` derives roles and permissions from the server snapshot. Component
 state does not grant authority to start games, score guesses or choose drawers.
 
 Room effects have separate owners:
 
-- `useGameFeedback`: audio, vibration and result celebrations.
+- `useGameFeedback`: event-specific audio, vibration and result celebrations; only observed participation updates lifetime stats.
+- `usePreference` and `FeedbackSettings`: synchronized browser-local sound, haptics and motion choices.
+- `useRoomViewport`: keeps composition inside a reduced visual viewport when a mobile keyboard opens.
 - `useRoundGallery`: capture completed drawings, preserve stroke replays and track explicitly marked AI guesses, excluding post-round commentary.
-- `useRoomSharing`: invites, copied results and evidence images, including failure feedback.
+- `useRoomSharing`: invites, copied results and evidence images, including cancellation, download and failure feedback.
+- `Replay`: one-pass stroke playback with pause, restart, progress and background-tab pause.
+- `evidenceCard`: bounded image export with artist captions and missing-preview fallbacks; native sharing stays in `shareDelivery`.
 - `useChatDraft`: session-scoped unsent chat, preserved across refresh and cleared after sending.
 - `useDrawingShortcuts`: drawing-area shortcuts that leave text fields and dialogs alone.
 - `useGameSocket`: socket connection, server messages, outgoing actions and draw subscriptions.
@@ -31,8 +36,7 @@ pixels rather than painting white, so fill remains consistent with transparency.
 `join.css` owns the public join screen, `game.css` the studio workspace, and
 `resources.css` the shared help/legal and confirmation dialogs. `styles.ts` contains typed component
 styles. `useDismissibleDetails` gives room disclosures consistent outside-click and Escape behavior. Token-based light and dark palettes follow system preferences. Reduced
-motion suppresses decorative animation, and confetti is not constructed when
-motion is reduced.
+motion and the personal motion preference suppress decorative animation. Phase changes animate the banner locally; the canvas stays stable.
 
 ## One room, one owner
 
@@ -72,10 +76,12 @@ renders stroke operations to an image and asks a configured vision provider.
 The request includes a masked hint, never the secret answer. Providers share an
 interface; mock behavior keeps tests independent of credentials.
 
+The public `/play-status` route checks cached worker health, never a vision request; entry can offer the curated drawer when live vision is unavailable.
+
 AI requests happen outside socket message handling. A slow or failed call does
 not pause the room. Guess cadence responds to new ink, and attempt and room
 budgets limit paid requests. Provider failures and mock fallback are disclosed
-rather than presented as normal vision guesses.
+rather than presented as normal vision guesses. Per-room commentary avoids recent punchlines and acknowledges unavailable vision.
 
 The AI drawer is not an image generator. It reveals curated vector strokes over
 time with procedural variation. A generator can be injected through its existing

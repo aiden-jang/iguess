@@ -2,7 +2,7 @@ import type { EngineContext, PlayerRef, TurnContext } from "./GameMode.ts";
 import { ClassicMode } from "./ClassicMode.ts";
 import { startGuessLoop } from "../ai/aiGuessLoop.ts";
 import type { AIGuess } from "../services/aiWorkerClient.ts";
-import { AI_NAME, aiComment } from "../ai/persona.ts";
+import { AI_NAME, createCommentary } from "../ai/persona.ts";
 import type { AiSkill, RoomSettings } from "@iguess/shared";
 
 const AI_ID = "ai-guesser";
@@ -25,6 +25,8 @@ export class AIGuesserMode extends ClassicMode {
   }
 
   private skill: AiSkill = "normal";
+  private comment = createCommentary();
+  private visionUnavailable = false;
 
   override useSettings(settings: RoomSettings): void {
     super.useSettings(settings);
@@ -33,7 +35,7 @@ export class AIGuesserMode extends ClassicMode {
 
   override configure(
     humans: PlayerRef[],
-    ctx: EngineContext
+    ctx: EngineContext,
   ): { totalTurns: number; turnsPerRound?: number } {
     this.drawOrder = humans.map((h) => h.id); // only humans draw
     ctx.addParticipant({ id: AI_ID, name: AI_NAME, isAI: true });
@@ -46,6 +48,7 @@ export class AIGuesserMode extends ClassicMode {
   override onTurnStart(turn: TurnContext, ctx: EngineContext): void {
     super.onTurnStart(turn, ctx); // deliver word to the human drawer
     this.stop?.();
+    this.visionUnavailable = false;
     this.stop = startGuessLoop(turn, ctx, {
       aiId: AI_ID,
       aiName: AI_NAME,
@@ -53,11 +56,13 @@ export class AIGuesserMode extends ClassicMode {
       onSaid: (g) => this.settleBets(g, ctx),
       requestGuess: this.requestGuess,
       onCorrect: () => this.acceptGuess(AI_ID, ctx),
-      onUnavailable: () =>
+      onUnavailable: () => {
+        this.visionUnavailable = true;
         ctx.broadcast({
           type: "system",
           text: "🤖 the AI can't see the canvas right now. carry on without it.",
-        }),
+        });
+      },
     });
   }
 
@@ -65,11 +70,14 @@ export class AIGuesserMode extends ClassicMode {
     super.onTurnEnd(turn, ctx);
     this.stop?.();
     this.stop = null;
-    // The most interesting thing in the room had nothing to say about the round it just played.
     ctx.broadcast({
       type: "chat",
       from: { id: AI_ID, name: AI_NAME },
-      text: aiComment(turn.word, ctx.hasGuessed(AI_ID)),
+      text: this.comment(
+        turn.word,
+        ctx.hasGuessed(AI_ID),
+        this.visionUnavailable,
+      ),
     });
   }
 }

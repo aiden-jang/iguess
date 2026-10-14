@@ -26,6 +26,7 @@
     "deploy:only": "pnpm --filter @iguess/ai-worker run deploy && pnpm --filter @iguess/game-server run deploy"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.62.1",
     "@typescript-eslint/eslint-plugin": "^8.18.0",
     "@typescript-eslint/parser": "^8.18.0",

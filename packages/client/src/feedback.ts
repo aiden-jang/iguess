@@ -1,3 +1,5 @@
+import { HAPTICS_KEY, preference } from "./usePreference";
+
 export const MUTE_KEY = "iguess_muted";
 let audioCtx: AudioContext | null = null;
 export function blip(freqs: number[], muted: boolean) {
@@ -5,7 +7,8 @@ export function blip(freqs: number[], muted: boolean) {
   try {
     const Ctor =
       window.AudioContext ??
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      (window as unknown as { webkitAudioContext: typeof AudioContext })
+        .webkitAudioContext;
     audioCtx = audioCtx ?? new Ctor();
     const ctx = audioCtx;
     // Audio built before the first click starts paused. Nothing else wakes it, so without this
@@ -32,9 +35,9 @@ export function blip(freqs: number[], muted: boolean) {
   }
 }
 
-// Mute is about noise, and a buzz makes none, so it ignores the mute setting. Android only:
-// iOS Safari has no vibration at all.
+// Sound and vibration have separate preferences; unsupported devices stay silent.
 export function buzz(pattern: number | number[]) {
+  if (!preference(HAPTICS_KEY, true)) return;
   try {
     navigator.vibrate?.(pattern);
   } catch {

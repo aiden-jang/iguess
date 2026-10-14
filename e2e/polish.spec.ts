@@ -19,10 +19,10 @@ async function enter(page: Page, room = roomCode(), name = "Art department") {
 }
 async function capture(page: Page, name: string) {
   if (process.env.CAPTURE_UI !== "1") return;
-  await mkdir("docs/ui-review/studio", { recursive: true });
+  await mkdir("docs/ui-review/finish", { recursive: true });
   await page.screenshot({
     animations: "disabled",
-    path: `docs/ui-review/studio/${name}.jpg`,
+    path: `docs/ui-review/finish/${name}.jpg`,
     fullPage: true,
   });
 }
@@ -87,10 +87,13 @@ test("the narrow lobby keeps its roster optional and help reachable", async ({
   await expect(
     page.getByRole("list", { name: "Player standings" }),
   ).toBeVisible();
-  const sound = page.locator(".roster-utilities button");
-  const before = await sound.getAttribute("aria-pressed");
-  await sound.click();
-  await expect(sound).not.toHaveAttribute("aria-pressed", before!);
+  const sound = page.getByRole("checkbox", {
+    name: "Sound effects",
+    exact: true,
+  });
+  await expect(sound).toBeChecked();
+  await sound.uncheck();
+  await expect(sound).not.toBeChecked();
   await sound.press("Escape");
   await expect(page.locator(".room-roster")).not.toHaveAttribute("open", "");
   await expect(page.locator(".room-roster summary")).toBeFocused();

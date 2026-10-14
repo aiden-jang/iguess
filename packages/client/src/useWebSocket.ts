@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { withTransition } from "./useViewTransition";
 import type {
   ClientMessage,
   ServerMessage,
@@ -79,7 +78,6 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
   const [wordChoices, setWordChoices] = useState<Choices | null>(null);
   const [settings, setSettings] = useState<RoomSettings>(DEFAULT_SETTINGS);
   const [peerCursor, setPeerCursor] = useState<Point | null>(null);
-  const phaseRef = useRef<string | null>(null);
   const [reactions, setReactions] = useState<{ id: number; emoji: string; at: number }[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const drawListeners = useRef<Set<DrawListener>>(new Set());
@@ -160,11 +158,7 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
           for (const op of msg.ops) emitDraw(op);
           break;
         case "game_state": {
-          // Only animate a phase change. Scores tick constantly and would animate forever.
-          const changedPhase = msg.state.phase !== phaseRef.current;
-          phaseRef.current = msg.state.phase;
-          if (changedPhase) withTransition(() => setGame(msg.state));
-          else setGame(msg.state);
+          setGame(msg.state);
           setMyWord((w) => (msg.state.phase === "playing" ? w : null));
           if (msg.state.phase !== "choosing") setWordChoices(null);
           break;
