@@ -20,7 +20,10 @@ const scoreOf = (s: Standings, id: string): number => s.scores[id] ?? 0;
 export function scoreLine({ ranked, scores, youId }: Standings): string {
   return ranked
     .slice(0, SHOWN)
-    .map((p) => `${p.id === youId ? "you" : isAI(p.id) ? "🤖" : p.name} ${scores[p.id] ?? 0}`)
+    .map(
+      (p) =>
+        `${p.id === youId ? "you" : isAI(p.id) ? "🤖" : p.name} ${scores[p.id] ?? 0}`,
+    )
     .join("  ·  ");
 }
 
@@ -31,34 +34,42 @@ export interface FlexContext {
 }
 
 /** The block-chart brag that gets copied to the clipboard at the end of a game. */
-export function flexText(standings: Standings, { modeLabel, inviteUrl, streak }: FlexContext): string {
+export function resultsText(
+  standings: Standings,
+  { modeLabel, inviteUrl, streak }: FlexContext,
+): string {
   const { ranked, youId } = standings;
   const place = youId ? ranked.findIndex((p) => p.id === youId) + 1 : 0;
-  const aiScores = ranked.filter((p) => isAI(p.id)).map((p) => scoreOf(standings, p.id));
-  const beatAI = aiScores.length > 0 && youId != null && scoreOf(standings, youId) > Math.max(...aiScores);
+  const aiScores = ranked
+    .filter((p) => isAI(p.id))
+    .map((p) => scoreOf(standings, p.id));
+  const beatAI =
+    aiScores.length > 0 &&
+    youId != null &&
+    scoreOf(standings, youId) > Math.max(...aiScores);
 
   // Scale the bars against the winner, never against zero.
   const top = Math.max(1, ...ranked.map((p) => scoreOf(standings, p.id)));
   const rows = ranked.slice(0, SHOWN).map((p, i) => {
     const score = scoreOf(standings, p.id);
     const filled = Math.max(1, Math.round((score / top) * BAR_BLOCKS));
-    const block = p.id === youId ? "🟪" : isAI(p.id) ? "🤖" : "⬜";
+    const block = p.id === youId ? "🟥" : isAI(p.id) ? "🤖" : "⬜";
     return `${MEDALS[i] ?? "▪️"} ${block.repeat(filled)} ${score}`;
   });
 
   const brags = [
-    beatAI ? "cooked the AI too 🤖💥 no cap" : null,
+    beatAI ? "Beat the AI. Apparently." : null,
     streak > 1 ? `🔥 ${streak}-win streak` : null,
   ].filter(Boolean);
 
   return [
     `iguess ✏️ · ${modeLabel}`,
-    `i came #${place || "?"}/${ranked.length} and that's on periodt`,
+    `i came #${place || "?"}/${ranked.length} — witnessed.`,
     "",
     ...rows,
     ...(brags.length ? ["", ...brags] : []),
     "",
-    `pull up: ${inviteUrl}`,
+    `Join the room: ${inviteUrl}`,
   ].join("\n");
 }
 

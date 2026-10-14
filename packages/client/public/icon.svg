@@ -1,14 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- iguess mark: a pencil on the violet gradient. Font-free shapes, so it rasterizes cleanly to
-       the PWA PNG sizes. -->
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#818cf8" />
-      <stop offset="1" stop-color="#a855f7" />
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="120" fill="url(#g)" />
-  <g fill="#0b0a12" transform="rotate(20 256 256)">
-    <path d="M216 100 h80 v244 l-40 64 -40 -64 z" />
-  </g>
+  <rect width="512" height="512" rx="120" fill="#bd4938"/>
+  <path d="m159 337 20-80 135-136q24-22 48 2t-1 48L224 307Z" fill="#fffcf5"/>
+  <path d="m159 337 65-30-45-50Z" fill="#292d29"/>
+  <path d="m293 143 46 46" stroke="#bd4938" stroke-width="13"/>
+  <path d="M121 393q52-39 104-1t118-6" fill="none" stroke="#fffcf5" stroke-width="15" stroke-linecap="round"/>
 </svg>

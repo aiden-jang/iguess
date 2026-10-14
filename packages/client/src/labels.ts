@@ -1,21 +1,24 @@
 export type InviteResult = "copied" | "shared" | null;
 
 export function chatPlaceholder(drawingNow: boolean, inGame: boolean): string {
-  if (drawingNow) return "eyes on the canvas, picasso ✋";
-  return inGame ? "guess it bestie… (?word calls the AI)" : "say something fr";
+  if (drawingNow) return "Draw on the canvas. No hints in chat.";
+  return inGame ? "Your guess… (?word bets on the AI)" : "Say something…";
 }
 
 // "connecting…" only before the first connection ever lands, so a slow first load doesn't
 // accuse the network of dropping something it never had.
-export function connectionLabel(connected: boolean, everConnected: boolean): string {
-  if (connected) return "we're so back";
-  return everConnected ? "hang on…" : "connecting…";
+export function connectionLabel(
+  connected: boolean,
+  everConnected: boolean,
+): string {
+  if (connected) return "Connected";
+  return everConnected ? "Reconnecting…" : "connecting…";
 }
 
 export function inviteLabel(result: InviteResult): string {
-  if (result === "shared") return "✅ invite sent";
-  if (result === "copied") return "✅ copied, go spam it";
-  return "🔗 invite the squad";
+  if (result === "shared") return "Invite shared ✓";
+  if (result === "copied") return "Link copied ✓";
+  return "Invite friends";
 }
 
 export interface LobbyCounts {
@@ -36,13 +39,14 @@ export function lobbyStatus({
   humanCount,
   watchingCount,
 }: LobbyCounts): string {
-  if (youAreWatching) return "room's full, so you're watching. you're in the next game.";
+  if (youAreWatching)
+    return "Room is full. You’re watching until a seat opens.";
   if (!soloWaiting) {
     const watchers = watchingCount ? ` · ${watchingCount} watching` : "";
-    return `lowkey waiting · ${readyCount}/${humanCount} ready${watchers}`;
+    return `Lobby · ${readyCount}/${humanCount} ready${watchers}`;
   }
-  if (isAIMode) return "it's you vs the 🤖 AI. hit send it whenever you're ready.";
-  return "just you so far. classic needs someone to guess, so hit 🔗 invite the squad.";
+  if (isAIMode) return "It’s you vs the AI. Start game when you’re ready.";
+  return "Classic needs someone to guess. Invite a friend to start.";
 }
 
 export interface BoardState {
@@ -60,7 +64,9 @@ export function boardHint(s: BoardState): string | null {
   if (s.canDraw) return null;
   if (s.youAreWatching) return "you're watching this one";
   if (s.phase === "choosing") {
-    return s.isDrawer ? "pick a word to start drawing ☝️" : `${s.drawerName} is picking a word`;
+    return s.isDrawer
+      ? "Pick a word to start drawing"
+      : `${s.drawerName} is picking a word`;
   }
-  return s.drawerIsAI ? "🤖 the AI is cooking" : `${s.drawerName} is cooking 👨‍🍳`;
+  return s.drawerIsAI ? "The AI is drawing" : `${s.drawerName} is drawing`;
 }

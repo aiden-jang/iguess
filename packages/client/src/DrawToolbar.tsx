@@ -1,4 +1,5 @@
-import { COLORS, widthDot } from "./brushStyle";
+import { useEffect, useState } from "react";
+import { COLORS, COLOR_NAMES, widthDot } from "./brushStyle";
 import type { Brush } from "./useBrush";
 import { styles } from "./styles";
 
@@ -10,24 +11,47 @@ interface DrawToolbarProps {
   onClear: () => void;
 }
 
-export function DrawToolbar({ brush, canDraw, onUndo, onSave, onClear }: DrawToolbarProps) {
+export function DrawToolbar({
+  brush,
+  canDraw,
+  onUndo,
+  onSave,
+  onClear,
+}: DrawToolbarProps) {
+  const [confirmClear, setConfirmClear] = useState(false);
+  useEffect(() => {
+    if (!confirmClear) return;
+    const timer = setTimeout(() => setConfirmClear(false), 4000);
+    return () => clearTimeout(timer);
+  }, [confirmClear]);
   return (
-    <div className="glass draw-toolbar" style={styles.toolbar}>
+    <div
+      role="toolbar"
+      aria-label="Drawing tools"
+      className="glass draw-toolbar"
+      style={styles.toolbar}
+    >
       {COLORS.map((c) => (
         <button
           key={c}
           disabled={!canDraw}
-          onClick={() => { brush.pickColor(c); }}
+          onClick={() => {
+            brush.pickColor(c);
+          }}
           style={{
             ...styles.swatch,
             background: c,
             cursor: canDraw ? "pointer" : "default",
             opacity: canDraw ? 1 : 0.35,
             boxShadow:
-              c === brush.color ? "0 0 0 2px var(--panel), 0 0 0 4px var(--accent)" : "none",
+              c === brush.color
+                ? "0 0 0 2px var(--panel), 0 0 0 4px var(--accent)"
+                : "none",
             border: c === "#ffffff" ? "1px solid #44495a" : "none",
           }}
-          aria-label={`color ${c}`}
+          aria-label={`Color ${COLOR_NAMES[c]}`}
+          title={COLOR_NAMES[c]}
+          aria-pressed={c === brush.color}
         />
       ))}
       <div style={styles.toolDivider} />
@@ -48,7 +72,9 @@ export function DrawToolbar({ brush, canDraw, onUndo, onSave, onClear }: DrawToo
           ...styles.ghostButton,
           ...(brush.erasing ? { boxShadow: "0 0 0 2px var(--accent)" } : {}),
         }}
-        onClick={() => { brush.toggleErasing(); }}
+        onClick={() => {
+          brush.toggleErasing();
+        }}
         disabled={!canDraw}
         aria-pressed={brush.erasing}
         title="eraser"
@@ -61,7 +87,9 @@ export function DrawToolbar({ brush, canDraw, onUndo, onSave, onClear }: DrawToo
           ...styles.ghostButton,
           ...(brush.filling ? { boxShadow: "0 0 0 2px var(--accent)" } : {}),
         }}
-        onClick={() => { brush.toggleFilling(); }}
+        onClick={() => {
+          brush.toggleFilling();
+        }}
         disabled={!canDraw}
         aria-pressed={brush.filling}
         title="fill an area with the current colour"
@@ -88,12 +116,22 @@ export function DrawToolbar({ brush, canDraw, onUndo, onSave, onClear }: DrawToo
       <button
         className="lift"
         style={styles.ghostButton}
-        onClick={onClear}
+        onClick={() => {
+          if (confirmClear) {
+            onClear();
+            setConfirmClear(false);
+          } else setConfirmClear(true);
+        }}
+        onBlur={() => setConfirmClear(false)}
+        title={
+          confirmClear
+            ? "Press again to clear this drawing. This cannot be undone."
+            : "Clear the drawing"
+        }
         disabled={!canDraw}
       >
-        Clear
+        {confirmClear ? "Clear drawing?" : "Clear"}
       </button>
     </div>
-
   );
 }

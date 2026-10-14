@@ -3,11 +3,34 @@ import type { CSSProperties } from "react";
 // Real hex codes, not theme variables. A drawing must look the same to everyone, whichever
 // theme each person happens to be using.
 export const COLORS = [
-  "#111111", "#6b7280", "#ffffff",
-  "#e11d48", "#f97316", "#f59e0b",
-  "#16a34a", "#0891b2", "#2563eb",
-  "#7c3aed", "#db2777", "#92400e",
-];
+  "#111111",
+  "#6b7280",
+  "#ffffff",
+  "#e11d48",
+  "#f97316",
+  "#f59e0b",
+  "#16a34a",
+  "#0891b2",
+  "#2563eb",
+  "#7c3aed",
+  "#db2777",
+  "#92400e",
+] as const;
+
+export const COLOR_NAMES: Record<(typeof COLORS)[number], string> = {
+  "#111111": "Black",
+  "#6b7280": "Gray",
+  "#ffffff": "White",
+  "#e11d48": "Red",
+  "#f97316": "Orange",
+  "#f59e0b": "Yellow",
+  "#16a34a": "Green",
+  "#0891b2": "Teal",
+  "#2563eb": "Blue",
+  "#7c3aed": "Purple",
+  "#db2777": "Pink",
+  "#92400e": "Brown",
+};
 
 /** The dot that previews the brush size next to the slider. */
 export function widthDot(w: number, c: string, on: boolean): CSSProperties {

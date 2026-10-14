@@ -1,293 +1,115 @@
 # Architecture
 
-A deep-dive into how _iguess_ is built, why it's structured this way, and
-what I'd change to take it to production. Written to be read top-to-bottom; each
-section ends with the trade-off I actually made.
+iguess has three runtime boundaries: a browser client, a room-owning game server,
+and a vision worker. Shared types and pure rules live in `shared/`.
 
-## TL;DR: the decisions that matter
+## Client
 
-The five that shaped everything else:
+`App` owns the join draft and the transition into a room. `JoinScreen` renders the
+join form and a clearly labeled static drawing example. `roomLinks` parses
+current and legacy invitations; `playerStats` owns browser-local statistics.
 
-1. **Engine vs. modes (§1).** The turn timeline and the game rules are separate. `engine.ts` has zero game rules; each of the five modes is a strategy behind a fixed hook interface. Four of the five modes were added after the engine froze, with no engine change.
-2. **One Durable Object per room (§4).** Gives single-writer-per-room by construction, so roster + strokes live in memory with no Redis, no lock, no cross-instance race. It's the runtime that happens to be the room-affinity cluster I'd otherwise have hand-rolled.
-3. **AI off the hot path (§3).** Vision runs in a separate Worker on an interval with a hard per-turn cap and a provider fallback chain, so a slow or failed guess never blocks the socket loop or the game.
-4. **One abstraction, added on demand (§6).** The only engine change the whole project needed was a single transport-agnostic `ctx.draw` verb, introduced when AI-as-drawer actually required it, not speculated up front.
-5. **Production concerns are real (§8).** Abuse limits enforced server-side at three layers, identity-preserving reconnect with a grace window, and an honest list of what is still missing.
+`Room` connects the socket to the board, banner, sidebar, scoreboard and chat.
+`roomView` derives roles and permissions from the server snapshot. Component
+state does not grant authority to start games, score guesses or choose drawers.
 
-The sections below are the long form, each ending with the trade-off I made.
+Room effects have separate owners:
 
----
+- `useGameFeedback`: audio, vibration and result celebrations.
+- `useRoundGallery`: capture completed drawings, preserve stroke replays and track AI guesses.
+- `useRoomSharing`: invites, copied results and evidence images, including failure feedback.
+- `useGameSocket`: socket connection, server messages, outgoing actions and draw subscriptions.
 
-## 1. Core engine vs. mode plugins
+`DrawingCanvas` renders local strokes immediately for the drawer. It replays
+server operations for everyone else. Coordinates are normalized, and shared
+undo rules keep client and server stroke handling aligned. The eraser removes
+pixels rather than painting white, so fill remains consistent with transparency.
 
-The central design bet is that the game timeline and the game rules are different things and
-should never be tangled together.
+`index.css` owns the palette, game layout, shared motion and responsive rules;
+`join.css` owns the public join screen. `styles.ts` contains typed component
+styles. Token-based light and dark palettes follow system preferences. Reduced
+motion suppresses decorative animation, and confetti is not constructed when
+motion is reduced.
 
-`engine.ts` (`GameEngine`) owns the timeline: phases (`lobby → choosing → playing →
-intermission → ended`), the per-turn timer, the scoreboard, the "who has guessed" set, and
-broadcasting public state. It contains zero game rules. It does not know what a "word" means,
-who is allowed to draw, or how points are earned. A `GameMode` supplies every one of those
-decisions through a fixed set of hooks: `configure`, `pickDrawer`, `pickWord`,
-`pickWordChoices` (optional), `onTurnStart`, `onChat`, `canDraw`, `onTurnEnd`, `onGameEnd`.
+## One room, one owner
 
-The two halves meet through two narrow interfaces. `EngineDeps` is what the transport injects
-_into_ the engine (`broadcast`, `sendToPlayer`, `clearCanvas`, `drawOp`, …), so the engine never
-imports a transport or a store and knows only those verbs. That is what let the whole thing move
-from a Node/`ws`/Redis process into a Durable Object without the engine or the modes changing at
-all (§4). `EngineContext` is what the engine hands back _to_ a mode (`awardPoints`, `endTurn`,
-`addParticipant`, `draw`, `turnFractionRemaining`, …); a mode never sees a socket, a store, or
-even the full engine.
+The game Worker routes each room socket to a named `GameRoom` Durable Object.
+That object owns its connections, roster, settings, stroke log and engine. It
+broadcasts locally within the room; no external pub/sub layer is needed.
 
-```
-transport (worker.ts → GameRoom Durable Object)
-      │  injects EngineDeps
-      ▼
-  GameEngine ── timeline, scoring bookkeeping
-      │  exposes EngineContext
-      ▼
-  GameMode (one of five strategies)
-```
+The server is authoritative. Only the active drawer can submit drawing
+operations during play. Guess scoring, turn order and game phases are calculated
+by the engine, and server validation applies even if a modified client sends
+invalid actions. The secret word is sent only to the drawer.
 
-Shared _behavior_ deliberately lives outside both. The AI's interval guess loop and its
-progressive draw-reveal loop are used by several modes, but they are mode policy (cadence, cost
-caps, reveal speed) rather than timeline, so they are composable helpers (`ai/aiGuessLoop.ts`,
-`ai/aiDrawLoop.ts`) that modes call. `TeamBattleMode` and `DuelMode` each need both loops and
-cannot extend two mode classes, which is the pressure that proved the helpers belong outside the
-inheritance tree.
+Sockets are pinned rather than hibernating because the engine’s timers need the
+object to stay resident. This trades idle-room efficiency for a straightforward
+live timeline. Room state is currently in memory rather than persisted in the
+object’s SQLite storage: eviction can end a game.
 
-> **Decision:** strategy and dependency injection over `if (mode === …)` branches or a deep
-> inheritance chain. Conditionals would have scattered each mode's rules across the engine, and
-> a tall chain breaks the moment one mode needs behavior from two ancestors. The engine has had
-> zero churn since it froze.
+## Engine and modes
 
----
+`GameEngine` owns phase changes, word selection timing, hints, scoring and turn
+transitions. A `GameMode` supplies drawing order, word choices and chat rules.
+The engine does not contain separate branches for human and AI players.
 
-## 2. Real-time sync
+Classic is the base human mode. AI Guesser adds a virtual player; AI Drawer emits
+curated doodle strokes through the engine’s draw operation. Team Battle scores
+round wins between humans and AI. Duel alternates drawing roles and accumulates
+points. Mode-specific behavior stays in these strategies.
 
-The server is authoritative: clients never talk to each other, and every fact flows through
-`broadcast`/`broadcastExcept`. A stroke travels as a sequence of `start → move → end` ops
-(`shared/events.ts`), never a finished bitmap, so watchers see lines grow in real time,
-messages stay tiny, and a late joiner is caught up by replaying the same log (`canvas_sync`).
+Shared functions define word matching, difficulty, undo operations and awards.
+Rules consumed by both client and server should stay in `shared/` rather than
+being reimplemented on each side.
 
-Three consequences:
+## AI guessing
 
-- Coordinates are normalized 0 to 1, so a drawing made on an 800×600 canvas renders correctly
-  on any client size with no server-side rescaling.
-- The drawer renders locally and is excluded from its own broadcast (`broadcastExcept`), which
-  hides the round trip for the person drawing while keeping everyone else server-driven.
-- `clear` truncates the log rather than appending, and every turn starts with a clear, so the
-  per-turn log stays bounded.
+The game server submits a drawing snapshot to the separate AI worker. That worker
+renders stroke operations to an image and asks a configured vision provider.
+The request includes a masked hint, never the secret answer. Providers share an
+interface; mock behavior keeps tests independent of credentials.
 
-> **Decision:** an authoritative server over client prediction or P2P. It is a trust boundary
-> as much as a latency one: a cheating client cannot fabricate game state because it has no
-> authority over it. The cost is a round trip for _remote_ strokes, which I hide only for the
-> local drawer. Because there is exactly one drawer per turn (a draw-lock, not a CRDT),
-> conflict resolution never comes up, a deliberate simplification versus collaborative drawing.
+AI requests happen outside socket message handling. A slow or failed call does
+not pause the room. Guess cadence responds to new ink, and attempt and room
+budgets limit paid requests. Provider failures and mock fallback are disclosed
+rather than presented as normal vision guesses.
 
----
+The AI drawer is not an image generator. It reveals curated vector strokes over
+time with procedural variation. A generator can be injected through its existing
+request-drawing seam without adding AI-specific logic to the engine.
 
-## 3. AI guessing: data flow, latency, cost
+## Reconnects and limits
 
-The vision model runs in a **separate `ai-worker` Worker**, never in the
-WebSocket event loop.
+A reconnecting player has a grace window that preserves their role and score.
+The reconnect ID is client-asserted; it is not a signed identity token. This is a
+known trust limit, not account authentication.
 
-```
-game-server (GameRoom DO)           ai-worker (Worker)
-  AIGuesserMode (timer)
-     │ requestGuess()
-     ▼
-  aiWorkerClient ── HTTP POST /guess { ops } ──►  strokeSvg(ops) → PNG (resvg-wasm)
-     ▲                                                   │
-     │            { guess }                              ▼
-     └────────────────────────────────────  VisionProvider (OpenAI|Anthropic|Workers AI|Mock)
-```
+Room capacity, spectators, connection rate limits, message limits and AI request
+budgets bound the app’s abuse surface. Watchers can be promoted into available
+seats. The edge rate limiter can be absent in local development; production
+bindings are configured in the game Worker’s Wrangler file.
 
-A slow vision call (hundreds of ms to seconds) can't block message handling or other
-rooms: it's an awaited HTTP call from inside a timer callback, not inline in the socket
-loop. Beyond that:
+## Validation and deployment
 
-- A failure is announced, not swallowed. `aiWorkerClient` throws on a real
-  failure (no worker configured, worker down, timeout, non-200) and returns `""`
-  only for "there was nothing to ask". The guess loop tells the room once a turn
-  that the AI can't see the canvas, then keeps trying. The game never stalls on
-  the AI, and a mute AI is never mistaken for a thoughtful one.
-- Cost is bounded rather than best-effort. The first guess waits 8s at normal skill
-  (an empty canvas isn't worth a call, and `requestAIGuess` short-circuits on an
-  empty op list). Later looks are paced by how much new ink has appeared: sooner
-  after a burst, much later at an untouched canvas, scaled by skill. Attempts per
-  turn are capped by skill, and the room carries a whole-lifetime budget on paid
-  calls so a "run it back" loop can't run up a bill.
-- The secret word never leaves the trusted boundary. Only stroke ops are
-  sent to the worker; the word is delivered solely to the drawer via
-  `your_word`. Anti-cheat (and privacy) is enforced by the _absence_ of data,
-  not by trusting a client.
-- Providers are swappable and auto-detected: OpenAI / Anthropic / Workers AI
-  / Mock behind one interface, tried in order, so a rate-limited paid key drops
-  through to the free tier and then to the fake one. The mock means the whole
-  system runs with zero API keys, and because it never throws, the room is told
-  when the mock is the one answering.
+`pnpm run verify` is the local and CI gate. Package tests cover pure rules, engine
+behavior, provider adapters and selected client behavior. Repository checks pin
+file ceilings, enforce comment constraints and hold package test floors.
 
-> **Decision:** interval snapshot polling over per-frame or final-image
-> guessing. Per-frame would be accurate but ruinously expensive and pointless
-> (the canvas barely changes between frames). Guessing only the _final_ image
-> would kill the "AI races you live" feel. Interval polling with a hard cap is
-> the middle that's both affordable and fun. **Decision:** a separate worker over
-> an inline call, so vision latency is isolated and the model tier can scale
-> independently of the socket layer.
+End-to-end tests run the real local game Worker and Durable Object. Their AI
+worker is pinned to mock, and the game server is started without a paid worker
+URL. Browser checks should include drawing/guessing roles, word secrecy, results,
+reconnects, keyboard access and narrow layouts.
 
----
+The game Worker serves the client’s production assets and room sockets on one
+origin. GitHub Actions deploys both Workers after checks pass on `main`.
+See [DEPLOY.md](DEPLOY.md) for configuration.
 
-## 4. One owning process per room
+## Known limits
 
-The engine is a single writer. Each room has one authoritative timeline with one running timer,
-so if two instances both ran a room's engine you would get two timers, two "turn ended" events
-and double scoring. Stateless instances behind a pub/sub relay do not fix this: that solves
-message _delivery_, not _authority_, and you still get two timers. The approach that survives is
-to route by room rather than by connection, hash each room to one owning instance, keep in-room
-broadcast a local fan-out, and make the owner's state rehydratable so a failover is a rehydrate
-rather than a rebuild.
+- In-memory rooms do not survive eviction.
+- Reconnect IDs can be claimed by another client; signed tokens would close that gap.
+- Raster fill replay at different sizes is visually close rather than bit-identical.
+- Mock-based tests do not establish paid-provider quality or real-device performance.
 
-A Durable Object is that owner by construction. Each room is one `GameRoom` addressed by
-`idFromName(room)`, and the platform guarantees at most one instance per id, globally,
-single-threaded. `worker.ts` derives the id from the room in the URL and hands the socket over;
-broadcast is then an in-memory loop over that object's own sockets, with no Redis and no
-per-message network hop, because there is no other instance to synchronize with.
-
-The one part that needed a decision rather than a default is the socket style. The turn
-`setTimeout` lives inside the object, so its sockets are **pinned** (`server.accept()`) rather
-than hibernating, because hibernation evicts pending timers. The cost is that a live game keeps
-its object resident, so an idle-but-open room is not free the way a hibernating one would be. A
-single hot room also cannot be split across instances, which is fine when a room is a handful of
-people.
-
-> **Decision:** Durable Objects over a hand-rolled room-affinity cluster. The earlier plan
-> (consistent-hash by `roomId`, Redis checkpointing, rehydrate on failover) was the right shape.
-> A Durable Object is that shape delivered as a primitive, minus the infrastructure I would
-> otherwise be operating.
-
----
-
-## 5. Smaller calls worth keeping
-
-The sections above cover the structural decisions. These are the small ones a reader would
-otherwise have to reverse-engineer, and each exists because the obvious alternative broke
-something.
-
-Undo echoes a stroke id instead of rebroadcasting the canvas. Undo was the largest message in
-the room, fired by the button people press most, and both sides run the same `dropStroke` so
-they cannot disagree about what was removed. The eraser is `destination-out` rather than white
-paint, because white pixels are a region the fill bucket treats as its own area to flood, and
-erasing back to transparent keeps one background.
-
-The AI gets harder by being more patient, never by lying. A brutal AI looks sooner and more
-often; an easy one looks later and sometimes goes with its second thought. Corrupting its
-answers would have been easier, but a bot that is wrong on purpose stops being a demonstration
-of the model. For the same reason its guesses come back as a ranked shortlist rather than a
-confidence percentage: these APIs return no calibrated confidence, so a percentage would be
-invented, and the runners-up are the funnier signal anyway.
-
-Words are offered one per difficulty tier, and the harder ones pay more, which makes the pick a
-bet rather than a formality.
-
----
-
-## 6. The one place the engine had to evolve
-
-Until a mode let the AI draw, strokes only ever originated from a human socket, so
-the engine never needed a "draw" verb: human draw ops were persisted and
-broadcast entirely in the transport layer. **AI-as-drawer broke that
-assumption:** the AI must emit strokes _through the engine_, and they must be
-persisted, or a mid-turn joiner's `canvas_sync` would miss them.
-
-The fix was a single transport-agnostic verb, `ctx.draw(op)` (backed by
-`EngineDeps.drawOp`), that persists to the stroke log _and_ broadcasts,
-symmetric with the existing `clearCanvas()`. The engine still has no idea who or
-why; it just stopped assuming strokes can only come from a socket. Discovering a
-missing abstraction from a concrete new requirement, rather than speculating it up front, is
-what kept the engine from churning.
-
----
-
-## 7. What a post-change audit turned up
-
-Worth writing down, because none of it was caught by the unit tests that were passing at the time.
-
-- **A feature leaked into the one mode that overrode the hook.** `?word` bets on the AI's next
-  guess. `TeamBattleMode` writes its own `onChat` and never called the base, and the guess
-  normalizer strips punctuation, so `?dog` was scored as a plain answer and won the round. The
-  fix was to move the handling into a `takeCall()` the base class exposes, and say in the comment
-  that any override must run it first. **Lesson: an inherited hook that a subclass replaces is a
-  place features silently do not arrive.**
-- **A capacity rule created a state with no exit.** Spectators are seated when a host starts a
-  game, and the host is chosen from players. When every player left a full room, neither
-  condition could ever fire again and the room was stuck forever. The rule now promotes watchers
-  when nobody is playing. **Lesson: two rules that each depend on the other having run is a
-  deadlock, not a policy.**
-- **A UI control that did nothing in three of five modes.** The lobby's round-count picker fed
-  `ClassicMode`, but the AI modes each hardcoded their own length. **Lesson: adding a setting
-  means auditing every implementer, not the one you were looking at.**
-- **A first-round bug that predated all of it.** The gallery cleared itself on `turnIndex === 0`,
-  and the state broadcast immediately after a turn ends still carries the old index, so round
-  one's drawing was wiped the instant it was captured. In a one-round game that is the entire
-  gallery. It took an end-to-end test that actually played a game to the results screen to see
-  it. **Lesson: unit tests over an engine will not catch a bug in what the client does with the
-  engine's output.**
-
----
-
-## 8. Known limitations & what I'd do next
-
-- **A room's state is in memory, so eviction ends the game.** Settings, word memory, host and
-  engine state all live in the Durable Object's memory rather than its SQLite storage, so a rare
-  eviction ends that game instead of rehydrating it. It is the cheap next step now that the
-  object owns the state.
-- **The `pid` that survives a reconnect is client-asserted.** It buys a dropped player, including
-  a sole player, an ~8s grace window that keeps their score, draw order and drawer role, and
-  re-delivers the drawer's secret word. Nothing stops one client claiming another's id. A signed
-  session token would.
-- **No auth at all, by design.** Anyone with the room code can join, and the longest-present
-  player is the host by default rather than by identity. The abuse surface is bounded by limits
-  instead of accounts: a per-IP cap on new connections at the Worker edge before a room's object
-  exists, a per-room cap of 8 players (extra arrivals watch instead of being turned away), a
-  coarse 200 msg/s per-connection bucket, and a whole-lifetime budget on paid vision calls per
-  room so a "run it back" loop cannot run up a bill. The per-IP layer degrades open when the
-  binding is absent, which is what local dev relies on.
-- **The AI drawer is curated, not generative:** 40 hand-coded vector doodles, each redrawn by a
-  post-processing pass with an unsteady hand so the same word never draws the same picture twice.
-  The seam for a real generator is unchanged (`AIDrawerMode`'s injected `requestDrawing`) and the
-  wobble pass would apply to a generated drawing just as well.
-- **The fill tool rasterizes per client.** Replaying a filled drawing at a different canvas size
-  gives a near-identical, not bit-identical, result. Fine for a doodle, not fine if drawings were
-  ever authoritative artifacts.
-- **The rasterizer has no automated coverage.** The e2e suite drives the real Worker and Durable
-  Object, and `aiWorker.spec.ts` posts to a real ai-worker, but that worker is pinned to the mock
-  provider so it never renders a PNG. Exercising `strokeRender` end to end needs a paid provider.
-
-**Next two:** persist engine state to the object's SQLite so a room survives eviction, and signed
-session tokens so a `pid` cannot be spoofed.
-
-# How it works, moved out of the README
-
-_Moved out of the README, which is the front door and was carrying the whole house._
-
-## Game modes
-
-A mode implements the `GameMode` interface and is called at the hooks listed in §1. Adding one
-means writing a class, not editing the engine.
-
-- `ClassicMode`: humans take turns drawing, everyone else guesses in chat.
-  The other four build on this one.
-- `AIGuesserMode`: adds an AI player that guesses off the live canvas on a
-  timer.
-- `AIDrawerMode`: the AI does all the drawing (its strokes go through the
-  engine via `ctx.draw`) and humans guess.
-- `TeamBattleMode`: humans vs AI. Rounds alternate who draws, and the first
-  correct guess wins the round for that side.
-- `DuelMode`: you vs the AI, head-to-head. You trade the drawer role each turn
-  (you draw and the AI reads your canvas; then the AI draws and you guess), and
-  both sides bank cumulative points, so unlike TeamBattle's round-win race, the
-  AI earns points both as guesser and as drawer. Most points beats the machine.
-
-The `pickWordChoices` hook drives the word-choice step: return 2+ words and the
-drawer gets to choose one; return `null` to skip it (the AI drawer just picks its
-own word).
+Persisted room state and signed reconnect tokens are separate product changes;
+UI cleanup does not silently implement either.

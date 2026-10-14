@@ -5,6 +5,7 @@ export interface Round {
   drawerId: string | null;
   guess: string | null;
   right: boolean;
+  aiParticipated?: boolean;
 }
 
 export interface Award {
@@ -22,7 +23,7 @@ const nameOf = (players: PlayerInfo[], id: string | null) =>
  */
 export function awardsFor(rounds: Round[], players: PlayerInfo[]): Award[] {
   const out: Award[] = [];
-  const drawn = rounds.filter((r) => r.drawerId);
+  const drawn = rounds.filter((r) => r.drawerId && r.aiParticipated !== false);
   if (drawn.length === 0) return out;
 
   const byDrawer = new Map<string, { total: number; read: number }>();
@@ -52,10 +53,13 @@ export function awardsFor(rounds: Round[], players: PlayerInfo[]): Award[] {
   }
 
   // The AI's worst take: the wrong guess that missed by the widest margin in letters.
-  const misses = rounds.filter((r) => !r.right && r.guess);
+  const misses = drawn.filter((r) => !r.right && r.guess);
   if (misses.length) {
     const worst = misses.reduce((a, b) =>
-      Math.abs(b.guess!.length - b.word.length) > Math.abs(a.guess!.length - a.word.length) ? b : a
+      Math.abs(b.guess!.length - b.word.length) >
+      Math.abs(a.guess!.length - a.word.length)
+        ? b
+        : a,
     );
     out.push({
       title: "💀 worst take",

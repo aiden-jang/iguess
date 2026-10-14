@@ -1,4 +1,3 @@
-// Self-hosted: Google's CDN was a render-blocking third party on the critical path.
 import "@fontsource-variable/inter/wght.css";
 import "@fontsource-variable/fredoka/wght.css";
 import React from "react";

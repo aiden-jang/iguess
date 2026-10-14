@@ -1,33 +1,41 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("the join screen", () => {
-  test("hands you a generated room code, not a shared lobby", async ({ page }) => {
+  test("hands you a generated room code, not a shared lobby", async ({
+    page,
+  }) => {
     await page.addInitScript(() => localStorage.clear());
     await page.goto("/");
-    const room = page.getByPlaceholder("your room code");
+    const room = page.getByRole("textbox", { name: /^Room code/ });
     await expect(room).toHaveValue(/^[a-z]+-[a-z]+-\d{2}$/);
   });
 
   test("the dice gives a different room every time", async ({ page }) => {
     await page.addInitScript(() => localStorage.clear());
     await page.goto("/");
-    const room = page.getByPlaceholder("your room code");
+    const room = page.getByRole("textbox", { name: /^Room code/ });
     const first = await room.inputValue();
-    await page.getByLabel("new room code").click();
+    await page.getByLabel("New room code", { exact: true }).click();
     await expect(room).not.toHaveValue(first);
   });
 
   test("an invite link preselects the room it names", async ({ page }) => {
     await page.goto("/r/spicy-wombat-47?mode=classic");
-    await expect(page.getByPlaceholder("your room code")).toHaveValue("spicy-wombat-47");
+    await expect(page.getByRole("textbox", { name: /^Room code/ })).toHaveValue(
+      "spicy-wombat-47",
+    );
   });
 
   test("you can pick an avatar and it survives a reload", async ({ page }) => {
     await page.addInitScript(() => localStorage.clear());
     await page.goto("/");
-    await page.getByLabel("avatar 🦊").click();
-    await page.getByPlaceholder("whatever you want, really").fill("Tester");
-    await page.getByRole("button", { name: /pull up/i }).click();
+    await page.getByLabel("Avatar 🦊", { exact: true }).click();
+    await page
+      .getByRole("textbox", { name: "Your name", exact: true })
+      .fill("Tester");
+    await page
+      .getByRole("button", { name: /Enter room|Join the room/i })
+      .click();
     await expect(page.getByText("Tester")).toBeVisible();
   });
 });

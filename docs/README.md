@@ -1,15 +1,18 @@
-# docs/: media assets
+# Visual evidence
 
-Screenshots embedded by the root `README.md`:
+The root README uses the current generated share card. Its source is
+`packages/client/public/og.svg`; regenerate it with the client’s `gen:og` script.
+The favicon and install icons come from `public/icon.svg` through `gen:icons`.
 
-- `join.png`: the join screen (name, room, mode picker)
-- `choosing.png`: the drawer picking one of three offered words
-- `gameplay.png`: the drawer's view (word shown, sketch, AI guessing in chat)
-- `gameplay-guesser.png`: a guesser's view (masked word, same live canvas)
+The older `join.png`, `choosing.png`, `gameplay.png`, `gameplay-guesser.png` and
+`gameplay.svg` are historical gameplay captures, not references for the current
+palette or layout. They remain as evidence of live drawing and word masking.
 
-These were captured by driving two browser sessions through a real game. To
-refresh them, run the app locally (see the root README), play a round, and
-replace the PNGs here.
+For fresh captures, run the local stack and play through joining, word choice,
+drawing, guessing and results. Use separate players to verify that the drawer
+sees the word while guessers see only its masked hint. Label demonstration data
+and do not use private room drawings without permission.
 
-A short `demo.gif` of the live sync would be a nice addition if you record one
-(Kap or QuickTime → export GIF, keep it under ~10 MB so GitHub renders it inline).
+Inspect desktop and mobile widths, light/dark palettes, focus states and reduced
+motion. Record unavailable browser or physical-device checks separately; a test
+suite does not establish visual fidelity.

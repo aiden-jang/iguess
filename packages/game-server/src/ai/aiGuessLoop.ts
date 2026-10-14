@@ -25,14 +25,14 @@ const SKILL: Record<AiSkill, { firstMs: number; pace: number; maxGuesses: number
 // Only the DISPLAYED text gets this personality. Whether a guess counts is decided on the
 // bare word, so wording can never change the outcome. `%` becomes the guess.
 const GUESS_PHRASINGS = [
-  "is it… %? 🤔",
-  "ok hear me out: %",
-  "giving %, respectfully",
-  "my circuits say %",
-  "%? final answer. probably.",
-  "lowkey think it's a %",
-  "calling it now: %",
-  "no cap that's a %",
+  "Is it %?",
+  "Hear me out: %.",
+  "A %. With reservations.",
+  "Evidence suggests %. Loosely.",
+  "%? Final answer. For now.",
+  "Looks like a %. Allegedly.",
+  "I’m going with %.",
+  "A %. I will defend this briefly.",
 ];
 // Show the runners-up sometimes, not every time. A bot that dithers every single turn stops
 // being funny.

@@ -11,7 +11,13 @@ interface ScoreboardProps {
   onKick: (playerId: string) => void;
 }
 
-export function Scoreboard({ ranked, game, youId, youAreHost, onKick }: ScoreboardProps) {
+export function Scoreboard({
+  ranked,
+  game,
+  youId,
+  youAreHost,
+  onKick,
+}: ScoreboardProps) {
   return (
     <ul style={styles.scoreList}>
       {ranked.map((p, i) => {
@@ -55,7 +61,9 @@ export function Scoreboard({ ranked, game, youId, youAreHost, onKick }: Scoreboa
           </li>
         );
       })}
-      {ranked.length === 0 && <li style={styles.emptyRoster}>nobody here but us 🦗</li>}
+      {ranked.length === 0 && (
+        <li style={styles.emptyRoster}>Players will appear here.</li>
+      )}
     </ul>
   );
 }

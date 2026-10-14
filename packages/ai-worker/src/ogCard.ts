@@ -24,18 +24,18 @@ export function ogSvg(room: string, mode: string): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#a855f7"/>
-      <stop offset="0.55" stop-color="#f472b6"/>
-      <stop offset="1" stop-color="#fb923c"/>
+      <stop offset="0" stop-color="#bd4938"/>
+      <stop offset="0.55" stop-color="#bd4938"/>
+      <stop offset="1" stop-color="#bd4938"/>
     </linearGradient>
   </defs>
-  <rect width="${W}" height="${H}" fill="#0b0a12"/>
-  <circle cx="${W - 120}" cy="-80" r="340" fill="url(#g)" opacity="0.22"/>
+  <rect width="${W}" height="${H}" fill="#f4f1e9"/>
+  <circle cx="${W - 120}" cy="-80" r="340" fill="url(#g)" opacity="0.06"/>
   <text x="80" y="150" font-family="Verdana, DejaVu Sans, sans-serif" font-size="64" font-weight="bold" fill="url(#g)">iguess</text>
-  <text x="80" y="210" font-family="Verdana, DejaVu Sans, sans-serif" font-size="30" fill="#a39bb8">draw bad, win anyway. race the AI.</text>
-  <text x="80" y="360" font-family="Verdana, DejaVu Sans, sans-serif" font-size="34" fill="#a39bb8">room</text>
-  <text x="80" y="440" font-family="Verdana, DejaVu Sans, sans-serif" font-size="72" font-weight="bold" fill="#f1edf7">${esc(room)}</text>
-  <text x="80" y="530" font-family="Verdana, DejaVu Sans, sans-serif" font-size="32" fill="#a39bb8">${esc(mode)}</text>
+  <text x="80" y="210" font-family="Verdana, DejaVu Sans, sans-serif" font-size="30" fill="#666b63">Good guesses. Questionable art.</text>
+  <text x="80" y="360" font-family="Verdana, DejaVu Sans, sans-serif" font-size="34" fill="#666b63">room</text>
+  <text x="80" y="440" font-family="Verdana, DejaVu Sans, sans-serif" font-size="72" font-weight="bold" fill="#292d29">${esc(room)}</text>
+  <text x="80" y="530" font-family="Verdana, DejaVu Sans, sans-serif" font-size="32" fill="#666b63">${esc(mode)}</text>
 </svg>`;
 }
 

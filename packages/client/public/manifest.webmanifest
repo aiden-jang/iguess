@@ -2,7 +2,7 @@
   "id": "/",
   "name": "iguess",
   "short_name": "iguess",
-  "description": "Real-time multiplayer drawing & guessing. Draw bad, win anyway. Race the AI.",
+  "description": "Draw a secret word. Race your friends and an AI to guess it. Bad drawings welcome.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -15,8 +15,8 @@
   "launch_handler": {
     "client_mode": "focus-existing"
   },
-  "background_color": "#0b0a12",
-  "theme_color": "#0b0a12",
+  "background_color": "#f4f1e9",
+  "theme_color": "#f4f1e9",
   "icons": [
     {
       "src": "/icon-192.png",

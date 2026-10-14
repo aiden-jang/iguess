@@ -6,7 +6,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test \"src/**/*.test.ts\""
+    "test": "node --import tsx --test --test-reporter=tap \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@iguess/shared": "workspace:*",

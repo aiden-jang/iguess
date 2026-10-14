@@ -31,7 +31,11 @@ export function RoomSidebar({
   children,
 }: RoomSidebarProps) {
   return (
-    <aside className="glass" style={styles.sidebar}>
+    <aside
+      aria-label="Room and scoreboard"
+      className="glass"
+      style={styles.sidebar}
+    >
       <div style={styles.roomHead}>
         <span style={styles.roomMark}>✏️</span>
         <div style={{ minWidth: 0 }}>
@@ -44,19 +48,33 @@ export function RoomSidebar({
         </div>
       </div>
 
-      <div style={{ ...styles.statusPill, ...(connected ? styles.statusOk : styles.statusBad) }}>
-        <span style={styles.statusDot} /> {connectionLabel(connected, everConnected)}
+      <div
+        style={{
+          ...styles.statusPill,
+          ...(connected ? styles.statusOk : styles.statusBad),
+        }}
+      >
+        <span style={styles.statusDot} />{" "}
+        {connectionLabel(connected, everConnected)}
       </div>
 
       <button
         className="lift"
-        style={{ ...styles.inviteButton, ...(inviteResult ? styles.inviteButtonOk : null) }}
+        style={{
+          ...styles.inviteButton,
+          ...(inviteResult ? styles.inviteButtonOk : null),
+        }}
         onClick={onInvite}
       >
         {inviteLabel(inviteResult)}
       </button>
 
-      <button className="lift" style={styles.muteButton} onClick={onToggleMute}>
+      <button
+        aria-pressed={!muted}
+        className="lift"
+        style={styles.muteButton}
+        onClick={onToggleMute}
+      >
         {muted ? "🔇 sound off" : "🔊 sound on"}
       </button>
 

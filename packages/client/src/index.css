@@ -1,146 +1,170 @@
 :root {
-  --bg: #0b0a12;
-  --panel: #15131f;
-  --panel-2: #1d1a2b;
-  --line: #2c2740;
-  --text: #f1edf7;
-  --muted: #a39bb8;
-  --accent: #a855f7;
-  --accent-2: #f472b6;
-  --grad: linear-gradient(135deg, #a855f7 0%, #f472b6 55%, #fb923c 100%);
-  --good: #34d399;
-  --bad: #fb7185;
-  /* Overlay tints. Separate tokens because "a bit lighter than the surface" flips
-     to "a bit darker" under a light palette. */
-  --raise: rgba(255, 255, 255, 0.03);
-  --raise-line: rgba(255, 255, 255, 0.08);
-  --hair: rgba(255, 255, 255, 0.18);
-  --shadow: rgba(0, 0, 0, 0.35);
-  --shadow-deep: rgba(0, 0, 0, 0.45);
-  --glow: rgba(168, 85, 247, 0.2);
-  --glass: rgba(29, 26, 43, 0.55);
-  /* Status tints. Low-alpha washes read fine on the dark palette but vanish on light,
-     and their text colours flip from pale to deep. */
-  --tint-accent: linear-gradient(180deg, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0.06));
-  --tint-accent-soft: rgba(99, 102, 241, 0.08);
-  --tint-good: rgba(34, 197, 94, 0.12);
-  --on-good: #4ade80;
-  --tint-warm: rgba(251, 146, 60, 0.14);
-  --warm-line: rgba(251, 146, 60, 0.5);
-  --on-warm: #fdba74;
-
-  /* Spring easing, sampled from a damped harmonic oscillator. A cubic-bezier is bounded by
-     its endpoints and so cannot overshoot and settle back, however springy the control
-     points look; linear() can, because it is a lookup table. 1.1% and 12% overshoot. Both
-     are normalized, so duration stays a separate decision. */
-  --ease-spring: linear(0, 0.038, 0.13, 0.248, 0.373, 0.494, 0.604, 0.699, 0.778, 0.842, 0.893, 0.931, 0.959, 0.98, 0.993, 1.002, 1.008, 1.01, 1.011, 1.011, 1.01, 1.009, 1.007, 1.006, 1.005, 1.004, 1.003, 1.002, 1);
-  --ease-bounce: linear(0, 0.084, 0.277, 0.507, 0.724, 0.899, 1.022, 1.093, 1.122, 1.121, 1.102, 1.074, 1.046, 1.021, 1.003, 0.991, 0.986, 0.984, 0.986, 0.989, 0.993, 0.996, 0.999, 1.001, 1.002, 1.002, 1.002, 1.002, 1);
+  color-scheme: light;
+  --bg: #f4f1e9;
+  --panel: #fffcf5;
+  --panel-2: #ece7dc;
+  --line: #d9d4c8;
+  --text: #292d29;
+  --muted: #666b63;
+  --accent: #bd4938;
+  --accent-2: #236b64;
+  --teal: #236b64;
+  --on-accent: #fffaf2;
+  --grad: linear-gradient(135deg, #bd4938, #bd4938);
+  --good: #236b64;
+  --bad: #b13d3b;
+  --raise: rgba(41, 45, 41, 0.025);
+  --raise-line: rgba(41, 45, 41, 0.08);
+  --hair: rgba(41, 45, 41, 0.18);
+  --shadow: rgba(41, 45, 41, 0.06);
+  --shadow-deep: rgba(41, 45, 41, 0.1);
+  --glow: transparent;
+  --glass: var(--panel);
+  --tint-accent: rgba(35, 107, 100, 0.08);
+  --tint-accent-soft: rgba(35, 107, 100, 0.065);
+  --tint-good: rgba(35, 107, 100, 0.1);
+  --on-good: #236b64;
+  --tint-warm: rgba(189, 73, 56, 0.08);
+  --warm-line: rgba(189, 73, 56, 0.4);
+  --on-warm: #a34030;
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-bounce: cubic-bezier(0.22, 1, 0.36, 1);
 }
-/* The app is authored dark. Light is a full token swap for people whose OS asks for it,
-   which also stops form controls and scrollbars rendering dark-on-light. */
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: dark) {
   :root {
-    --bg: #f7f4fd;
-    --panel: #ffffff;
-    --panel-2: #f1ecfa;
-    --line: #e0d7f2;
-    --text: #1b1526;
-    --muted: #675e7d;
-    --accent: #7c3aed;
-    --accent-2: #db2777;
-    --grad: linear-gradient(135deg, #7c3aed 0%, #db2777 55%, #ea580c 100%);
-    --good: #059669;
-    --bad: #e11d48;
-    --raise: rgba(20, 10, 40, 0.03);
-    --raise-line: rgba(20, 10, 40, 0.09);
-    --hair: rgba(20, 10, 40, 0.16);
-    --shadow: rgba(40, 20, 70, 0.14);
-    --shadow-deep: rgba(40, 20, 70, 0.2);
-    --glow: rgba(168, 85, 247, 0.12);
-    --glass: rgba(255, 255, 255, 0.66);
-    --tint-accent: linear-gradient(180deg, rgba(99, 102, 241, 0.14), rgba(99, 102, 241, 0.05));
-    --tint-accent-soft: rgba(99, 102, 241, 0.07);
-    --tint-good: rgba(5, 150, 105, 0.12);
-    --on-good: #047857;
-    --tint-warm: rgba(234, 88, 12, 0.12);
-    --warm-line: rgba(234, 88, 12, 0.45);
-    --on-warm: #9a3412;
+    color-scheme: dark;
+    --bg: #191d1b;
+    --panel: #222724;
+    --panel-2: #2d332f;
+    --line: #3e4740;
+    --text: #f1eee5;
+    --muted: #b0b7aa;
+    --accent: #f08c73;
+    --accent-2: #93c3b7;
+    --teal: #93c3b7;
+    --on-accent: #242922;
+    --grad: linear-gradient(135deg, #f08c73, #f08c73);
+    --good: #93c3b7;
+    --bad: #f09a8a;
+    --raise: rgba(255, 255, 255, 0.03);
+    --raise-line: rgba(255, 255, 255, 0.09);
+    --hair: rgba(255, 255, 255, 0.18);
+    --shadow: rgba(0, 0, 0, 0.15);
+    --shadow-deep: rgba(0, 0, 0, 0.25);
+    --tint-accent: rgba(147, 195, 183, 0.12);
+    --tint-accent-soft: rgba(147, 195, 183, 0.08);
+    --tint-good: rgba(147, 195, 183, 0.12);
+    --on-good: #93c3b7;
+    --tint-warm: rgba(240, 140, 115, 0.12);
+    --warm-line: #a76655;
+    --on-warm: #f08c73;
   }
 }
 
-:root { color-scheme: dark light; }
-
-h1, h2, h3 { text-wrap: balance; }
-p { text-wrap: pretty; }
-* { box-sizing: border-box; }
-html, body, #root { height: 100%; }
-/* Base color on the root canvas so any scroll-overflow area (e.g. the tall home screen,
-   whose content exceeds the 100%-height body box) is still covered — otherwise the body
-   background stops at the viewport height and leaves a seam/line below it. */
-html { background: var(--bg); }
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+html {
+  background: var(--bg);
+}
 body {
   margin: 0;
   font-family: "Inter Variable", "Inter", system-ui, sans-serif;
   background:
     radial-gradient(1100px 560px at 82% -12%, var(--glow) 0%, transparent 60%),
     var(--bg);
-  /* Glue the gradient to the viewport so it covers the visible area at any scroll position
-     instead of ending at the body box. */
   background-attachment: fixed;
   color: var(--text);
 }
-input, button, select { font-family: inherit; }
-/* Visible keyboard focus everywhere (mouse clicks stay clean). */
+input,
+button,
+select {
+  font-family: inherit;
+}
 :focus-visible {
   outline: 2px solid var(--accent-2);
   outline-offset: 2px;
   border-radius: 8px;
 }
-input:focus-visible { outline-offset: 0; }
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: #322b47; border-radius: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-@keyframes floaty {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-6px) rotate(-6deg); }
+input:focus-visible {
+  outline-offset: 0;
 }
-@keyframes shimmer {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 @keyframes pop {
-  0% { transform: scale(0.96); opacity: 0; }
-  60% { transform: scale(1.02); }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
-@keyframes glowPulse {
-  0%, 100% { box-shadow: 0 6px 18px rgba(168,85,247,0.30); }
-  50% { box-shadow: 0 8px 28px rgba(244,114,182,0.55); }
-}
-/* Animated gradient text (title / room name). */
 .grad-anim {
-  background: linear-gradient(90deg, #a855f7, #f472b6, #fb923c, #f472b6, #a855f7);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: shimmer 5s linear infinite;
+  color: var(--text);
+  -webkit-text-fill-color: var(--text);
+  background: none;
+  animation: none;
 }
-/* Frosted glass panel. */
 .glass {
   background: var(--glass);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
-/* Hover lift for clickable cards / buttons. */
-.lift { transition: transform .12s ease, box-shadow .12s ease, filter .12s ease; }
-.lift:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.08); }
-.lift:active:not(:disabled) { transform: translateY(0) scale(0.98); }
-.pulse-cta { animation: glowPulse 2.4s ease-in-out infinite; }
-.pop-in { animation: pop .42s var(--ease-bounce) both; }
+.lift {
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    filter 0.12s ease;
+}
+.lift:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+.lift:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+.pulse-cta {
+  animation: none;
+}
+.pop-in {
+  animation: pop 0.42s var(--ease-bounce) both;
+}
 @keyframes confettiFall {
-  0% { transform: translateY(-12vh) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(110vh) rotate(720deg); opacity: 1; }
+  0% {
+    transform: translateY(-12vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(110vh) rotate(720deg);
+    opacity: 1;
+  }
 }
 .confetti-piece {
   position: fixed;
@@ -151,103 +175,90 @@ input:focus-visible { outline-offset: 0; }
   will-change: transform;
 }
 @keyframes wiggle {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-18deg); }
-  75% { transform: rotate(18deg); }
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-18deg);
+  }
+  75% {
+    transform: rotate(18deg);
+  }
 }
-.wiggle:hover { animation: wiggle .4s ease-in-out; }
+.wiggle:hover {
+  animation: wiggle 0.4s ease-in-out;
+}
 @keyframes bounceDot {
-  0%, 80%, 100% { transform: translateY(0); opacity: .4; }
-  40% { transform: translateY(-4px); opacity: 1; }
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
 }
-.dot { display: inline-block; animation: bounceDot 1.2s infinite both; }
-.dot:nth-child(2) { animation-delay: .15s; }
-.dot:nth-child(3) { animation-delay: .3s; }
+.dot {
+  display: inline-block;
+  animation: bounceDot 1.2s infinite both;
+}
+.dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
 @keyframes toastIn {
-  0% { transform: translate(-50%, -16px) scale(.9); opacity: 0; }
-  100% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+  0% {
+    transform: translate(-50%, -16px) scale(0.9);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, 0) scale(1);
+    opacity: 1;
+  }
 }
-.toast-in { animation: toastIn .42s var(--ease-spring) both; }
+.toast-in {
+  animation: toastIn 0.42s var(--ease-spring) both;
+}
 
 /* Respect users who don't want motion: kill animations + transitions. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
-  .confetti-piece { display: none !important; }
+  .confetti-piece {
+    display: none !important;
+  }
 }
 
 /* Responsive: stack the 3-column layout on narrow screens and keep the WHOLE game
    inside one viewport — the page itself never scrolls. The canvas flexes to fill
    whatever the (bounded) chat and scoreboard don't use; chat and scoreboard scroll
    internally if their content is taller than their share. */
-@media (max-width: 880px) {
-  .app-layout {
-    display: flex !important;
-    flex-direction: column;
-    height: 100dvh !important;
-    overflow: hidden;
-  }
-  .app-layout > * { width: 100%; min-height: 0; }
-
-  /* Canvas pane grows; the board itself fills the pane (banner + toolbar aside). */
-  .app-layout .pane-canvas {
-    order: 1;
-    flex: 1 1 auto !important;
-    min-height: 0;
-    padding: 10px 12px !important;
-    gap: 8px !important;
-  }
-  .app-layout .canvas-wrap { height: auto !important; min-height: 0; }
-
-  /* Banner: wrap the round-pill / word tiles / timer onto extra lines instead of
-     letting them bleed off the right edge. */
-  .app-layout .play-banner {
-    flex-wrap: wrap !important;
-    gap: 8px 10px !important;
-    padding: 8px 12px !important;
-  }
-  .app-layout .word-tiles { flex-wrap: wrap !important; }
-
-  /* Drawing toolbar: compact, wrapping into at most ~2 tidy rows (no cut-off
-     horizontal scroll). Neutralize the undo button's marginLeft:auto and shrink
-     the brush slider so the row packs efficiently. */
-  .app-layout .draw-toolbar {
-    gap: 6px !important;
-    padding: 8px 10px !important;
-  }
-  .app-layout .draw-toolbar > button { margin-left: 0 !important; }
-  .app-layout .draw-toolbar input[type="range"] { width: 92px !important; }
-
-  /* Chat directly under the canvas so a guesser reaches the input fast. Given a taller share
-     (~5-6 visible lines) since 24dvh left barely two lines after the label/reactions/input. */
-  .app-layout > main {
-    order: 2;
-    flex: 0 0 32dvh !important;
-    min-height: 0;
-    padding: 10px 12px !important;
-    gap: 6px !important;
-  }
-
-  /* Scoreboard/controls last, compact; scrolls internally rather than clipping. */
-  .app-layout > aside {
-    order: 3;
-    flex: 0 0 auto;
-    max-height: 15dvh;
-    overflow-y: auto !important;
-    padding: 10px 12px !important;
-    gap: 8px !important;
-  }
-}
 
 /* Reactions rise off the canvas and fade. Positioned by the server-supplied `at` so two
    people reacting at once don't land on top of each other. */
 @keyframes reactionFloat {
-  0% { transform: translateY(0) scale(0.6); opacity: 0; }
-  15% { transform: translateY(-10px) scale(1.15); opacity: 1; }
-  100% { transform: translateY(-160px) scale(1); opacity: 0; }
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    transform: translateY(-10px) scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-160px) scale(1);
+    opacity: 0;
+  }
 }
 .reaction-float {
   position: absolute;
@@ -259,7 +270,9 @@ input:focus-visible { outline-offset: 0; }
 }
 
 /* Cross-fade the whole board on a phase change rather than snapping between screens. */
-@view-transition { navigation: auto; }
+@view-transition {
+  navigation: auto;
+}
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: 220ms;
@@ -268,5 +281,163 @@ input:focus-visible { outline-offset: 0; }
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation: none;
+  }
+}
+button:not(:disabled),
+summary {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+.app-layout :is(button:not(.color-swatch), select, input:not([type="range"])) {
+  min-height: 44px;
+}
+.app-layout .draw-toolbar button[aria-label^="Color"] {
+  min-height: 32px;
+  min-width: 32px;
+}
+.play-banner[data-phase="lobby"] {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+.lobby-status {
+  grid-column: 1 / -1;
+  line-height: 1.5;
+  font-size: 13px;
+}
+.host-settings {
+  min-width: 0;
+  font-size: 12px;
+}
+.host-settings summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  width: max-content;
+}
+.host-settings > div {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.host-settings[open] {
+  grid-column: 1 / -1;
+}
+.host-settings[open] > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.app-layout .pane-canvas {
+  min-width: 0;
+}
+.app-layout .play-banner {
+  border-radius: 10px;
+}
+.app-layout .draw-toolbar {
+  border-radius: 10px;
+}
+.play-banner {
+  flex-wrap: wrap;
+}
+.word-zone {
+  max-width: 100%;
+  min-width: 0;
+}
+.word-tiles {
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 880px) {
+  .app-layout {
+    display: flex !important;
+    flex-direction: column;
+    height: 100dvh !important;
+    overflow: hidden;
+  }
+  .app-layout > * {
+    width: 100%;
+    min-height: 0;
+  }
+
+  .app-layout .pane-canvas {
+    order: 1;
+    flex: 1 1 auto !important;
+    min-height: 0;
+    padding: 10px 12px !important;
+    gap: 8px !important;
+    overflow: auto;
+  }
+  .app-layout .canvas-wrap {
+    height: auto !important;
+    min-height: 140px !important;
+  }
+
+  .app-layout .play-banner {
+    flex-wrap: wrap !important;
+    gap: 8px 10px !important;
+    padding: 8px 12px !important;
+    flex-shrink: 0;
+  }
+  .play-banner:is([data-phase="playing"], [data-phase="intermission"])
+    > .word-zone {
+    order: 1;
+    flex-basis: 100%;
+    min-width: 0;
+    margin: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .app-layout .word-tiles {
+    flex-wrap: wrap !important;
+  }
+
+  .app-layout .draw-toolbar {
+    gap: 6px !important;
+    padding: 8px 10px !important;
+    flex-shrink: 0;
+  }
+  .app-layout .draw-toolbar > button {
+    margin-left: 0 !important;
+  }
+  .app-layout .draw-toolbar input[type="range"] {
+    width: 92px !important;
+  }
+
+  .app-layout > main {
+    order: 2;
+    flex: 0 0 26dvh !important;
+    min-height: 0;
+    padding: 10px 12px !important;
+    gap: 6px !important;
+  }
+
+  .app-layout > aside {
+    order: 3;
+    flex: 0 0 auto;
+    overflow-y: auto !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    max-height: 20dvh;
+    gap: 6px !important;
+    padding: 8px 12px !important;
+  }
+  .host-settings > div {
+    max-height: 32dvh;
+    overflow: auto;
+  }
+  .app-layout > aside > ul {
+    grid-column: 1 / -1;
+  }
+  .app-layout > aside > div:nth-child(2) {
+    justify-self: end;
+    align-self: center;
   }
 }

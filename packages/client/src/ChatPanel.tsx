@@ -7,6 +7,7 @@ import { chatPlaceholder } from "./labels";
 import { styles } from "./styles";
 
 interface ChatPanelProps {
+  connected: boolean;
   log: ChatLine[];
   drawingNow: boolean;
   inGame: boolean;
@@ -16,13 +17,22 @@ interface ChatPanelProps {
   onSendFailed: () => void;
 }
 
-export function ChatPanel({ log, drawingNow, inGame, onReact, onSend, onSendFailed }: ChatPanelProps) {
+export function ChatPanel({
+  connected,
+  log,
+  drawingNow,
+  inGame,
+  onReact,
+  onSend,
+  onSendFailed,
+}: ChatPanelProps) {
   const [text, setText] = useState("");
-  const { chatLogRef, hasNewChat, scrollChatToBottom, onChatScroll } = useChatScroll(log.length);
+  const { chatLogRef, hasNewChat, scrollChatToBottom, onChatScroll } =
+    useChatScroll(log.length);
 
   return (
     <main className="glass" style={styles.main}>
-      <div style={styles.sectionLabel}>the group chat</div>
+      <div style={styles.sectionLabel}>Chat & guesses</div>
       <div style={styles.chatWrap}>
         <div
           ref={chatLogRef}
@@ -39,18 +49,30 @@ export function ChatPanel({ log, drawingNow, inGame, onReact, onSend, onSendFail
               </div>
             ) : (
               <div key={i} style={styles.chatLine}>
-                <span style={{ ...styles.chatFrom, ...(isAI(line.from?.id) ? styles.chatFromAI : null) }}>
+                <span
+                  style={{
+                    ...styles.chatFrom,
+                    ...(isAI(line.from?.id) ? styles.chatFromAI : null),
+                  }}
+                >
                   {isAI(line.from?.id) ? "🤖 " : ""}
                   {line.from?.name}
                 </span>
                 <span style={styles.chatText}>{line.text}</span>
               </div>
-            )
+            ),
           )}
-          {log.length === 0 && <div style={styles.system}>crickets… break the ice bestie 👀</div>}
+          {log.length === 0 && (
+            <div style={styles.system}>Quiet room. Suspiciously civilized.</div>
+          )}
         </div>
         {hasNewChat && (
-          <button type="button" className="lift" style={styles.newMsgBtn} onClick={scrollChatToBottom}>
+          <button
+            type="button"
+            className="lift"
+            style={styles.newMsgBtn}
+            onClick={scrollChatToBottom}
+          >
             ↓ new messages
           </button>
         )}
@@ -63,7 +85,7 @@ export function ChatPanel({ log, drawingNow, inGame, onReact, onSend, onSendFail
             className="lift"
             style={styles.reactBtn}
             onClick={() => onReact(emoji)}
-            disabled={drawingNow}
+            disabled={drawingNow || !connected}
             title={`react ${emoji}`}
           >
             {emoji}
@@ -83,12 +105,23 @@ export function ChatPanel({ log, drawingNow, inGame, onReact, onSend, onSendFail
       >
         <input
           style={{ ...styles.input, flex: 1, margin: 0 }}
-          placeholder={chatPlaceholder(drawingNow, inGame)}
+          aria-label={inGame ? "Your guess" : "Chat message"}
+          maxLength={500}
+          placeholder={
+            !connected
+              ? "Reconnecting. Your draft stays here."
+              : chatPlaceholder(drawingNow, inGame)
+          }
           disabled={drawingNow}
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
-        <button className="lift" style={styles.button} type="submit" disabled={drawingNow}>
+        <button
+          className="lift"
+          style={styles.button}
+          type="submit"
+          disabled={drawingNow || !connected || !text.trim()}
+        >
           Send
         </button>
       </form>

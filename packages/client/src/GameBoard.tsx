@@ -83,11 +83,11 @@ export function GameBoard({
           style={styles.hotTake}
         >
           {aiTake.won ? (
-            "🤖 nailed it! 🎉"
+            "AI: got it. Naturally."
           ) : aiTake.guess ? (
             <>🤖 "{aiTake.guess}"</>
           ) : (
-            <>🤖 thinking<Dots /></>
+            <>AI is thinking<Dots /></>
           )}
         </div>
       )}

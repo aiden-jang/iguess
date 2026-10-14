@@ -14,7 +14,7 @@ interface Props {
   peerCursor?: Point | null;
   opsRef?: React.MutableRefObject<DrawOp[]>;
   socketBacklog?: () => number;
-  canDraw: boolean; // only the current drawer may paint
+  canDraw: boolean;
   onCanvas?: (el: HTMLCanvasElement | null) => void;
 }
 
@@ -53,7 +53,6 @@ export function DrawingCanvas({
     if (op.kind === "reset" || op.kind === "clear") {
       opLog.current = [];
     } else if (op.kind === "undo") {
-      // The server tells us which stroke it dropped. Drop the same one and repaint.
       if (!op.strokeId) return;
       opLog.current = dropStroke(opLog.current, op.strokeId);
       render({ kind: "reset" });
@@ -63,7 +62,6 @@ export function DrawingCanvas({
     } else {
       opLog.current.push(op);
     }
-    // Update this on undo too, or the replay shows a stroke the drawer took back.
     if (opsRef) opsRef.current = opLog.current;
     render(op);
   }
@@ -123,7 +121,8 @@ export function DrawingCanvas({
   // those fall back to speed: move fast, get a thinner line, like a real pen.
   function widthAt(e: React.PointerEvent, p: Point): number {
     const base = brush.current.width;
-    const usable = e.pointerType === "pen" && e.pressure > 0 && e.pressure !== 0.5;
+    const usable =
+      e.pointerType === "pen" && e.pressure > 0 && e.pressure !== 0.5;
     let scale: number;
     if (usable) {
       scale = 0.45 + e.pressure * 1.1;
@@ -158,7 +157,6 @@ export function DrawingCanvas({
     const widths = widthBuffer.current;
     buffer.current = [];
     widthBuffer.current = [];
-    // A stroke of one uniform width sends no widths at all.
     const varies = widths.some((w) => w !== widths[0]);
     const op: DrawOp = varies
       ? { kind: "move", strokeId: strokeId.current, points, widths }
@@ -198,7 +196,6 @@ export function DrawingCanvas({
   }
 
   function onPointerMove(e: React.PointerEvent) {
-    // Hovering counts: the point of showing the pen is the pause before the line.
     if (canDraw) onCursor?.(toNorm(e));
     if (!drawing.current) return;
     const p = toNorm(e);
@@ -261,24 +258,30 @@ export function DrawingCanvas({
           }}
         />
       )}
-    <canvas
-      ref={canvasRef}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerLeave={onPointerLeave}
-      style={{
-        width: "100%",
-        height: "100%",
-        border: "1px solid #ccc",
-        borderRadius: 4,
-        // Only capture touch while it's your turn to draw; otherwise let a guesser scroll the page
-        // past the canvas instead of trapping their finger on a dead surface.
-        touchAction: canDraw ? "none" : "auto",
-        cursor: canDraw ? brushCursor : "not-allowed",
-        background: "white",
-      }}
-    />
+      <canvas
+        role="img"
+        aria-label={
+          canDraw
+            ? "Drawing canvas. Use the drawing tools to sketch."
+            : "Live drawing to guess"
+        }
+        ref={canvasRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerLeave}
+        style={{
+          width: "100%",
+          height: "100%",
+          border: "1px solid #ccc",
+          borderRadius: 4,
+          // Only capture touch while it's your turn to draw; otherwise let a guesser scroll the page
+          // past the canvas instead of trapping their finger on a dead surface.
+          touchAction: canDraw ? "none" : "auto",
+          cursor: canDraw ? brushCursor : "not-allowed",
+          background: "white",
+        }}
+      />
     </>
   );
 }

@@ -8,10 +8,11 @@ const ROOT = new URL("..", import.meta.url).pathname;
 const SLACK = 40;
 
 const CEILINGS = {
-  "packages/client/src/App.tsx": 990,
-  "packages/client/src/styles.ts": 710,
+  "packages/client/src/App.tsx": 91,
+  "packages/client/src/Room.tsx": 301,
+  "packages/client/src/styles.ts": 592,
   "packages/client/src/useWebSocket.ts": 350,
-  "packages/client/src/DrawingCanvas.tsx": 290,
+  "packages/client/src/DrawingCanvas.tsx": 287,
   "packages/game-server/src/GameRoom.ts": 430,
   "packages/game-server/src/engine.ts": 380,
   "packages/game-server/src/doodles.ts": 360,
@@ -25,7 +26,14 @@ const CEILINGS = {
 
 // Anything this big should be under a ceiling, so a new god file can't appear unnoticed.
 const UNLISTED_LIMIT = 300;
-const SKIP_DIRS = new Set(["node_modules", "dist", ".git", ".wrangler", "test-results", "playwright-report"]);
+const SKIP_DIRS = new Set([
+  "node_modules",
+  "dist",
+  ".git",
+  ".wrangler",
+  "test-results",
+  "playwright-report",
+]);
 const SOURCE = /\.(ts|tsx|mjs)$/;
 
 function sources(dir, out = []) {
@@ -33,7 +41,8 @@ function sources(dir, out = []) {
     if (SKIP_DIRS.has(entry)) continue;
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) sources(full, out);
-    else if (SOURCE.test(entry) && !entry.includes(".test.")) out.push(relative(ROOT, full));
+    else if (SOURCE.test(entry) && !entry.includes(".test."))
+      out.push(relative(ROOT, full));
   }
   return out;
 }
@@ -51,19 +60,26 @@ for (const [file, ceiling] of Object.entries(CEILINGS)) {
   try {
     actual = lines(file);
   } catch {
-    problems.push(`${file} is in the ceiling list but does not exist. Remove the entry.`);
+    problems.push(
+      `${file} is in the ceiling list but does not exist. Remove the entry.`,
+    );
     continue;
   }
-  if (actual > ceiling) problems.push(`${file} is ${actual} lines, over its ${ceiling} ceiling.`);
+  if (actual > ceiling)
+    problems.push(`${file} is ${actual} lines, over its ${ceiling} ceiling.`);
   else if (ceiling - actual > SLACK)
-    problems.push(`${file} is ${actual} lines but its ceiling is ${ceiling}. Lower it to ${actual}.`);
+    problems.push(
+      `${file} is ${actual} lines but its ceiling is ${ceiling}. Lower it to ${actual}.`,
+    );
 }
 
 for (const file of sources(ROOT)) {
   if (file in CEILINGS) continue;
   const actual = lines(file);
   if (actual > UNLISTED_LIMIT)
-    problems.push(`${file} is ${actual} lines and has no ceiling. Add one, or split the file.`);
+    problems.push(
+      `${file} is ${actual} lines and has no ceiling. Add one, or split the file.`,
+    );
 }
 
 if (problems.length) {
@@ -71,4 +87,6 @@ if (problems.length) {
   for (const p of problems) console.error(`  ${p}`);
   process.exit(1);
 }
-console.log(`check-size: ${Object.keys(CEILINGS).length} ceilings held, nothing unlisted over ${UNLISTED_LIMIT} lines.`);
+console.log(
+  `check-size: ${Object.keys(CEILINGS).length} ceilings held, nothing unlisted over ${UNLISTED_LIMIT} lines.`,
+);

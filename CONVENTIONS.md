@@ -1,66 +1,50 @@
-# Working in iguess
+# Repository conventions
 
-How this repo expects to be worked in. Personal working style (commits, planning,
-how to explain things) lives in the global `~/.claude/CLAUDE.md`.
+`AGENTS.md` and `CLAUDE.md` link to this file so guidance has one source.
+Setup and commit conventions are in [CONTRIBUTING.md](CONTRIBUTING.md).
+Module responsibilities are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-The sections below are engineering standards that apply to any codebase. Anything specific to iguess
--- its checks, its deliberate oddities, the patterns to follow -- gets added when this repo is
-next cleaned up, and only once each claim has been verified against the code.
+## Verification
 
-## Do not trust your own measurements
+Run `pnpm run verify` before reporting a change complete. CI runs the same gate:
+typechecking, lint, repository checks, package tests and production builds.
+Relevant game-flow changes also require end-to-end tests.
 
-Most false statements come from scans that measured nothing, not from misreading code. Real cases:
-a glob with `{src,test}` braces matched zero files, so a coverage sweep compared against an empty
-string and called every module untested; a `cd` inside a backgrounded command did not apply, so
-three "stability runs" ran nothing; a coverage tool reported 0% because it could not instrument the
-runtime; a script name silently resolved to an npm builtin, so a check reported green for a day
-without ever executing.
+- `check-size` pins file ceilings and rejects oversized unlisted source files.
+  Ceilings may decrease, never increase. Lower a tracked file’s ceiling in the
+  same commit when it shrinks. Give extracted modules coherent responsibilities.
+- `check-tests` runs each package suite and enforces its test floor. Floors may
+  increase, never decrease. A successful process alone is not evidence that the
+  complete suite ran.
+- `check-comments` checks source comments for oversized blocks and ticket IDs.
 
-So: an impossibly clean result means suspect the scan first. And **green is not proof unless you
-have seen that check fail**: break the thing it guards, watch it go red, then believe it.
+Use `pnpm run <name>` for repository scripts, and avoid naming scripts after npm
+builtins. New checks must cover their own source. Do not exclude files or weaken
+checks to make a change pass.
 
-## The checks this repo has
+## Tests and evidence
 
-`pnpm run verify` is the whole gate, and CI runs exactly that. Beyond typecheck, lint and
-build:
+Test meaningful behavior and invariants. Prove a new check detects its intended
+failure: introduce the failure, observe the check fail, restore the source, then
+verify it passes. Confirm temporary mutations leave the tree clean.
 
-- **check-size** pins a line ceiling per sprawl-prone file and rejects any unlisted file over
-  300 lines. Ceilings only move down: shrink a file, lower its number in the same commit. It
-  also fails when a ceiling sits well above the real count, so a ceiling can't drift into
-  meaninglessness.
-- **check-tests** runs each package's suite and holds it to a floor, because `node --test`
-  exits 0 when its glob matches nothing. Floors only move up.
-- **check-comments** enforces the two comment rules below that a script can judge: no block over
-  four lines, and no ticket ids. Test files are out of scope, since a test comment explains why
-  the test exists.
+Validate inventories, searches and measurements. Empty scans or implausibly clean
+results can indicate a bad glob, wrong directory or unavailable instrumentation.
 
-They all cover their own source, and they are all read-only.
+UI changes need browser checks for layout and interactions at desktop and mobile
+widths. Unit tests do not establish visual fidelity. Report unavailable browsers,
+physical-device checks and paid-provider coverage as verification limits. Keep
+local and automated tests away from paid production vision endpoints.
 
-Whether a comment earns its place is not automated, and "never explain what the code used to do"
-is not either: "used to" is ambiguous in English. `// Only used to size the draining bar` is
-present-tense and fine, `// Each game used to start with a clean slate` is a changelog. A check
-cannot tell them apart, and one that cries wolf gets ignored. Read them instead.
+## Comments and documentation
 
-## Writing a new check
+Keep comments explaining a non-obvious constraint or decision. Remove comments
+that narrate obvious code, record revisions or explain an older implementation.
+Re-read nearby comments after moving code.
 
-- It has to cover its own source, or the checks stop being checked.
-- It has to cover every place the failure can appear, not just where you first saw it.
-- Exclude test files from source scans: tests mount throwaway routes and declare throwaway types.
-- Prove it fails before trusting it, and prove a failure leaves the tree clean.
-- Always `pnpm run <name>`, and never name a script after an npm command. A script called `docs` is
-  shadowed by npm's own `docs`, which exits 0 without running anything.
+Do not add source comment blocks longer than four lines or ticket IDs. Ask if a
+longer block is necessary. Test comments may explain the scenario they exercise;
+the source comment scanner excludes test files.
 
-## Numbers in prose
-
-Do not write live counts into docs: test totals, check totals, file lengths. Nothing verifies them
-and they go stale silently. Say what a thing is and let the check print the number. Describing a
-past change is different, and fine.
-
-## Comments
-
-- No comment block over four lines. If one seems necessary, ask.
-- Never explain a refactor, or what the code used to do. A reader never saw that version.
-- A comment that logs successive changes is a changelog. Git has it, and the log drifts out of step
-  with the value it describes.
-- After moving code, re-read every comment near the seam. A move strands them on the wrong function.
-- Never raise a comment budget to fit prose. Trim instead; no script can enforce that about itself.
+Do not write live test totals, check totals or file lengths into prose docs.
+Tools report those values. Describe the current system; Git records its history.

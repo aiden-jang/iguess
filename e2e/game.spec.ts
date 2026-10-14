@@ -5,22 +5,33 @@ import { test, expect, type Page } from "@playwright/test";
 // and the new joiner never sees the start button.
 const runId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const roomFor = (label: string) => `e2e-${label}-${runId}`;
-async function join(page: Page, room: string, name: string, mode = "AI Guesser") {
+async function join(
+  page: Page,
+  room: string,
+  name: string,
+  mode = "AI Guesser",
+) {
   await page.addInitScript(() => localStorage.clear());
   await page.goto("/");
-  await page.getByPlaceholder("whatever you want, really").fill(name);
-  await page.getByPlaceholder("your room code").fill(room);
+  await page
+    .getByRole("textbox", { name: "Your name", exact: true })
+    .fill(name);
+  await page.getByRole("textbox", { name: /^Room code/ }).fill(room);
   await page.getByRole("button", { name: new RegExp(mode, "i") }).click();
-  await page.getByRole("button", { name: /pull up/i }).click();
+  await page.getByRole("button", { name: /Enter room|Join the room/i }).click();
   await expect(page.getByText(name).first()).toBeVisible();
 }
 
-test("the host starts a game and is offered one word per difficulty", async ({ page }) => {
+test("the host starts a game and is offered one word per difficulty", async ({
+  page,
+}) => {
   await join(page, roomFor("choose"), "Host");
-  await page.getByRole("button", { name: /send it/i }).click();
+  await page.getByRole("button", { name: /Start game/i }).click();
 
   // Three options, each labelled with what it pays, plus the one-per-game skip.
-  const tiles = page.locator(".word-tiles button").filter({ hasNotText: "skip" });
+  const tiles = page
+    .locator(".word-tiles button")
+    .filter({ hasNotText: "skip" });
   await expect(tiles).toHaveCount(3);
   await expect(page.locator(".word-tiles")).toContainText("1x");
   await expect(page.locator(".word-tiles")).toContainText("1.6x");
@@ -29,8 +40,10 @@ test("the host starts a game and is offered one word per difficulty", async ({ p
 
 test("skipping swaps every word and then goes away", async ({ page }) => {
   await join(page, roomFor("skip"), "Host");
-  await page.getByRole("button", { name: /send it/i }).click();
-  const tiles = page.locator(".word-tiles button").filter({ hasNotText: "skip" });
+  await page.getByRole("button", { name: /Start game/i }).click();
+  const tiles = page
+    .locator(".word-tiles button")
+    .filter({ hasNotText: "skip" });
   await expect(tiles).toHaveCount(3);
   const before = await tiles.allInnerTexts();
 
@@ -45,15 +58,26 @@ test("skipping swaps every word and then goes away", async ({ page }) => {
   await expect(page.getByRole("button", { name: /skip/i })).toHaveCount(0);
 });
 
-test("picking a word starts the round and hides the word from the board", async ({ page }) => {
+test("picking a word starts the round and hides the word from the board", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await join(page, roomFor("round"), "Host");
-  await page.getByRole("button", { name: /send it/i }).click();
-  const tiles = page.locator(".word-tiles button").filter({ hasNotText: "skip" });
+  await page.getByRole("button", { name: /Start game/i }).click();
+  const tiles = page
+    .locator(".word-tiles button")
+    .filter({ hasNotText: "skip" });
   await tiles.first().click();
 
   await expect(page.getByText(/⏱/)).toBeVisible();
+  await expect(page.locator(".word-zone")).toHaveCSS(
+    "flex-direction",
+    "column",
+  );
   // The drawer's own tools are live now.
-  await expect(page.getByTitle("fill an area with the current colour")).toBeEnabled();
+  await expect(
+    page.getByTitle("fill an area with the current colour"),
+  ).toBeEnabled();
   await expect(page.getByTitle("undo the last stroke")).toBeEnabled();
 });
 
@@ -82,17 +106,25 @@ test("the lobby board is drawable before anyone starts", async ({ page }) => {
   expect(painted).toBeGreaterThan(200);
 });
 
-test("a finished game shows the gallery, a replay and the shareable card", async ({ page }) => {
+test("a finished game shows the gallery, a replay and the shareable card", async ({
+  page,
+}) => {
   test.setTimeout(90_000); // a real round has to actually elapse
   await join(page, roomFor("finish"), "Host");
 
   // Shortest possible game: one round on the shortest clock.
   // Both labels contain "round", so match on the option values instead of the label text.
+  await page.getByText("Game settings", { exact: true }).click();
   await page.locator("select").filter({ hasText: "30s" }).selectOption("30");
-  await page.locator("select").filter({ hasText: "first to" }).selectOption("r1");
-  await page.getByRole("button", { name: /send it/i }).click();
+  await page
+    .locator("select")
+    .filter({ hasText: "first to" })
+    .selectOption("r1");
+  await page.getByRole("button", { name: /Start game/i }).click();
 
-  const tiles = page.locator(".word-tiles button").filter({ hasNotText: "skip" });
+  const tiles = page
+    .locator(".word-tiles button")
+    .filter({ hasNotText: "skip" });
   await expect(tiles).toHaveCount(3);
   await tiles.first().click();
 
@@ -106,13 +138,45 @@ test("a finished game shows the gallery, a replay and the shareable card", async
   await page.mouse.move(box.x + 240, box.y + 180, { steps: 15 });
   await page.mouse.up();
   // Round over, then the results screen.
-  await expect(page.getByText(/run it back/i)).toBeVisible({ timeout: 60_000 });
+  await expect(
+    page.getByRole("button", { name: "Play again", exact: true }),
+  ).toBeVisible({ timeout: 60_000 });
   // The first round's drawing has to survive: the game_state after turn_end still carries the
   // old turn index, and a zero-check here used to wipe the gallery the moment it was filled.
   await expect(page.locator("figure")).toHaveCount(1);
-  await expect(page.getByRole("button", { name: /replay/i }).first()).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /replay/i }).first(),
+  ).toBeVisible();
 
   // The replay swaps the still for a live canvas that redraws the round.
-  await page.getByRole("button", { name: /replay/i }).first().click();
-  await expect(page.getByRole("button", { name: /still/i }).first()).toBeVisible();
+  await page
+    .getByRole("button", { name: /replay/i })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("button", { name: /still/i }).first(),
+  ).toBeVisible();
+});
+
+test("Classic waits for another player and only the host can start", async ({
+  page,
+  browser,
+}) => {
+  const room = roomFor("classic-permissions");
+  await join(page, room, "Host", "Classic");
+  await expect(
+    page.getByRole("button", { name: "Start game", exact: true }),
+  ).toBeDisabled();
+  const guest = await browser.newPage();
+  try {
+    await join(guest, room, "Guest", "Classic");
+    await expect(
+      page.getByRole("button", { name: "Start game", exact: true }),
+    ).toBeEnabled();
+    await expect(
+      guest.getByRole("button", { name: "Waiting for the host", exact: true }),
+    ).toBeDisabled();
+  } finally {
+    await guest.close();
+  }
 });

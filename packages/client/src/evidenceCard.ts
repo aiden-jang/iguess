@@ -1,20 +1,23 @@
+import { isAI } from "./roomView";
 // One shareable PNG of every drawing, its word, and what the AI thought it was.
 // Drawn on a canvas rather than screenshotting the page: the thumbnails are already images and
 // the layout is a plain grid, so turning the real DOM into a picture would need a whole library
 // to do a worse job.
 
-const BG = "#0b0a12";
-const PANEL = "#1d1a2b";
-const LINE = "#2c2740";
-const TEXT = "#f1edf7";
-const MUTED = "#a39bb8";
-const GOOD = "#a3e635";
+const BG = "#f4f1e9";
+const PANEL = "#fffcf5";
+const LINE = "#d9d4c8";
+const TEXT = "#292d29";
+const MUTED = "#666b63";
+const GOOD = "#236b64";
 
 export interface EvidenceItem {
   word: string;
   png: string;
   guess: string | null;
   right: boolean;
+  aiParticipated?: boolean;
+  drawerId?: string | null;
 }
 
 const PAD = 44;
@@ -23,7 +26,12 @@ const GAP = 20;
 const CAPTION_H = 96;
 const PER_ROW = 4;
 
-function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, maxLines: number): string[] {
+function wrap(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+): string[] {
   const words = text.split(/\s+/);
   const lines: string[] = [];
   let line = "";
@@ -41,8 +49,10 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, max
   if (lines.length === maxLines) {
     // Keep trimming until the "…" fits, or a long guess spills out of its cell.
     let last = lines[maxLines - 1]!;
-    while (last && ctx.measureText(`${last}…`).width > maxWidth) last = last.slice(0, -1);
-    lines[maxLines - 1] = words.join(" ") === lines.join(" ") ? last : `${last}…`;
+    while (last && ctx.measureText(`${last}…`).width > maxWidth)
+      last = last.slice(0, -1);
+    lines[maxLines - 1] =
+      words.join(" ") === lines.join(" ") ? last : `${last}…`;
   }
   return lines;
 }
@@ -60,7 +70,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 export async function renderEvidencePng(
   items: EvidenceItem[],
   subtitle: string,
-  awards: { title: string; who: string; detail: string }[] = []
+  awards: { title: string; who: string; detail: string }[] = [],
 ): Promise<Blob> {
   const shown = items.slice(0, 8); // two rows is plenty; more makes every drawing too small to read
   const cols = Math.min(PER_ROW, Math.max(1, shown.length));
@@ -138,13 +148,22 @@ export async function renderEvidencePng(
     ctx.fillText(item.word, x + CELL / 2, y + CELL + 36, CELL - 20);
 
     ctx.font = "500 20px system-ui, -apple-system, sans-serif";
-    if (item.right) {
+    if (item.aiParticipated === false) {
+      ctx.fillStyle = MUTED;
+      ctx.fillText(
+        isAI(item.drawerId) ? "Drawn by AI" : "Human-made. Somehow.",
+        x + CELL / 2,
+        y + CELL + 68,
+      );
+    } else if (item.right) {
       ctx.fillStyle = GOOD;
       ctx.fillText("the AI got it", x + CELL / 2, y + CELL + 68);
     } else if (item.guess) {
       ctx.fillStyle = MUTED;
       const lines = wrap(ctx, `“${item.guess}”`, CELL - 24, 2);
-      lines.forEach((l, li) => ctx.fillText(l, x + CELL / 2, y + CELL + 66 + li * 24));
+      lines.forEach((l, li) =>
+        ctx.fillText(l, x + CELL / 2, y + CELL + 66 + li * 24),
+      );
     } else {
       ctx.fillStyle = LINE;
       ctx.fillText("the AI said nothing", x + CELL / 2, y + CELL + 68);
@@ -153,6 +172,9 @@ export async function renderEvidencePng(
   });
 
   return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("encode failed"))), "image/png");
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("encode failed"))),
+      "image/png",
+    );
   });
 }
