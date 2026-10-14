@@ -67,7 +67,6 @@ export function Room({
   } = useGameSocket(room, name, mode, avatar);
   const effectiveMode = serverMode ?? mode;
   const isAIMode = effectiveMode !== "classic";
-
   const [everConnected, setEverConnected] = useState(false);
   useEffect(() => {
     if (connected) setEverConnected(true);
@@ -260,6 +259,7 @@ export function Room({
       </main>
 
       <ChatPanel
+        guessed={!!you && !!game?.guessedIds.includes(you.id)}
         notice={toast}
         onDismissNotice={hideToast}
         reconnecting={everConnected && !connected}

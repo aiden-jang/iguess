@@ -1,3 +1,6 @@
+import { useOnline } from "./useOnline";
+import { useRoomViewport } from "./useRoomViewport";
+import { ClubFace } from "./ClubFace";
 import { RoomNotice } from "./RoomNotice";
 import { useChatDraft } from "./useChatDraft";
 import { REACTIONS } from "@iguess/shared";
@@ -8,6 +11,7 @@ import { chatPlaceholder } from "./labels";
 import { styles } from "./styles";
 
 interface ChatPanelProps {
+  guessed?: boolean;
   notice?: string | null;
   onDismissNotice?: () => void;
   reconnecting?: boolean;
@@ -23,6 +27,7 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({
+  guessed = false,
   notice,
   onDismissNotice,
   reconnecting,
@@ -35,6 +40,8 @@ export function ChatPanel({
   onSend,
   onSendFailed,
 }: ChatPanelProps) {
+  useRoomViewport();
+  const online = useOnline();
   const [text, setText] = useChatDraft(room);
   const { chatLogRef, hasNewChat, scrollChatToBottom, onChatScroll } =
     useChatScroll(log.length);
@@ -44,13 +51,14 @@ export function ChatPanel({
       aria-label="Chat and guesses"
       className="glass chat-panel"
       data-drawing={drawingNow}
-      data-notice={!!notice || !!reconnecting}
+      data-notice={!!notice || !!reconnecting || !online}
     >
       <div className="chat-heading">
         <RoomNotice
           message={notice}
           onDismiss={onDismissNotice}
           reconnecting={reconnecting}
+          offline={!online}
         />
         <span style={styles.sectionLabel}>Chat & guesses</span>
         <span className="chat-hint">
@@ -114,7 +122,7 @@ export function ChatPanel({
             className="lift"
             style={styles.reactBtn}
             onClick={() => onReact(emoji)}
-            disabled={drawingNow || !connected}
+            disabled={drawingNow || !connected || !online}
             title={`react ${emoji}`}
           >
             {emoji}
@@ -126,42 +134,57 @@ export function ChatPanel({
           ? "The drawer cannot send chat during their turn."
           : "Type and press Enter to send. Correct guesses score automatically."}
       </span>
-      <form
-        className="chat-compose"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const t = text.trim();
-          if (!t) return;
-          // An emptied box is how you know you sent it.
-          if (onSend(t)) setText("");
-          else onSendFailed();
-        }}
-      >
-        <input
-          style={{ ...styles.input, flex: 1, margin: 0 }}
-          aria-describedby="chat-instruction"
-          aria-label={inGame ? "Your guess" : "Chat message"}
-          maxLength={500}
-          autoComplete="off"
-          enterKeyHint="send"
-          placeholder={
-            !connected
-              ? "Reconnecting. Your draft stays here."
-              : chatPlaceholder(drawingNow, inGame)
-          }
-          disabled={drawingNow}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
-        <button
-          className="lift"
-          style={styles.button}
-          type="submit"
-          disabled={drawingNow || !connected || !text.trim()}
+      {guessed && inGame ? (
+        <div className="guess-complete" role="status">
+          <ClubFace mood="happy" />
+          <div>
+            <strong>Correct. Nicely observed.</strong>
+            <p>
+              You’re done for this turn. React or watch while the room catches
+              up.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <form
+          className="chat-compose"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const t = text.trim();
+            if (!t) return;
+            // An emptied box is how you know you sent it.
+            if (online && onSend(t)) setText("");
+            else onSendFailed();
+          }}
         >
-          Send
-        </button>
-      </form>
+          <input
+            style={{ ...styles.input, flex: 1, margin: 0 }}
+            aria-describedby="chat-instruction"
+            aria-label={inGame ? "Your guess" : "Chat message"}
+            maxLength={500}
+            autoComplete="off"
+            enterKeyHint="send"
+            placeholder={
+              !connected
+                ? "Reconnecting. Your draft stays here."
+                : !online
+                  ? "Offline. Your draft stays here."
+                  : chatPlaceholder(drawingNow, inGame)
+            }
+            disabled={drawingNow}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <button
+            className="lift"
+            style={styles.button}
+            type="submit"
+            disabled={drawingNow || !connected || !online || !text.trim()}
+          >
+            Send
+          </button>
+        </form>
+      )}
     </aside>
   );
 }

@@ -2,25 +2,29 @@ import { Icon } from "./Icon";
 export function RoomNotice({
   message,
   reconnecting,
+  offline,
   onDismiss,
 }: {
   message?: string | null;
   reconnecting?: boolean;
+  offline?: boolean;
   onDismiss?: () => void;
 }) {
-  if (!message && !reconnecting) return null;
+  if (!message && !reconnecting && !offline) return null;
   return (
     <div
       className="room-notice"
-      role={reconnecting ? "alert" : "status"}
-      aria-live={reconnecting ? "assertive" : "polite"}
+      role={reconnecting || offline ? "alert" : "status"}
+      aria-live={reconnecting || offline ? "assertive" : "polite"}
     >
       <span>
-        {reconnecting
-          ? "Connection lost. Reconnecting—your unsent message stays here."
-          : message}
+        {offline
+          ? "You’re offline. Your draft is kept in this tab. Reconnect to send."
+          : reconnecting
+            ? "Connection lost. Reconnecting—your unsent message stays here."
+            : message}
       </span>
-      {!reconnecting && onDismiss && (
+      {!reconnecting && !offline && onDismiss && (
         <button
           type="button"
           aria-label="Dismiss room update"

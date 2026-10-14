@@ -210,7 +210,11 @@ test("word choices, drawing and viewer controls stay usable at both widths", asy
       .getByRole("slider", { name: "Brush size" })
       .boundingBox())!;
     const undo = (await page.getByTitle("undo the last stroke").boundingBox())!;
-    expect(brush.x + brush.width).toBeLessThanOrEqual(undo.x);
+    expect(
+      brush.x + brush.width <= undo.x ||
+        brush.y + brush.height <= undo.y ||
+        undo.y + undo.height <= brush.y,
+    ).toBe(true);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,

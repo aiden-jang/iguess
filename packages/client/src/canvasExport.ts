@@ -6,7 +6,7 @@ export function saveCanvasPng(canvas: HTMLCanvasElement, room: string) {
   out.width = canvas.width;
   out.height = canvas.height;
   const c = out.getContext("2d");
-  if (!c) return;
+  if (!c) return false;
   c.fillStyle = "#ffffff";
   c.fillRect(0, 0, out.width, out.height);
   c.drawImage(canvas, 0, 0);
@@ -14,6 +14,7 @@ export function saveCanvasPng(canvas: HTMLCanvasElement, room: string) {
   a.download = `iguess-${room}-${Date.now()}.png`;
   a.href = out.toDataURL("image/png");
   a.click();
+  return true;
 }
 
 // Deliberately small. One of these is kept per turn for the whole game, and they are only ever

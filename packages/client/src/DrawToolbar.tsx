@@ -1,31 +1,43 @@
 import { useEffect, useState } from "react";
-import { COLORS, COLOR_NAMES, widthDot } from "./brushStyle";
+import { widthDot } from "./brushStyle";
 import type { Brush } from "./useBrush";
 import { useDrawingShortcuts } from "./useDrawingShortcuts";
-
-interface DrawToolbarProps {
+import { PalettePicker } from "./PalettePicker";
+import { ConfirmButton } from "./ConfirmButton";
+import { Icon } from "./Icon";
+interface Props {
   brush: Brush;
   canDraw: boolean;
   onUndo: () => void;
-  onSave: () => void;
+  onSave: () => unknown;
   onClear: () => void;
 }
-
 export function DrawToolbar({
   brush,
   canDraw,
   onUndo,
   onSave,
   onClear,
-}: DrawToolbarProps) {
-  const [confirmClear, setConfirmClear] = useState(false);
+}: Props) {
+  const [saveFeedback, setSaveFeedback] = useState("");
   useDrawingShortcuts(brush, canDraw, onUndo);
   useEffect(() => {
-    if (!confirmClear) return;
-    const timer = setTimeout(() => setConfirmClear(false), 4000);
+    if (!saveFeedback) return;
+    const timer = setTimeout(() => setSaveFeedback(""), 3000);
     return () => clearTimeout(timer);
-  }, [confirmClear]);
-  useEffect(() => setConfirmClear(false), [canDraw]);
+  }, [saveFeedback]);
+  const save = () => {
+    try {
+      const result = onSave();
+      setSaveFeedback(
+        result === false || result === null
+          ? "Couldn’t prepare the image. Try again."
+          : "Download started.",
+      );
+    } catch {
+      setSaveFeedback("Couldn’t prepare the image. Try again.");
+    }
+  };
   return (
     <div
       role="group"
@@ -35,46 +47,37 @@ export function DrawToolbar({
     >
       {canDraw ? (
         <>
-          <div className="ink-palette" role="group" aria-label="Ink colors">
-            {COLORS.map((color) => (
-              <button
-                key={color}
-                className="color-swatch"
-                onClick={() => brush.pickColor(color)}
-                aria-label={`Color ${COLOR_NAMES[color]}`}
-                title={COLOR_NAMES[color]}
-                aria-pressed={color === brush.color}
-              >
-                <span aria-hidden style={{ background: color }}>
-                  {color === brush.color ? "✓" : ""}
-                </span>
-              </button>
-            ))}
-          </div>
+          <PalettePicker color={brush.color} onChange={brush.pickColor} />
           <div className="pen-controls">
             <button
               className="tool-button"
               aria-pressed={!brush.erasing && !brush.filling}
+              aria-keyshortcuts="B"
               onClick={brush.selectPen}
               title="Pen (B)"
             >
-              ✎ <span>Pen</span>
+              <Icon name="pen" />
+              <span>Pen</span>
             </button>
             <button
               className="tool-button"
               aria-pressed={brush.erasing}
+              aria-keyshortcuts="E"
               onClick={brush.toggleErasing}
               title="eraser"
             >
-              ⌫ <span>Erase</span>
+              <Icon name="erase" />
+              <span>Erase</span>
             </button>
             <button
               className="tool-button"
               aria-pressed={brush.filling}
+              aria-keyshortcuts="F"
               onClick={brush.toggleFilling}
               title="fill an area with the current colour"
             >
-              ▧ <span>Fill</span>
+              <Icon name="fill" />
+              <span>Fill</span>
             </button>
             <label className="brush-size" title="Brush size">
               <span className="sr-only">Brush size</span>
@@ -83,7 +86,7 @@ export function DrawToolbar({
                 min={1}
                 max={32}
                 value={brush.width}
-                onChange={(e) => brush.setWidth(Number(e.target.value))}
+                onChange={(event) => brush.setWidth(Number(event.target.value))}
               />
               <span
                 aria-hidden
@@ -97,26 +100,20 @@ export function DrawToolbar({
               className="tool-button"
               onClick={onUndo}
               title="undo the last stroke"
+              aria-keyshortcuts="Control+Z Meta+Z"
             >
-              ↶ <span>Undo</span>
+              <Icon name="undo" />
+              <span>Undo</span>
             </button>
-            <button
+            <ConfirmButton
               className="tool-button"
-              onClick={() => {
-                if (confirmClear) {
-                  onClear();
-                  setConfirmClear(false);
-                } else setConfirmClear(true);
-              }}
-              onBlur={() => setConfirmClear(false)}
-              title={
-                confirmClear
-                  ? "Press again to clear this drawing. This cannot be undone."
-                  : "Clear the drawing"
-              }
+              title="Clear this drawing?"
+              description="This removes every stroke from the current board. It cannot be undone."
+              confirmLabel="Clear drawing"
+              onConfirm={onClear}
             >
-              {confirmClear ? "Clear drawing?" : "Clear"}
-            </button>
+              Clear
+            </ConfirmButton>
           </div>
         </>
       ) : (
@@ -124,14 +121,20 @@ export function DrawToolbar({
       )}
       <button
         className="tool-button save-drawing"
-        onClick={onSave}
+        onClick={save}
         title="save the masterpiece"
       >
-        ↓ <span>Save</span>
+        <Icon name="save" />
+        <span>Save</span>
       </button>
-      {confirmClear && (
-        <span className="clear-note" role="status">
-          Press again to clear. This cannot be undone.
+      {saveFeedback && (
+        <span className="tool-feedback" role="status">
+          {saveFeedback}
+        </span>
+      )}
+      {canDraw && (
+        <span className="tool-shortcuts">
+          B Pen · E Erase · F Fill · Ctrl/⌘ Z Undo
         </span>
       )}
     </div>

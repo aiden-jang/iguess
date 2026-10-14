@@ -36,7 +36,10 @@ export function Countdown({
       data-urgent={low}
       style={styles.timerWrap}
     >
-      <span style={styles.timerBarTrack}>
+      <span className="sr-only" role="status">
+        {low ? "Ten seconds or less remaining." : ""}
+      </span>
+      <span className="timer-track" style={styles.timerBarTrack}>
         <span
           style={{
             ...styles.timerBarFill,
