@@ -211,19 +211,5 @@ export type ServerMessage =
       scores: Record<string, number>;
     };
 
-// Reactions are a fixed allowlist; arbitrary text must not become a canvas overlay.
-export const REACTIONS = [
-  "😂",
-  "🔥",
-  "💀",
-  "👏",
-  "😍",
-  "🤔",
-  "🙈",
-  "🐶",
-] as const;
-export type Reaction = (typeof REACTIONS)[number];
-
-export function isReaction(s: unknown): s is Reaction {
-  return typeof s === "string" && (REACTIONS as readonly string[]).includes(s);
-}
+export { REACTIONS, REACTION_OPTIONS, isReaction } from "./reactions.ts";
+export type { Reaction } from "./reactions.ts";

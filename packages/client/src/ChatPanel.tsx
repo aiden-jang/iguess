@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
 import { RoomNotice } from "./RoomNotice";
 import { useChatDraft } from "./useChatDraft";
-import { REACTIONS } from "@iguess/shared";
+import { REACTION_OPTIONS } from "@iguess/shared";
 import type { ChatLine } from "./useWebSocket";
 import { isAI } from "./roomView";
 import { useChatScroll } from "./useChatScroll";
@@ -121,7 +121,7 @@ export function ChatPanel({
         )}
       </div>
       <div className="reaction-bar">
-        {REACTIONS.map((emoji) => (
+        {REACTION_OPTIONS.map(({ emoji, name, caption }) => (
           <button
             key={emoji}
             type="button"
@@ -129,7 +129,8 @@ export function ChatPanel({
             style={styles.reactBtn}
             onClick={() => onReact(emoji)}
             disabled={drawingNow || !connected || !online}
-            title={`react ${emoji}`}
+            aria-label={`React with ${name}`}
+            title={`${emoji} ${caption}`}
           >
             {emoji}
           </button>

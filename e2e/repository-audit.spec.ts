@@ -101,7 +101,9 @@ test("reactions keep their canvas position and expire after appearing", async ({
   page,
 }) => {
   await enter(page, code());
-  await page.getByTitle("react 🔥", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "React with fire", exact: true })
+    .click();
   await expect(page.locator(".reaction-float")).toContainText("🔥");
   await expect(page.locator(".reaction-float")).toHaveCount(0);
 });

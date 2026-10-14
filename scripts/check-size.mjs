@@ -16,7 +16,7 @@ const CEILINGS = {
   "packages/game-server/src/doodles.ts": 11,
   "packages/game-server/src/ai/aiGuessLoop.ts": 181,
   "packages/ai-worker/src/visionProviders.ts": 168,
-  "shared/events.ts": 229,
+  "shared/events.ts": 215,
   "scripts/check-size.mjs": 90,
   "scripts/check-tests.mjs": 51,
   "scripts/check-comments.mjs": 65,
