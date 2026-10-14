@@ -47,14 +47,13 @@ export function phraseGuess(
 ): string {
   const t =
     GUESS_PHRASINGS[Math.floor(Math.random() * GUESS_PHRASINGS.length)]!;
-  const said = t.replace("%", guess);
+  const said = t.replaceAll("%", () => guess);
   const alt = alternatives.filter((a) => a && a !== guess);
   if (!alt.length || Math.random() < 0.45) return said;
   const s =
     SECOND_THOUGHTS[Math.floor(Math.random() * SECOND_THOUGHTS.length)]!;
-  return (
-    said + " " + s.replace("%", alt[Math.floor(Math.random() * alt.length)]!)
-  );
+  const alternative = alt[Math.floor(Math.random() * alt.length)]!;
+  return said + " " + s.replaceAll("%", () => alternative);
 }
 
 // A model answers "elephant", "an elephant", or "It's a café!". Accept the word inside a

@@ -35,7 +35,7 @@ export function createCommentary(random = Math.random) {
     const line = choices[Math.floor(random() * choices.length)]!;
     recent.push(line);
     if (recent.length > 2) recent.shift();
-    return line.replace("%", word);
+    return line.replaceAll("%", () => word);
   };
 }
 export const aiComment = createCommentary();

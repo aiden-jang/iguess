@@ -48,6 +48,11 @@ test("a phrased guess still matches the secret word", () => {
   }
 });
 
+test("phrasing preserves replacement metacharacters as literal model text", () => {
+  const guess = "$& $$ $' %";
+  for (let i = 0; i < 100; i++) assert.ok(phraseGuess(guess).includes(guess));
+});
+
 test("runners-up never displace the actual guess", () => {
   for (let i = 0; i < 200; i++) {
     const out = phraseGuess("guitar", ["violin", "banjo"]);

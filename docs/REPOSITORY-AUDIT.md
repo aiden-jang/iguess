@@ -92,6 +92,9 @@ The repository description, live website link and topics match the product. Priv
 reporting, dependency graph, Dependabot alerts, malware alerts and grouped security-fix pull
 requests are enabled. CodeQL default setup covers JavaScript/TypeScript and GitHub Actions;
 its initial setup scan completed successfully.
+The resulting source findings were addressed with an explicit read-only workflow token,
+literal callback-based template substitution and a direct string assertion for the malicious-color
+test. The interpolation regressions cover replacement metacharacters in model text and commentary.
 Secret scanning and secret push protection were already enabled. Branch protection remains
 unchanged at the owner's request. The owner is handling the social-preview image upload.
 

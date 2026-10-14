@@ -2,6 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { AI_NAME, aiComment, createCommentary } from "./persona.ts";
 
+test("commentary preserves literal replacement characters in the disclosed word", () => {
+  const comment = createCommentary(() => 0);
+  assert.equal(
+    comment("$& $$ $' %", false),
+    "A $& $$ $' %, apparently. Noted.",
+  );
+});
+
 test("the AI's name carries no badge of its own", () => {
   // Chat, the scoreboard and the share text each add their own AI marker. A name with one
   // baked in renders as "🤖 🤖 dogbot".

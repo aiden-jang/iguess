@@ -87,7 +87,7 @@ test("drops malicious color markup and bounds stroke widths", async () => {
     line("s", horizontal, 200, '"/><script>x</script>'),
     pixels,
   );
-  assert.doesNotMatch(svg, /<script>/);
+  assert.equal(svg.includes("<script"), false);
   assert.match(svg, /stroke="#000000"/);
   assert.match(svg, /stroke-width="80"/);
 });
