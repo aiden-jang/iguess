@@ -36,6 +36,10 @@ The browser case also requests a PNG from the local mock Worker's test-only entr
 its colors against the browser canvas. Production does not expose that test route. These cases
 do not call a vision provider or insert artwork into production rooms.
 
+`join-ready-*` records the enabled entry action at desktop and phone widths in both palettes.
+The authored button appearance and immediate background change keep foreground/background
+contrast aligned during enablement, including Linux WebKit's offscreen painting behavior.
+
 Browser emulation does not establish physical-device keyboard behavior, haptic hardware,
 native sharing, manual screen-reader usability or paid-provider recognition quality. Broader
 architecture and verification details are in the [repository audit](../../REPOSITORY-AUDIT.md).

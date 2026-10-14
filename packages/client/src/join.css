@@ -317,6 +317,7 @@
   color: #4b5735;
 }
 .join-submit {
+  appearance: none;
   width: 100%;
   min-height: 52px;
   padding: 14px 16px;
@@ -330,9 +331,7 @@
   border-radius: 5px;
   font-size: 14px;
   font-weight: 600;
-  transition:
-    background 0.18s,
-    transform 0.18s;
+  transition: transform 0.18s;
 }
 .join-submit > span {
   font-size: 22px;

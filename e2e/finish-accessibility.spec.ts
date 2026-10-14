@@ -4,7 +4,7 @@ import { capture } from "./visualProbe";
 
 test("entry and legal dialogs pass accessibility checks in both palettes", async ({
   page,
-}) => {
+}, info) => {
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
     await page.setViewportSize({
@@ -16,6 +16,12 @@ test("entry and legal dialogs pass accessibility checks in both palettes", async
       .getByRole("textbox", { name: "Your name", exact: true })
       .fill("Guest artist");
     await audit(page);
+    if (process.env.CAPTURE_AUDIT === "1")
+      await page.screenshot({
+        path: `docs/ui-review/repository/join-ready-${colorScheme}-${info.project.name}.jpg`,
+        fullPage: true,
+        animations: "disabled",
+      });
     await page.getByRole("link", { name: "Privacy", exact: true }).click();
     await audit(page);
     if (colorScheme === "light") await capture(page, "privacy-desktop", false);

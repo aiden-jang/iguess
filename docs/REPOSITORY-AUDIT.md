@@ -95,6 +95,10 @@ its initial setup scan completed successfully.
 The resulting source findings were addressed with an explicit read-only workflow token,
 literal callback-based template substitution and a direct string assertion for the malicious-color
 test. The interpolation regressions cover replacement metacharacters in model text and commentary.
+The Linux WebKit CI audit exposed an entry-action contrast transition; the action now switches
+its background immediately with its text color. Failed browser runs retain their test evidence
+as a short-lived CI artifact. Actions are pinned to verified release commits; Dependabot
+tracks their updates.
 Secret scanning and secret push protection were already enabled. Branch protection remains
 unchanged at the owner's request. The owner is handling the social-preview image upload.
 
