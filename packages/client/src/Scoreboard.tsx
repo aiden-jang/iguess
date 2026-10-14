@@ -1,9 +1,9 @@
 import type { PlayerInfo, PublicGameState } from "@iguess/shared";
 import { isAI } from "./roomView";
+import { ConfirmButton } from "./ConfirmButton";
 import { styles } from "./styles";
 
 interface ScoreboardProps {
-  /** Best first. */
   ranked: PlayerInfo[];
   game: PublicGameState | null;
   youId: string | null;
@@ -19,45 +19,65 @@ export function Scoreboard({
   onKick,
 }: ScoreboardProps) {
   return (
-    <ul style={styles.scoreList}>
-      {ranked.map((p, i) => {
-        const me = p.id === youId;
-        const drawer = game?.drawerId === p.id;
-        const guessed = game?.guessedIds.includes(p.id);
+    <ul
+      className="score-list"
+      aria-label="Player standings"
+      style={styles.scoreList}
+    >
+      {ranked.map((player, index) => {
+        const me = player.id === youId;
+        const drawer = game?.drawerId === player.id;
+        const guessed = game?.guessedIds.includes(player.id);
+        const roles = [
+          me && "You",
+          player.isHost && "Host",
+          player.spectator && "Watching",
+          drawer && "Drawing",
+          guessed && "Guessed",
+          player.ready && "Ready",
+        ].filter(Boolean);
         return (
           <li
-            key={p.id}
+            key={player.id}
+            className="score-row"
             style={{
               ...styles.scoreRow,
               ...(me ? styles.scoreRowMe : null),
               ...(drawer ? styles.scoreRowDrawer : null),
             }}
           >
-            <span style={styles.rank}>{i + 1}</span>
-            <span style={styles.playerName}>
-              {isAI(p.id) ? (
-                <span style={styles.aiBadge}>AI</span>
-              ) : p.avatar ? (
-                <span aria-hidden>{p.avatar}</span>
-              ) : null}
-              <span style={styles.nameText}>{p.name}</span>
-              {me ? <span style={styles.youTag}>you</span> : null}
-              {p.isHost ? <span title="host">👑</span> : null}
-              {p.spectator ? <span title="watching">👀</span> : null}
-              {drawer ? <span title="drawing">✏️</span> : null}
-              {guessed ? <span title="guessed">✅</span> : null}
+            <span style={styles.rank}>{index + 1}</span>
+            <span className="player-avatar" aria-hidden>
+              {isAI(player.id) ? "✳" : (player.avatar ?? "☺")}
             </span>
-            {youAreHost && !me && !isAI(p.id) && (
-              <button
+            <div className="player-identity">
+              <span title={player.name} className="player-name">
+                {player.name}
+              </span>
+              <span className="player-role">
+                {isAI(player.id)
+                  ? "AI · questionable confidence"
+                  : roles.join(" · ") || "Here for the art"}
+              </span>
+            </div>
+            <strong
+              aria-label={`${game?.scores[player.id] ?? 0} points`}
+              style={styles.scoreNum}
+            >
+              {game?.scores[player.id] ?? 0}
+            </strong>
+            {youAreHost && !me && !isAI(player.id) && (
+              <ConfirmButton
                 style={styles.kickButton}
-                title={`remove ${p.name}`}
-                aria-label={`remove ${p.name}`}
-                onClick={() => onKick(p.id)}
+                label={`remove ${player.name}`}
+                title={`Remove ${player.name}?`}
+                description="They’ll be disconnected from this room. Other players can keep playing."
+                confirmLabel="Remove player"
+                onConfirm={() => onKick(player.id)}
               >
                 ✕
-              </button>
+              </ConfirmButton>
             )}
-            <strong style={styles.scoreNum}>{game?.scores[p.id] ?? 0}</strong>
           </li>
         );
       })}

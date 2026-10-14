@@ -29,7 +29,13 @@ export function Countdown({
   const frac = timerFraction(msLeft, durationMs);
   const low = secs <= 10;
   return (
-    <span style={styles.timerWrap}>
+    <span
+      className="round-timer"
+      role="timer"
+      aria-label={`${secs} seconds remaining`}
+      data-urgent={low}
+      style={styles.timerWrap}
+    >
       <span style={styles.timerBarTrack}>
         <span
           style={{

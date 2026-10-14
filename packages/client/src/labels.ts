@@ -62,6 +62,7 @@ export interface BoardState {
 // results case: anyone not watching can draw in those phases, so the board is alive and silent.
 export function boardHint(s: BoardState): string | null {
   if (s.canDraw) return null;
+  if (s.phase === "intermission") return "Round complete. Next turn coming up.";
   if (s.youAreWatching) return "you're watching this one";
   if (s.phase === "choosing") {
     return s.isDrawer

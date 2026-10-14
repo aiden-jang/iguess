@@ -1,5 +1,6 @@
 import "@fontsource-variable/inter/wght.css";
 import "@fontsource-variable/fredoka/wght.css";
+import "./game.css";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";

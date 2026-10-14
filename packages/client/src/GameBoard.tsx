@@ -1,5 +1,6 @@
-import type { MutableRefObject } from "react";
+import { useEffect, useState, type MutableRefObject } from "react";
 import type { DrawOp, Point } from "@iguess/shared";
+import { ClubFace } from "./ClubFace";
 import { DrawingCanvas } from "./DrawingCanvas";
 import { Dots } from "./Dots";
 import type { Brush } from "./useBrush";
@@ -32,6 +33,7 @@ interface GameBoardProps {
   /** Trailing dots on the hint, for a wait that is going to end on its own. */
   waiting: boolean;
   aiTake: AiTake | null;
+  phase: string;
 }
 
 export function GameBoard({
@@ -43,9 +45,16 @@ export function GameBoard({
   hint,
   waiting,
   aiTake,
+  phase,
 }: GameBoardProps) {
+  const [scribbled, setScribbled] = useState(false);
+  useEffect(() => setScribbled(false), [phase]);
   return (
-    <div className="canvas-wrap" style={styles.canvasWrap}>
+    <div
+      className="canvas-wrap"
+      style={styles.canvasWrap}
+      onPointerDownCapture={() => canDraw && setScribbled(true)}
+    >
       <DrawingCanvas
         sendDraw={socket.sendDraw}
         subscribeDraw={socket.subscribeDraw}
@@ -70,8 +79,19 @@ export function GameBoard({
           {r.emoji}
         </span>
       ))}
+      {phase === "lobby" && !scribbled && (
+        <div className="board-watermark" aria-hidden="true">
+          <ClubFace />
+          <span>Warm-up space.</span>
+          <small>Draw here while your people arrive.</small>
+        </div>
+      )}
       {hint && (
-        <div style={styles.canvasHintBadge}>
+        <div
+          className="canvas-hint"
+          role="status"
+          style={styles.canvasHintBadge}
+        >
           {hint}
           {waiting && <Dots />}
         </div>
@@ -87,7 +107,10 @@ export function GameBoard({
           ) : aiTake.guess ? (
             <>🤖 "{aiTake.guess}"</>
           ) : (
-            <>AI is thinking<Dots /></>
+            <>
+              AI is thinking
+              <Dots />
+            </>
           )}
         </div>
       )}

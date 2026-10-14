@@ -1,3 +1,5 @@
+import { ClubFace } from "./ClubFace";
+import { ResourceLinks } from "./ResourceDialog";
 import { AVATARS } from "@iguess/shared";
 import { newRoomCode } from "@iguess/shared/roomCode";
 import { MODES, randomName } from "./gameModes";
@@ -31,17 +33,29 @@ export function JoinScreen(p: Props) {
       </header>
       <main className="join-layout">
         <section className="join-intro" aria-labelledby="join-title">
-          <p className="eyebrow">Humans, meet your competition.</p>
+          <p className="eyebrow">
+            <span className="club-dot" /> The drawing club. Talent not checked.
+          </p>
           <h1 id="join-title">
             Good guesses.
             <br />
             <em>Questionable art.</em>
           </h1>
           <p className="join-description">
-            Draw a secret word. Race your friends and an AI to guess it. Being
-            good at drawing is entirely optional.
+            Draw a secret word. Race your friends and an AI to guess it.
+            Absolutely no one is checking your art degree.
           </p>
-          <DoodleExample />
+          <div className="example-stage">
+            <DoodleExample />
+            <div className="club-sticker">
+              <ClubFace />
+              <span>
+                art is
+                <br />
+                subjective.
+              </span>
+            </div>
+          </div>
           <ol className="join-steps">
             <li>
               <span>01</span> Pick a word. Draw the thing.
@@ -64,7 +78,7 @@ export function JoinScreen(p: Props) {
           aria-labelledby="join-form-title"
         >
           <div className="join-card-heading">
-            <span className="eyebrow">Your seat at the table</span>
+            <span className="eyebrow">No account. No audition.</span>
             <h2 id="join-form-title">
               {p.invited ? "You’re invited." : "Let’s make a mess."}
             </h2>
@@ -81,9 +95,12 @@ export function JoinScreen(p: Props) {
               id="player-name"
               autoComplete="nickname"
               maxLength={24}
+              pattern=".*\S.*"
+              title="Enter a name with at least one non-space character."
               value={p.draftName}
               onChange={(e) => p.setDraftName(e.target.value)}
               placeholder="A name you can defend"
+              enterKeyHint="go"
               required
             />
             <button
@@ -96,28 +113,34 @@ export function JoinScreen(p: Props) {
           </div>
           <fieldset className="avatar-picker">
             <legend>Pick your face</legend>
-            <div>
-              {AVATARS.map((avatar) => (
-                <button
-                  key={avatar}
-                  type="button"
-                  aria-label={`Avatar ${avatar}`}
-                  aria-pressed={avatar === p.avatar}
-                  onClick={() => p.setAvatar(avatar)}
-                >
-                  {avatar}
-                </button>
-              ))}
-            </div>
+            <details className="avatar-options">
+              <summary>
+                <span aria-hidden>{p.avatar}</span> Change face{" "}
+                <span aria-hidden>⌄</span>
+              </summary>
+              <div>
+                {AVATARS.map((avatar) => (
+                  <button
+                    key={avatar}
+                    type="button"
+                    aria-label={`Avatar ${avatar}`}
+                    aria-pressed={avatar === p.avatar}
+                    onClick={() => p.setAvatar(avatar)}
+                  >
+                    {avatar}
+                  </button>
+                ))}
+              </div>
+            </details>
           </fieldset>
           <label htmlFor="room-code">
-            Room code <span>Share this with your people.</span>
+            Room code <span>Use this new code, or enter a friend’s.</span>
           </label>
           <div className="join-input-row">
             <input
               id="room-code"
               value={p.draftRoom}
-              maxLength={48}
+              maxLength={32}
               onChange={(e) => p.setDraftRoom(e.target.value)}
               placeholder="A new room, or a friend’s code"
               autoCapitalize="none"
@@ -174,15 +197,15 @@ export function JoinScreen(p: Props) {
             </p>
           )}
           <p className="join-small-print">
-            No account needed. Your name is visible to the room. Preferences and
-            stats are saved in this browser. Drawings may be sent to an AI
-            provider to generate guesses. Room data lasts for the live game;
-            anonymous counts track game starts and finishes.
+            Your name and drawings are shared with the room. AI guessing may
+            send drawings to a vision provider. By playing, you agree to the
+            Terms below.
           </p>
         </form>
       </main>
       <footer className="join-footer">
-        <span>Bad drawings welcome.</span>
+        <span>Low stakes. High opinions.</span>
+        <ResourceLinks />
         <a
           href="https://aidenjang.com"
           target="_blank"
@@ -200,7 +223,7 @@ function DoodleExample() {
   return (
     <figure className="doodle-example">
       <div className="doodle-meta">
-        <span>EXAMPLE / definitely a cat</span>
+        <span>EXAMPLE / allegedly a cat</span>
         <span aria-hidden>✳</span>
       </div>
       <svg

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useChatDraft } from "./useChatDraft";
 import { REACTIONS } from "@iguess/shared";
 import type { ChatLine } from "./useWebSocket";
 import { isAI } from "./roomView";
@@ -7,6 +7,7 @@ import { chatPlaceholder } from "./labels";
 import { styles } from "./styles";
 
 interface ChatPanelProps {
+  room: string;
   connected: boolean;
   log: ChatLine[];
   drawingNow: boolean;
@@ -18,6 +19,7 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({
+  room,
   connected,
   log,
   drawingNow,
@@ -26,13 +28,22 @@ export function ChatPanel({
   onSend,
   onSendFailed,
 }: ChatPanelProps) {
-  const [text, setText] = useState("");
+  const [text, setText] = useChatDraft(room);
   const { chatLogRef, hasNewChat, scrollChatToBottom, onChatScroll } =
     useChatScroll(log.length);
 
   return (
-    <main className="glass" style={styles.main}>
-      <div style={styles.sectionLabel}>Chat & guesses</div>
+    <main className="glass chat-panel" style={styles.main}>
+      <div className="chat-heading">
+        <span style={styles.sectionLabel}>Chat & guesses</span>
+        <span className="chat-hint">
+          {drawingNow
+            ? "Your pen has the floor."
+            : inGame
+              ? "Say what you see."
+              : "Constructive criticism, loosely."}
+        </span>
+      </div>
       <div style={styles.chatWrap}>
         <div
           ref={chatLogRef}
@@ -44,12 +55,13 @@ export function ChatPanel({
         >
           {log.map((line, i) =>
             line.kind === "system" ? (
-              <div key={i} style={styles.system}>
+              <div key={i} className="system-line" style={styles.system}>
                 {line.text}
               </div>
             ) : (
-              <div key={i} style={styles.chatLine}>
+              <div key={i} className="chat-line" style={styles.chatLine}>
                 <span
+                  className="chat-author"
                   style={{
                     ...styles.chatFrom,
                     ...(isAI(line.from?.id) ? styles.chatFromAI : null),
@@ -92,6 +104,11 @@ export function ChatPanel({
           </button>
         ))}
       </div>
+      <span className="sr-only" id="chat-instruction">
+        {drawingNow
+          ? "The drawer cannot send chat during their turn."
+          : "Type and press Enter to send. Correct guesses score automatically."}
+      </span>
       <form
         style={styles.inputRow}
         onSubmit={(e) => {
@@ -105,8 +122,11 @@ export function ChatPanel({
       >
         <input
           style={{ ...styles.input, flex: 1, margin: 0 }}
+          aria-describedby="chat-instruction"
           aria-label={inGame ? "Your guess" : "Chat message"}
           maxLength={500}
+          autoComplete="off"
+          enterKeyHint="send"
           placeholder={
             !connected
               ? "Reconnecting. Your draft stays here."

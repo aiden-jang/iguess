@@ -6,6 +6,7 @@ import { AVATAR_KEY, lifetimeStats } from "./playerStats";
 import { readInvite } from "./roomLinks";
 import { MODES } from "./gameModes";
 import { Room } from "./Room";
+import { useRoomEntry } from "./useRoomEntry";
 import { JoinScreen } from "./JoinScreen";
 
 export function App() {
@@ -28,34 +29,16 @@ export function App() {
       AVATARS[Math.floor(Math.random() * AVATARS.length)]!,
   );
   const stats = lifetimeStats();
-  const [joined, setJoined] = useState<{
-    name: string;
-    room: string;
-    mode: string;
-  } | null>(null);
+  const { joined, enter, leave } = useRoomEntry();
 
   const doJoin = () => {
     const name = draftName.trim();
     if (!name) return;
-    const room = draftRoom.trim() || newRoomCode();
+    const room = draftRoom.trim().slice(0, 32) || newRoomCode();
     writeStored("iguess_name", name);
     writeStored("iguess_room", room);
     writeStored(AVATAR_KEY, avatar);
-    // Put the room in the address bar, so copying the URL shares this room and not the homepage.
-    const q = new URLSearchParams({ room, mode: draftMode });
-    window.history.pushState(null, "", `#${q.toString()}`);
-    setJoined({ name, room, mode: draftMode });
-  };
-
-  const leaveRoom = () => {
-    setJoined(null);
-    if (window.location.hash) {
-      window.history.replaceState(
-        null,
-        "",
-        window.location.pathname + window.location.search,
-      );
-    }
+    enter({ name, room, mode: draftMode });
   };
 
   if (!joined) {
@@ -84,7 +67,7 @@ export function App() {
       room={joined.room}
       mode={joined.mode}
       avatar={avatar}
-      onLeave={leaveRoom}
+      onLeave={leave}
     />
   );
 }

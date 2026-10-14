@@ -9,6 +9,7 @@ import { styles } from "./styles";
 export interface GalleryShot extends EvidenceItem {
   drawerId: string | null;
   ops: DrawOp[];
+  aspectRatio?: number;
 }
 
 export interface Award {
@@ -26,10 +27,30 @@ interface EndScreenProps {
 
 export function EndScreen({ gallery, awards, onSave, saving }: EndScreenProps) {
   const [replayIdx, setReplayIdx] = useState<number | null>(null);
+  if (gallery.length === 0)
+    return (
+      <section className="empty-gallery">
+        <h2>No evidence on file.</h2>
+        <p>
+          Drawings are collected while you’re in the room. Play another game to
+          start your gallery.
+        </p>
+      </section>
+    );
   return (
-    <div style={styles.gallery}>
-      <div style={styles.galleryHead}>
-        <span style={styles.sectionLabel}>the evidence</span>
+    <section
+      className="results-gallery"
+      aria-label="Finished drawings"
+      style={styles.gallery}
+    >
+      <div className="gallery-heading" style={styles.galleryHead}>
+        <div>
+          <p className="eyebrow">
+            {gallery.length} {gallery.length === 1 ? "work" : "works"} of
+            questionable genius
+          </p>
+          <h2>The evidence.</h2>
+        </div>
         <button
           className="lift"
           style={styles.ghostButton}
@@ -40,9 +61,13 @@ export function EndScreen({ gallery, awards, onSave, saving }: EndScreenProps) {
           {saving ? "Preparing image…" : "Share the evidence"}
         </button>
       </div>
-      <div style={styles.galleryStrip}>
+      <div className="gallery-strip" style={styles.galleryStrip}>
         {awards.length > 0 && (
-          <ul style={styles.awardList}>
+          <ul
+            className="gallery-awards"
+            aria-label="Game awards"
+            style={styles.awardList}
+          >
             {awards.map((a) => (
               <li key={a.title} style={styles.awardItem}>
                 <span style={styles.awardTitle}>{a.title}</span>
@@ -53,18 +78,21 @@ export function EndScreen({ gallery, awards, onSave, saving }: EndScreenProps) {
           </ul>
         )}
         {gallery.map((g, i) => (
-          <figure key={i} style={styles.galleryItem}>
+          <figure key={i} className="drawing-card" style={styles.galleryItem}>
             {replayIdx === i ? (
-              <Replay ops={g.ops} size={160} />
+              <Replay ops={g.ops} size={200} aspectRatio={g.aspectRatio} />
             ) : (
               <img
                 src={g.png}
                 alt={`the drawing for "${g.word}"`}
                 style={styles.galleryImg}
+                loading="lazy"
               />
             )}
             <button
               style={styles.replayButton}
+              aria-pressed={replayIdx === i}
+              aria-label={`${replayIdx === i ? "Show still" : "Replay"}: ${g.word}`}
               onClick={() => setReplayIdx(replayIdx === i ? null : i)}
               title={
                 replayIdx === i
@@ -80,19 +108,19 @@ export function EndScreen({ gallery, awards, onSave, saving }: EndScreenProps) {
                 {isAI(g.drawerId) ? "Drawn by AI" : "Human-made. Somehow."}
               </p>
             ) : g.right ? (
-              <p style={{ ...styles.galleryGuess, color: "var(--on-good)" }}>
-                🤖 got it
+              <p style={{ ...styles.galleryGuess, color: "#236b64" }}>
+                AI got it. Credit where due.
               </p>
             ) : g.guess ? (
               <p style={styles.galleryGuess}>🤖 &ldquo;{g.guess}&rdquo;</p>
             ) : (
-              <p style={{ ...styles.galleryGuess, opacity: 0.45 }}>
-                🤖 no idea
+              <p style={{ ...styles.galleryGuess, opacity: 1 }}>
+                AI: no idea. Same, honestly.
               </p>
             )}
           </figure>
         ))}
       </div>
-    </div>
+    </section>
   );
 }

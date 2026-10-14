@@ -64,6 +64,7 @@ export function useRoundGallery({
         aiParticipated: hasAI && !isAI(game?.drawerId),
         drawerId: game?.drawerId ?? null,
         ops: roundOps.current.slice(),
+        aspectRatio: el.width / el.height,
       },
     ]);
     lastGuess.current = { guess: null, right: false };

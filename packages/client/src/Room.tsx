@@ -24,7 +24,6 @@ import { EndScreen } from "./EndScreen";
 import { boardHint } from "./labels";
 import { GameBoard } from "./GameBoard";
 import { Dots } from "./Dots";
-
 import { MODES } from "./gameModes";
 import { Confetti } from "./Confetti";
 export function Room({
@@ -71,13 +70,10 @@ export function Room({
   const effectiveMode = serverMode ?? mode;
   const isAIMode = effectiveMode !== "classic";
 
-  // So the very first connection doesn't flash a "lost connection" banner at you.
   const [everConnected, setEverConnected] = useState(false);
   useEffect(() => {
     if (connected) setEverConnected(true);
   }, [connected]);
-  // On a phone the join screen's focused input can leave the page scrolled down, so you arrive
-  // looking at a blank canvas instead of the start button. Does nothing on desktop.
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -170,7 +166,7 @@ export function Room({
   if (fatal) return <RoomError reason={fatal} onLeave={onLeave} />;
 
   return (
-    <div className="app-layout" style={styles.layout}>
+    <div className="app-layout" data-phase={phase} style={styles.layout}>
       <Confetti go={phase === "ended"} count={winConfetti} />
       {burstKey > 0 && <Confetti key={burstKey} go count={28} />}
       {toast && (
@@ -216,6 +212,7 @@ export function Room({
         <RoomBanner
           {...{
             phase,
+            turnEnd,
             connected,
             youAreWatching,
             soloWaiting,
@@ -269,9 +266,10 @@ export function Room({
           hint={!connected ? "Connecting to the room…" : hint}
           waiting={inGame || !connected}
           aiTake={aiTake}
+          phase={phase}
         />
 
-        {phase === "ended" && gallery.length > 0 && (
+        {phase === "ended" && (
           <EndScreen
             gallery={gallery}
             awards={awards}
@@ -282,10 +280,11 @@ export function Room({
       </section>
 
       <ChatPanel
+        room={room}
         connected={connected}
         log={log}
         drawingNow={drawingNow}
-        inGame={inGame}
+        inGame={phase === "playing"}
         onReact={react}
         onSend={sendChat}
         onSendFailed={() =>
@@ -295,7 +294,6 @@ export function Room({
     </div>
   );
 }
-
 function playerName(players: { id: string; name: string }[], id: string) {
   return players.find((p) => p.id === id)?.name ?? "Someone";
 }

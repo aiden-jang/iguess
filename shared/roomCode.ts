@@ -22,3 +22,8 @@ const pick = <T,>(xs: T[]): T => xs[Math.floor(Math.random() * xs.length)]!;
 export function newRoomCode(): string {
   return `${pick(ADJECTIVES)}-${pick(NOUNS)}-${Math.floor(Math.random() * 90) + 10}`;
 }
+
+/** A mistyped percent escape should still reach the join screen, not throw a server error. */
+export function decodeRoomCode(value: string): string {
+  try { return decodeURIComponent(value); } catch { return value; }
+}

@@ -1,3 +1,4 @@
+import { decodeRoomCode } from "@iguess/shared/roomCode";
 import type { Env } from './env.ts';
 import { aiWorkerProblem } from './aiHealth.ts';
 import { GameRoom } from './GameRoom.ts';
@@ -31,7 +32,7 @@ export default {
         const { success } = await env.RATE_LIMITER.limit({ key: ip });
         if (!success) return new Response('Too many connections, slow down.', { status: 429 });
       }
-      const roomId = decodeURIComponent(match[1]).slice(0, 32);
+      const roomId = decodeRoomCode(match[1]!).slice(0, 32);
       url.searchParams.set('room', roomId); // the DO echoes this back in `welcome`
       const stub = env.GAME_ROOM.get(env.GAME_ROOM.idFromName(roomId));
       return stub.fetch(new Request(url.toString(), request));
@@ -42,7 +43,7 @@ export default {
     // ever see the generic card.
     const invite = url.pathname.match(/^\/r\/([^/]+)\/?$/);
     if (invite) {
-      const room = decodeURIComponent(invite[1]!).slice(0, 32);
+      const room = decodeRoomCode(invite[1]!).slice(0, 32);
       const mode = (url.searchParams.get('mode') ?? '').slice(0, 32);
       const shell = await env.ASSETS.fetch(new Request(new URL('/', url), request));
       if (!shell.ok) return withSecurityHeaders(shell);

@@ -5,13 +5,13 @@ import type { PlayerInfo } from "@iguess/shared";
 import type { useGameSocket } from "./useWebSocket";
 const WIN_LINES = [
   "First place. Act natural.",
-  "Apparently you can draw.",
+  "An extremely official victory.",
   "A small, highly specific victory.",
   "Frame it. Or don’t.",
 ];
 const LOSS_LINES = [
   "A learning experience. Annoying.",
-  "The machine got this one.",
+  "Someone had to come second.",
   "Bold effort. Questionable result.",
   "We can pretend that was practice.",
 ];
@@ -51,7 +51,7 @@ export function useGameFeedback({
   }, [canDraw, phase]);
   useEffect(() => {
     if (canDraw && game?.phase === "playing") {
-      showToast("Your turn. Make it recognizable.");
+      showToast("Your turn. Make it vaguely recognizable.");
       blip([523, 784], muted);
       buzz([18, 60, 18]);
     }

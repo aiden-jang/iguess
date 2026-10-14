@@ -6,6 +6,7 @@ export interface Brush {
   erasing: boolean;
   filling: boolean;
   pickColor: (color: string) => void;
+  selectPen: () => void;
   setWidth: (width: number) => void;
   toggleErasing: () => void;
   toggleFilling: () => void;
@@ -25,6 +26,10 @@ export function useBrush(initialColor: string): Brush {
     erasing,
     filling,
     setWidth,
+    selectPen: () => {
+      setErasing(false);
+      setFilling(false);
+    },
     pickColor: (next) => {
       setColor(next);
       setErasing(false);

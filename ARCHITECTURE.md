@@ -5,7 +5,7 @@ and a vision worker. Shared types and pure rules live in `shared/`.
 
 ## Client
 
-`App` owns the join draft and the transition into a room. `JoinScreen` renders the
+`App` owns the join draft; `useRoomEntry` owns entry, leaving, and browser Back behavior. `JoinScreen` renders the
 join form and a clearly labeled static drawing example. `roomLinks` parses
 current and legacy invitations; `playerStats` owns browser-local statistics.
 
@@ -18,6 +18,8 @@ Room effects have separate owners:
 - `useGameFeedback`: audio, vibration and result celebrations.
 - `useRoundGallery`: capture completed drawings, preserve stroke replays and track AI guesses.
 - `useRoomSharing`: invites, copied results and evidence images, including failure feedback.
+- `useChatDraft`: session-scoped unsent chat, preserved across refresh and cleared after sending.
+- `useDrawingShortcuts`: drawing-area shortcuts that leave text fields and dialogs alone.
 - `useGameSocket`: socket connection, server messages, outgoing actions and draw subscriptions.
 
 `DrawingCanvas` renders local strokes immediately for the drawer. It replays
@@ -26,7 +28,8 @@ undo rules keep client and server stroke handling aligned. The eraser removes
 pixels rather than painting white, so fill remains consistent with transparency.
 
 `index.css` owns the palette, game layout, shared motion and responsive rules;
-`join.css` owns the public join screen. `styles.ts` contains typed component
+`join.css` owns the public join screen, `game.css` the drawing-club workspace, and
+`resources.css` the shared help/legal and confirmation dialogs. `styles.ts` contains typed component
 styles. Token-based light and dark palettes follow system preferences. Reduced
 motion suppresses decorative animation, and confetti is not constructed when
 motion is reduced.

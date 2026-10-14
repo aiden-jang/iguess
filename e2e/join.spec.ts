@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test.describe("the join screen", () => {
   test("hands you a generated room code, not a shared lobby", async ({
@@ -29,6 +29,7 @@ test.describe("the join screen", () => {
   test("you can pick an avatar and it survives a reload", async ({ page }) => {
     await page.addInitScript(() => localStorage.clear());
     await page.goto("/");
+    await page.getByText("Change face", { exact: false }).click();
     await page.getByLabel("Avatar 🦊", { exact: true }).click();
     await page
       .getByRole("textbox", { name: "Your name", exact: true })
@@ -38,4 +39,12 @@ test.describe("the join screen", () => {
       .click();
     await expect(page.getByText("Tester")).toBeVisible();
   });
+});
+
+test("a mistyped percent escape in an invite still serves the join page", async ({
+  request,
+}) => {
+  const response = await request.get("http://127.0.0.1:33300/r/%oops");
+  expect(response.status()).toBe(200);
+  expect(await response.text()).toContain('id="root"');
 });

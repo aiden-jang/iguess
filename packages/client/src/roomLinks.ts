@@ -1,3 +1,5 @@
+import { decodeRoomCode } from "@iguess/shared/roomCode";
+
 // The clipboard API only exists on https and localhost, so there is a fallback path.
 export async function copyText(text: string): Promise<boolean> {
   try {
@@ -36,7 +38,7 @@ export function readInvite(
   if (path) {
     const q = new URLSearchParams(location.search);
     return {
-      room: decodeRoom(path[1]!),
+      room: decodeRoomCode(path[1]!),
       mode: q.get("mode") ?? undefined,
       name: q.get("name") ?? undefined,
     };
@@ -55,7 +57,7 @@ export function readInvite(
   const raw =
     location.hash.replace(/^#/, "") ||
     (fromShare.includes("=") ? fromShare : "");
-  if (!raw && fromShare) return { room: decodeRoom(fromShare) };
+  if (!raw && fromShare) return { room: decodeRoomCode(fromShare) };
   if (!raw) return {};
   const q = new URLSearchParams(raw);
   return {
@@ -63,12 +65,4 @@ export function readInvite(
     mode: q.get("mode") ?? undefined,
     name: q.get("name") ?? undefined,
   };
-}
-
-function decodeRoom(value: string): string {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
 }

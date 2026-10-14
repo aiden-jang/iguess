@@ -1,0 +1,98 @@
+.resource-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.resource-links a {
+  color: var(--muted);
+  font-size: 11px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  text-underline-offset: 4px;
+}
+.resource-dialog {
+  width: min(560px, calc(100% - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 28px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: 0 24px 100px #0004;
+  overflow-y: auto;
+}
+.resource-dialog::backdrop {
+  background: #1119;
+  backdrop-filter: blur(4px);
+}
+.resource-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.resource-heading .club-face {
+  width: 52px;
+  color: var(--sticker);
+}
+.resource-heading button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+}
+.resource-dialog h2 {
+  font-family: "Fredoka Variable", sans-serif;
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1.1;
+  margin: 12px 0 24px;
+  letter-spacing: -0.035em;
+}
+.resource-copy {
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--muted);
+}
+.resource-copy h3 {
+  font-size: 14px;
+  color: var(--text);
+  margin: 24px 0 6px;
+}
+.resource-contact {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.resource-contact a {
+  color: var(--text);
+}
+.help-steps {
+  list-style: decimal-leading-zero;
+  padding-left: 26px;
+}
+.help-steps li {
+  padding-left: 8px;
+  margin-bottom: 18px;
+}
+.help-steps li::marker {
+  color: var(--accent);
+  font-weight: 600;
+}
+.help-steps strong,
+.help-steps span {
+  display: block;
+}
+.help-steps strong {
+  color: var(--text);
+}
+kbd {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 5px;
+  font: inherit;
+  background: var(--panel-2);
+}

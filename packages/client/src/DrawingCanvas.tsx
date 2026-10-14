@@ -35,7 +35,6 @@ export function DrawingCanvas({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const strokes = useRef(newStrokeStates());
-  // In CSS pixels. The canvas is scaled for screen density, so the maths here stays simple.
   const dims = useRef({ w: 0, h: 0 });
   // Resizing a canvas wipes it, so keep every stroke and paint them all again afterwards.
   const opLog = useRef<DrawOp[]>([]);
@@ -161,12 +160,12 @@ export function DrawingCanvas({
     const op: DrawOp = varies
       ? { kind: "move", strokeId: strokeId.current, points, widths }
       : { kind: "move", strokeId: strokeId.current, points };
-    applyOp(op); // local immediate render
-    sendDraw(op); // relay to others
+    applyOp(op);
+    sendDraw(op);
   }
 
   function onPointerDown(e: React.PointerEvent) {
-    if (!canDraw) return; // not your turn
+    if (!canDraw) return;
     if (brush.current.filling) {
       const op: DrawOp = {
         kind: "fill",
@@ -224,8 +223,6 @@ export function DrawingCanvas({
     }
   }
 
-  // A cursor that IS the brush: a circle the exact diameter of the stroke (lineWidth is in CSS px,
-  // same units), tinted the brush color so you can see size + color before you draw. Hotspot centered.
   const d = Math.max(6, Math.min(width, 48));
   const s = d + 4;
   const half = s / 2;
@@ -270,11 +267,14 @@ export function DrawingCanvas({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerLeave}
+        onPointerCancel={onPointerUp}
+        onLostPointerCapture={onPointerUp}
+        tabIndex={canDraw ? 0 : -1}
         style={{
           width: "100%",
           height: "100%",
-          border: "1px solid #ccc",
-          borderRadius: 4,
+          border: "1px solid #d6d1c2",
+          borderRadius: 12,
           // Only capture touch while it's your turn to draw; otherwise let a guesser scroll the page
           // past the canvas instead of trapping their finger on a dead surface.
           touchAction: canDraw ? "none" : "auto",

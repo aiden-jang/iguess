@@ -23,6 +23,7 @@ type Props = Pick<
 > &
   Pick<
     Socket,
+    | "turnEnd"
     | "connected"
     | "settings"
     | "updateSettings"
@@ -43,6 +44,7 @@ type Props = Pick<
 
 export function RoomBanner({
   phase,
+  turnEnd,
   connected,
   youAreWatching,
   soloWaiting,
@@ -68,11 +70,27 @@ export function RoomBanner({
   inGame,
   wordLetters,
 }: Props) {
+  const highScore = Math.max(0, ...Object.values(game?.scores ?? {}));
+  const leaders = players.filter(
+    (player) => !player.spectator && game?.scores[player.id] === highScore,
+  );
   return (
     <div className="glass play-banner" data-phase={phase} style={styles.banner}>
       {phase === "lobby" && (
         <>
-          <span className="lobby-status" style={styles.bannerText}>
+          <div className="lobby-welcome">
+            <span className="eyebrow">The pre-game scribble</span>
+            <h1>
+              Everyone’s an artist.
+              <br />
+              <em>Pending review.</em>
+            </h1>
+          </div>
+          <span
+            className="lobby-status"
+            role="status"
+            style={styles.bannerText}
+          >
             {lobbyStatus({
               youAreWatching,
               soloWaiting,
@@ -99,7 +117,7 @@ export function RoomBanner({
               aria-pressed={youAreReady}
               onClick={() => setReady(!youAreReady)}
             >
-              {youAreReady ? "✅ ready" : "i'm ready"}
+              {youAreReady ? "✓ Ready" : "I’m ready"}
             </button>
           )}
           <button
@@ -127,9 +145,22 @@ export function RoomBanner({
       )}
       {phase === "ended" && (
         <>
-          <span className="pop-in" style={styles.bannerText}>
-            Game over. The evidence remains.
-          </span>
+          <div className="results-title">
+            <span className="eyebrow">Game over / the evidence remains</span>
+            <h1>
+              {highScore === 0
+                ? "No points. Plenty of material."
+                : leaders.length > 1
+                  ? "A shared victory. Awkward."
+                  : `${leaders[0]?.name ?? "Someone"} takes it.`}
+            </h1>
+            <p>
+              {highScore > 0
+                ? `${highScore} points at the top.`
+                : "Consider that a rehearsal."}{" "}
+              Another round?
+            </p>
+          </div>
           <button
             className="lift"
             style={{ ...styles.ghostButton, marginLeft: "auto" }}
@@ -163,19 +194,24 @@ export function RoomBanner({
           </span>
           {isDrawer && wordChoices ? (
             <span className="word-zone" style={styles.wordZone}>
-              <span style={styles.wordVerb}>Pick a word</span>
+              <span style={styles.wordVerb}>
+                Pick a word. Believe in yourself, briefly.
+              </span>
               <span className="word-tiles" style={styles.tiles}>
                 {wordChoices.options.map((c) => (
                   <button
                     key={c.word}
-                    className="lift"
+                    className="lift word-choice"
                     style={styles.button}
                     disabled={!connected}
                     onClick={() => chooseWord(c.word)}
                     title={`${c.tier} — worth ${TIER_LABEL[c.tier]}`}
                   >
-                    {c.word}
-                    <span style={styles.tierBadge}>{TIER_LABEL[c.tier]}</span>
+                    <small className="word-difficulty">{c.tier}</small>
+                    <strong>{c.word}</strong>
+                    <span style={styles.tierBadge}>
+                      {TIER_LABEL[c.tier]} points
+                    </span>
                   </button>
                 ))}
                 {wordChoices.canSkip && (
@@ -203,7 +239,18 @@ export function RoomBanner({
           )}
         </>
       )}
-      {inGame && (
+      {phase === "intermission" && (
+        <div className="turn-recap" role="status">
+          <span className="eyebrow">The word was</span>
+          <strong>{turnEnd?.word ?? "Revealing…"}</strong>
+          <p>
+            {game?.guessedIds.length
+              ? "Recognizable, apparently. Next turn coming up."
+              : "An abstract interpretation. Next turn coming up."}
+          </p>
+        </div>
+      )}
+      {inGame && phase !== "intermission" && (
         <>
           <span style={styles.turnPill}>
             {(game?.totalRounds ?? 1) > 1

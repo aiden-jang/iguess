@@ -22,9 +22,34 @@ export function HostSettings({
   useEffect(() => setDraftWords(customWords), [customWords]);
   return (
     <details className="host-settings">
-      <summary>Game settings</summary>
-      <div style={styles.settingsRow}>
-        <span style={styles.packRow}>
+      <summary>
+        <span>Game settings</span>
+        <small className="settings-compact">
+          {settings.turnSeconds}s ·{" "}
+          {settings.scoreTarget > 0
+            ? `First to ${settings.scoreTarget}`
+            : `${settings.rounds} ${settings.rounds === 1 ? "round" : "rounds"}`}
+        </small>
+        <span aria-hidden>⌄</span>
+      </summary>
+      <p className="settings-summary">
+        {settings.turnSeconds}s turns ·{" "}
+        {settings.scoreTarget > 0
+          ? `First to ${settings.scoreTarget}`
+          : `${settings.rounds} ${settings.rounds === 1 ? "round" : "rounds"}`}{" "}
+        · {youAreHost ? "You’re hosting" : "Host chooses the rules"}
+      </p>
+      <div className="settings-fields" style={styles.settingsRow}>
+        <p className="settings-guidance">
+          Changes apply to this room. No packs selected means all words. Custom
+          words save when you leave the field.
+        </p>
+        <div
+          className="word-packs"
+          role="group"
+          aria-label="Word packs"
+          style={styles.packRow}
+        >
           {PACK_NAMES.map((p) => {
             const on = settings.packs.includes(p);
             return (
@@ -49,7 +74,7 @@ export function HostSettings({
               </button>
             );
           })}
-        </span>
+        </div>
         <label style={styles.settingLabel}>
           Custom words
           <input

@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 const roomFor = () =>
   `recovery-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;

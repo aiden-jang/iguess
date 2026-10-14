@@ -55,17 +55,17 @@
   "screenshots": [
     {
       "src": "/screenshots/join-current.jpg",
-      "sizes": "1270x814",
+      "sizes": "1440x1000",
       "type": "image/jpeg",
       "form_factor": "wide",
-      "label": "Pick a name, room and game mode"
+      "label": "Good guesses. Questionable art."
     },
     {
       "src": "/screenshots/join-current-mobile.jpg",
-      "sizes": "380x822",
+      "sizes": "390x844",
       "type": "image/jpeg",
       "form_factor": "narrow",
-      "label": "Pick a name, room and game mode"
+      "label": "Good guesses. Questionable art."
     }
   ],
   "share_target": {

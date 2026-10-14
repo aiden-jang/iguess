@@ -61,7 +61,7 @@ export const styles = {
 
   layout: {
     display: "grid",
-    gridTemplateColumns: "220px minmax(0,1fr) 300px",
+    gridTemplateColumns: "224px minmax(0,1fr) 280px",
     // minmax(0,1fr), not auto: an auto row grows to fit the canvas and overflows the page.
     gridTemplateRows: "minmax(0, 1fr)",
     // dvh, not vh. Safari counts its URL bar inside 100vh, so the board ends up taller than the
@@ -75,7 +75,7 @@ export const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 14,
-    overflow: "hidden",
+    overflow: "auto",
     minHeight: 0,
   },
   roomHead: { display: "flex", alignItems: "center", gap: 10 },
@@ -435,7 +435,7 @@ export const styles = {
     padding: "7px 13px",
     borderRadius: 14,
     border: "1px solid var(--line)",
-    backdropFilter: "blur(6px)",
+    backdropFilter: "none",
     pointerEvents: "none",
   },
   canvasHintBadge: {
@@ -449,7 +449,7 @@ export const styles = {
     fontWeight: 600,
     padding: "5px 12px",
     borderRadius: 999,
-    backdropFilter: "blur(6px)",
+    backdropFilter: "none",
     pointerEvents: "none",
   },
 
@@ -526,8 +526,8 @@ export const styles = {
     textAlign: "center",
     fontWeight: 700,
     fontSize: 14,
-    color: "#111",
-    background: "var(--on-warm)",
+    color: "var(--on-accent)",
+    background: "var(--accent)",
     boxShadow: "0 4px 16px var(--shadow)",
   },
   inputRow: { display: "flex", gap: 8 },
@@ -550,7 +550,7 @@ export const styles = {
     border: "1px solid var(--line)",
     borderRadius: 10,
     color: "var(--text)",
-    outline: "none",
+    outlineOffset: 2,
   },
   button: {
     padding: "10px 16px",

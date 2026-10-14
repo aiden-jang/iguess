@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 // A fresh room per test AND per run. Rooms are real Durable Objects that outlive a socket by
 // a reconnect grace window, so reusing a name means the previous run still holds the host slot
@@ -19,7 +20,7 @@ async function join(
   await page.getByRole("textbox", { name: /^Room code/ }).fill(room);
   await page.getByRole("button", { name: new RegExp(mode, "i") }).click();
   await page.getByRole("button", { name: /Enter room|Join the room/i }).click();
-  await expect(page.getByText(name).first()).toBeVisible();
+  await expect(page.getByText("Connected", { exact: true })).toBeVisible();
 }
 
 test("the host starts a game and is offered one word per difficulty", async ({
@@ -110,6 +111,7 @@ test("a finished game shows the gallery, a replay and the shareable card", async
   page,
 }) => {
   test.setTimeout(90_000); // a real round has to actually elapse
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await join(page, roomFor("finish"), "Host");
 
   // Shortest possible game: one round on the shortest clock.
@@ -137,6 +139,12 @@ test("a finished game shows the gallery, a replay and the shareable card", async
   await page.mouse.down();
   await page.mouse.move(box.x + 240, box.y + 180, { steps: 15 });
   await page.mouse.up();
+  await expect(page.locator(".turn-recap")).toBeVisible({ timeout: 40_000 });
+  if (process.env.CAPTURE_UI === "1")
+    await page.screenshot({
+      path: "docs/ui-review/drawing-club/turn-recap-desktop.jpg",
+      fullPage: true,
+    });
   // Round over, then the results screen.
   await expect(
     page.getByRole("button", { name: "Play again", exact: true }),
@@ -147,6 +155,28 @@ test("a finished game shows the gallery, a replay and the shareable card", async
   await expect(
     page.getByRole("button", { name: /replay/i }).first(),
   ).toBeVisible();
+
+  if (process.env.CAPTURE_UI === "1") {
+    await page.screenshot({
+      path: "docs/ui-review/drawing-club/results-desktop.jpg",
+      fullPage: true,
+    });
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.screenshot({
+      path: "docs/ui-review/drawing-club/results-desktop-dark.jpg",
+      fullPage: true,
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({
+      path: "docs/ui-review/drawing-club/results-mobile-dark.jpg",
+      fullPage: true,
+    });
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.screenshot({
+      path: "docs/ui-review/drawing-club/results-mobile.jpg",
+      fullPage: true,
+    });
+  }
 
   // The replay swaps the still for a live canvas that redraws the round.
   await page
