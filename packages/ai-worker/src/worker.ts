@@ -33,7 +33,12 @@ export default {
     }
 
     if (url.pathname === '/health') {
-      return Response.json({ ok: true, provider: providers[0]?.name ?? 'mock' });
+      const provider = providers[0]?.name ?? 'mock';
+      return Response.json({
+        ok: true,
+        provider,
+        guessReady: provider !== 'mock' && Boolean(env.AI_SHARED_SECRET),
+      });
     }
 
     if (url.pathname === '/guess' && request.method === 'POST') {

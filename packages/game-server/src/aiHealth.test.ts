@@ -11,7 +11,18 @@ const refusing = (message: string): typeof fetch =>
   }) as unknown as typeof fetch;
 
 test('a healthy worker on a real provider is silent', async () => {
-  assert.equal(await aiWorkerProblem('http://ai.test', replying({ ok: true, provider: 'openai' })), null);
+  assert.equal(
+    await aiWorkerProblem('http://ai.test', replying({ ok: true, provider: 'openai', guessReady: true })),
+    null,
+  );
+});
+
+test('a real provider without shared-secret readiness is reported', async () => {
+  const problem = await aiWorkerProblem(
+    'http://ai.test',
+    replying({ ok: true, provider: 'openai', guessReady: false }),
+  );
+  assert.match(problem!, /configure AI_SHARED_SECRET on both Workers/);
 });
 
 test('a trailing slash does not produce a double slash', async () => {

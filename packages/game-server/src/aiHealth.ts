@@ -3,6 +3,7 @@ const TIMEOUT_MS = 8_000;
 interface HealthBody {
   ok?: boolean;
   provider?: string;
+  guessReady?: boolean;
 }
 
 // Ask the ai-worker how it is and say what is wrong, or null when nothing is. A deployed worker
@@ -25,5 +26,6 @@ export async function aiWorkerProblem(
   const body = (await res.json().catch(() => null)) as HealthBody | null;
   if (!body?.ok) return 'ai-worker /health did not report ok';
   if (body.provider === 'mock') return 'ai-worker is on the mock provider: check the vision key';
+  if (body.guessReady === false) return 'ai-worker vision is disabled: configure AI_SHARED_SECRET on both Workers';
   return null;
 }

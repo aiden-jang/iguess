@@ -13,8 +13,8 @@ The room DO is SQLite-backed and created automatically by the `new_sqlite_classe
 first deploy, with no separate command (unlike D1).
 
 `wrangler deploy` also registers the game-server's cron (`[triggers]` in its `wrangler.toml`),
-which half-hourly checks that the ai-worker is up and not silently on the mock provider. Failures
-go to Workers Logs as errors.
+which half-hourly checks that the ai-worker is up, not on the mock provider, and ready to accept
+authenticated vision requests. Failures go to Workers Logs as errors.
 
 ## 1. Deploy the ai-worker
 
