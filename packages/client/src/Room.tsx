@@ -10,7 +10,6 @@ import { useWakeLock } from "./useWakeLock";
 import { useAppBadge } from "./useAppBadge";
 import type { DrawOp } from "@iguess/shared";
 import { awardsFor } from "@iguess/shared/awards";
-import { styles } from "./styles";
 import { RoomHeader } from "./RoomHeader";
 import { Scoreboard } from "./Scoreboard";
 import { ChatPanel } from "./ChatPanel";
@@ -23,7 +22,6 @@ import { DrawToolbar } from "./DrawToolbar";
 import { EndScreen } from "./EndScreen";
 import { boardHint } from "./labels";
 import { GameBoard } from "./GameBoard";
-import { Dots } from "./Dots";
 import { MODES } from "./gameModes";
 import { Confetti } from "./Confetti";
 export function Room({
@@ -168,26 +166,9 @@ export function Room({
     <div className="app-layout" data-phase={phase} data-drawing={drawingNow}>
       <Confetti go={phase === "ended" && winConfetti > 0} count={winConfetti} />
       {burstKey > 0 && <Confetti key={burstKey} go count={10} />}
-      {toast && (
-        <div
-          className="toast-in"
-          role="status"
-          aria-live="polite"
-          style={styles.toast}
-          onClick={hideToast}
-          title="tap to dismiss"
-        >
-          {toast}
-        </div>
-      )}
-      {everConnected && !connected && (
-        <div role="alert" style={styles.reconnectBanner}>
-          ⚠ connection dropped. reconnecting
-          <Dots />
-        </div>
-      )}
       <RoomHeader
         room={room}
+        points={game ? (game.scores[you?.id ?? ""] ?? 0) : undefined}
         modeLabel={modeMeta?.label ?? effectiveMode}
         connected={connected}
         everConnected={everConnected}
@@ -279,6 +260,9 @@ export function Room({
       </main>
 
       <ChatPanel
+        notice={toast}
+        onDismissNotice={hideToast}
+        reconnecting={everConnected && !connected}
         room={room}
         connected={connected}
         log={log}

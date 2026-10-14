@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { RoomSettings } from "@iguess/shared";
 import { PACK_NAMES } from "@iguess/shared/words";
+import { customWordDraft } from "./customWords";
 import { styles } from "./styles";
 import { useDismissibleDetails } from "./useDismissibleDetails";
 
@@ -19,8 +20,13 @@ export function HostSettings({
   onChange,
 }: HostSettingsProps) {
   const disclosure = useDismissibleDetails();
+  const wordsHint = useId();
   const customWords = settings.customWords.join(", ");
   const [draftWords, setDraftWords] = useState(customWords);
+  const preview = customWordDraft(draftWords);
+  const saveWords = () => {
+    if (!preview.error && youAreHost) onChange({ customWords: preview.words });
+  };
   useEffect(() => setDraftWords(customWords), [customWords]);
   return (
     <details className="host-settings" {...disclosure}>
@@ -43,8 +49,9 @@ export function HostSettings({
       </p>
       <div className="settings-fields">
         <p className="settings-guidance">
-          Changes apply to this room. No packs selected means all words. Custom
-          words save when you leave the field.
+          {youAreHost
+            ? "You’re hosting. These rules apply to everyone in the room."
+            : "The host chooses these rules. You can review them here."}
         </p>
         <div
           className="word-packs"
@@ -52,6 +59,22 @@ export function HostSettings({
           aria-label="Word packs"
           style={styles.packRow}
         >
+          <span className="pack-heading">
+            Word packs ·{" "}
+            {settings.packs.length
+              ? `${settings.packs.length} selected`
+              : "all words"}
+          </span>
+          <button
+            type="button"
+            style={styles.packChip}
+            className="all-words"
+            aria-pressed={settings.packs.length === 0}
+            disabled={!youAreHost}
+            onClick={() => onChange({ packs: [] })}
+          >
+            All words
+          </button>
           {PACK_NAMES.map((p) => {
             const on = settings.packs.includes(p);
             return (
@@ -85,10 +108,20 @@ export function HostSettings({
             placeholder="your own words, comma separated"
             value={draftWords}
             onChange={(event) => setDraftWords(event.target.value)}
-            onBlur={(e) => onChange({ customWords: e.target.value.split(",") })}
+            aria-describedby={wordsHint}
+            aria-invalid={!!preview.error}
+            onBlur={saveWords}
             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
           />
         </label>
+        <p
+          className="custom-word-feedback"
+          id={wordsHint}
+          role={preview.error ? "alert" : undefined}
+        >
+          {preview.error ||
+            `${preview.words.length} custom words. Up to 40 unique words; save with Enter or leave the field.`}
+        </p>
         <label style={styles.settingLabel}>
           Turn time
           <select

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 const SHOW_MS = 2600;
 
-/** One transient line at the top of the screen. A new one replaces whatever is showing. */
+/** One transient room update. A new one replaces whatever is showing. */
 export function useToast() {
   const [toast, setToast] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useDismissibleDetails } from "./useDismissibleDetails";
 import { connectionLabel, inviteLabel, type InviteResult } from "./labels";
+import { ScoreReadout } from "./ScoreReadout";
 import { Icon } from "./Icon";
 import { ResourceLinks } from "./ResourceDialog";
 import { ClubFace } from "./ClubFace";
@@ -8,6 +9,7 @@ import { ConfirmButton } from "./ConfirmButton";
 
 interface Props {
   room: string;
+  points?: number;
   modeLabel: string;
   connected: boolean;
   everConnected: boolean;
@@ -42,7 +44,9 @@ export function RoomHeader(p: Props) {
       <div className="room-actions">
         <details {...roster} className="room-roster">
           <summary>
-            <span>Players & scores</span>
+            <span className="roster-long">Players & scores</span>
+            <span className="roster-short">Players</span>
+            <ScoreReadout points={p.points} />
             <Icon name="chevron" />
           </summary>
           <div className="roster-popover">

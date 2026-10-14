@@ -39,7 +39,7 @@ test("a dropped socket preserves the draft and restores usable controls", async 
   await input.fill("Still here. Allegedly.");
   interrupted = true;
   dropConnection!();
-  await expect(page.getByRole("alert")).toContainText("reconnecting");
+  await expect(page.getByRole("alert")).toContainText(/reconnecting/i);
   await expect(
     page.getByRole("button", { name: "Send", exact: true }),
   ).toBeDisabled();

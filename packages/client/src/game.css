@@ -1331,3 +1331,33 @@
  .room-context { overflow: hidden; }
 }
 @media (min-width: 881px) and (max-width: 1100px) { .room-context { max-width: 150px; } .room-header { gap: 12px; } }
+.lobby-welcome { flex-basis: 45%; }
+.lobby-rules { font-size: 13px; color: var(--text); line-height: 1.6; margin: 12px 0 0; }
+.lobby-guidance { font-size: 12px; }
+.pack-heading { flex-basis: 100%; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.word-packs button[aria-pressed="true"] { background: var(--sticker) !important; color: var(--ink) !important; border-color: var(--sticker) !important; }
+.custom-word-feedback { grid-column: 1 / -1; font-size: 12px; line-height: 1.6; color: var(--muted); margin: 0; }
+.custom-word-feedback[role="alert"] { color: var(--bad); }
+.settings-fields label:has(input) { grid-column: 1 / -1; }
+.host-settings .settings-fields { max-height: min(65dvh,600px); }
+.roster-short { display: none; }
+.room-roster summary { gap: 8px; }
+.score-readout { display: inline-flex; gap: 5px; align-items: center; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.score-readout small { color: var(--good); font-size: 11px; }
+.score-gain { animation: scoreGain .35s ease both; }
+.room-notice { display: flex; align-items: start; gap: 8px; padding: 10px 0; font-size: 13px; line-height: 1.6; border-bottom: 1px solid var(--line); color: var(--text); }
+.room-notice span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.room-notice button { border: 0; background: transparent; color: var(--muted); width: 28px; padding: 0; min-height: 28px !important; flex-shrink: 0; }
+.room-notice[role="alert"] { color: var(--bad); }
+@keyframes scoreGain { from { opacity: .5; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (max-width: 880px) {
+ .lobby-welcome { flex-basis: auto; }
+ .roster-long { display: none; } .roster-short { display: inline; }
+ .room-roster > summary { gap: 6px; }
+ .room-roster > summary .ui-icon { width: 14px; }
+ .chat-panel[data-notice="true"] .chat-heading { display: block; border: 0; padding: 0; }
+ .chat-panel[data-notice="true"] .chat-heading > :not(.room-notice) { display: none; }
+ .room-notice { padding: 0; border: 0; font-size: 12px; }
+ .lobby-rules { margin-top: 8px; }
+ .host-settings .settings-fields { width: min(460px,calc(100vw - 30px)); }
+}

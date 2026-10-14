@@ -1,3 +1,4 @@
+import { RoomNotice } from "./RoomNotice";
 import { useChatDraft } from "./useChatDraft";
 import { REACTIONS } from "@iguess/shared";
 import type { ChatLine } from "./useWebSocket";
@@ -7,6 +8,9 @@ import { chatPlaceholder } from "./labels";
 import { styles } from "./styles";
 
 interface ChatPanelProps {
+  notice?: string | null;
+  onDismissNotice?: () => void;
+  reconnecting?: boolean;
   room: string;
   connected: boolean;
   log: ChatLine[];
@@ -19,6 +23,9 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({
+  notice,
+  onDismissNotice,
+  reconnecting,
   room,
   connected,
   log,
@@ -37,8 +44,14 @@ export function ChatPanel({
       aria-label="Chat and guesses"
       className="glass chat-panel"
       data-drawing={drawingNow}
+      data-notice={!!notice || !!reconnecting}
     >
       <div className="chat-heading">
+        <RoomNotice
+          message={notice}
+          onDismiss={onDismissNotice}
+          reconnecting={reconnecting}
+        />
         <span style={styles.sectionLabel}>Chat & guesses</span>
         <span className="chat-hint">
           {drawingNow

@@ -23,6 +23,16 @@ export function LobbyControls(p: RoomBannerProps) {
             watchingCount: p.watching.length,
           })}
         </p>
+        <p className="lobby-rules">
+          {p.settings.turnSeconds}s turns ·{" "}
+          {p.settings.scoreTarget
+            ? `First to ${p.settings.scoreTarget}`
+            : `${p.settings.rounds} rounds`}{" "}
+          ·{" "}
+          {p.settings.packs.length
+            ? `${p.settings.packs.length} word packs`
+            : "All word packs"}
+        </p>
         <p className="lobby-guidance">
           {p.youAreHost
             ? "You’re hosting. Ready is a signal; you decide when to start."
