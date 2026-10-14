@@ -10,6 +10,9 @@ export interface JoinProps {
   avatar: string;
   setAvatar: (avatar: string) => void;
   invited: boolean;
+  lastRoom: string | null;
+  selectRoom: (room?: string) => void;
+  entryError: string;
   stats: LifetimeStats;
   doJoin: () => void;
 }

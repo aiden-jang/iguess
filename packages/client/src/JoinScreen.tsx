@@ -7,7 +7,7 @@ import "./join.css";
 
 export function JoinScreen(props: JoinProps) {
   return (
-    <div className="join-page">
+    <div className="join-page" data-invited={props.invited}>
       <header className="join-header">
         <a href="/" className="wordmark" aria-label="iguess home">
           iguess<span aria-hidden>✳</span>
@@ -31,13 +31,15 @@ export function JoinScreen(props: JoinProps) {
             A drawing game for your friends. And one
             <br className="desktop-break" /> deeply confident machine.
           </p>
+        </section>
+        <JoinForm {...props} />
+        <div className="join-example">
           <DoodlePoster />
           <div className="join-afterthought">
             <span>No talent required.</span>
             <span>We checked. Loosely.</span>
           </div>
-        </section>
-        <JoinForm {...props} />
+        </div>
       </main>
       <section className="join-how" aria-label="The extremely short version">
         <div className="how-intro">

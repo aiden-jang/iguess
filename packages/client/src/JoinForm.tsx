@@ -1,6 +1,7 @@
 import { AVATARS } from "@iguess/shared";
 import { newRoomCode } from "@iguess/shared/roomCode";
 import { useState } from "react";
+import { VisionNotice } from "./VisionNotice";
 import { ClubFace } from "./ClubFace";
 import { MODES, randomName } from "./gameModes";
 import type { JoinProps } from "./join.types";
@@ -34,6 +35,25 @@ export function JoinForm(p: JoinProps) {
           "A name. That’s the paperwork."
         )}
       </p>
+      {!p.invited && p.lastRoom && (
+        <div className="returning-room">
+          <span>
+            New room: <strong>{p.draftRoom}</strong>
+          </span>
+          <button type="button" onClick={() => p.selectRoom(p.lastRoom!)}>
+            Rejoin {p.lastRoom} ↗
+          </button>
+        </div>
+      )}
+      {p.invited && (
+        <button
+          className="start-fresh"
+          type="button"
+          onClick={() => p.selectRoom()}
+        >
+          Start a new room instead ↗
+        </button>
+      )}
       <label htmlFor="player-name">Your name</label>
       <div className="join-input-row">
         <input
@@ -46,6 +66,8 @@ export function JoinForm(p: JoinProps) {
           onChange={(e) => p.setDraftName(e.target.value)}
           placeholder="A name you can defend"
           enterKeyHint="go"
+          aria-describedby="entry-feedback"
+          aria-invalid={!!p.entryError}
           required
         />
         <button
@@ -57,6 +79,16 @@ export function JoinForm(p: JoinProps) {
           ↻
         </button>
       </div>
+      <p
+        id="entry-feedback"
+        className="entry-feedback"
+        role={p.entryError ? "alert" : undefined}
+      >
+        {p.entryError ||
+          (!p.draftName.trim()
+            ? "Add your name to enter. Full legal identity unnecessary."
+            : "Your name is shared with this room.")}
+      </p>
       {!p.invited && (
         <fieldset className="mode-picker">
           <legend>Choose your company</legend>
@@ -106,6 +138,18 @@ export function JoinForm(p: JoinProps) {
             ? "Needs two humans. Invite a friend once you’re in."
             : "Solo is fine. Friends are also tolerated."}
       </p>
+      {!p.invited && (
+        <p className="mode-explanation">
+          {p.draftMode === "ai-drawer"
+            ? "Curated doodles, drawn stroke by stroke. You guess."
+            : p.draftMode === "classic"
+              ? "Humans draw and guess. Bring at least one friend."
+              : "The AI guesses from your drawing. Confidence varies."}
+        </p>
+      )}
+      {!p.invited && (
+        <VisionNotice mode={p.draftMode} onMode={p.setDraftMode} />
+      )}
       <details
         className="join-options"
         open={optionsOpen}

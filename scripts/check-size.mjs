@@ -8,7 +8,7 @@ const ROOT = new URL("..", import.meta.url).pathname;
 const SLACK = 40;
 
 const CEILINGS = {
-  "packages/client/src/App.tsx": 73,
+  "packages/client/src/App.tsx": 20,
   "packages/client/src/Room.tsx": 298,
   "packages/client/src/styles.ts": 350,
   "packages/client/src/useWebSocket.ts": 350,

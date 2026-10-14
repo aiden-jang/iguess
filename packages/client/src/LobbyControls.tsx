@@ -1,4 +1,5 @@
 import type { RoomBannerProps } from "./roomBanner.types";
+import { VisionNotice } from "./VisionNotice";
 import { lobbyStatus } from "./labels";
 import { HostSettings } from "./HostSettings";
 import { styles } from "./styles";
@@ -22,6 +23,20 @@ export function LobbyControls(p: RoomBannerProps) {
             watchingCount: p.watching.length,
           })}
         </p>
+        <p className="lobby-guidance">
+          {p.youAreHost
+            ? "You’re hosting. Ready is a signal; you decide when to start."
+            : "Ready tells the host you’re here. The host starts the game."}
+        </p>
+        {p.isAIMode && (
+          <VisionNotice
+            mode={
+              p.players.some((player) => player.id === "ai-drawer")
+                ? "ai-drawer"
+                : "ai"
+            }
+          />
+        )}
       </div>
       <div className="lobby-actions">
         <HostSettings

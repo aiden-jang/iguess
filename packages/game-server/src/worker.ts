@@ -1,6 +1,7 @@
 import { decodeRoomCode } from "@iguess/shared/roomCode";
 import type { Env } from './env.ts';
 import { aiWorkerProblem } from './aiHealth.ts';
+import { playStatus } from "./playStatus.ts";
 import { GameRoom } from './GameRoom.ts';
 import { withSecurityHeaders } from './harden.ts';
 import { rewriteInviteMeta } from './inviteMeta.ts';
@@ -10,6 +11,8 @@ import { rewriteInviteMeta } from './inviteMeta.ts';
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    if (url.pathname === '/play-status') return withSecurityHeaders(Response.json(await playStatus(env.AI_WORKER_URL), { headers: { 'Cache-Control': 'public, max-age=30' } }));
 
     if (url.pathname === '/health') {
       return withSecurityHeaders(
