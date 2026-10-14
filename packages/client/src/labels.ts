@@ -2,7 +2,7 @@ export type InviteResult = "copied" | "shared" | null;
 
 export function chatPlaceholder(drawingNow: boolean, inGame: boolean): string {
   if (drawingNow) return "Draw on the canvas. No hints in chat.";
-  return inGame ? "Your guess… (?word bets on the AI)" : "Say something…";
+  return inGame ? "Your guess…" : "Say something…";
 }
 
 // "connecting…" only before the first connection ever lands, so a slow first load doesn't

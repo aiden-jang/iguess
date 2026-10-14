@@ -1,5 +1,7 @@
 # Drawing club acceptance record
 
+Historical design. The current direction and captures are in [the studio review](../studio/README.md).
+
 The scope is the agreed full product pass. Captures use disposable local rooms and QA names;
 none are seeded into the production app. The cat on the join page remains a labeled example.
 

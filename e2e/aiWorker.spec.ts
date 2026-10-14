@@ -25,15 +25,15 @@ const STROKES = [
   { kind: "end", strokeId: "s1" },
 ];
 
-test("a real POST /guess crosses to the provider and comes back", async ({
-  request,
-}) => {
-  // The guard and the paid-capable call are one test on purpose: if the pin to the mock has
-  // broken, this fails here and the POST below never happens.
+test.beforeEach(async ({ request }) => {
   const health = await request.get(`${AI}/health`);
   expect(health.ok()).toBeTruthy();
   expect((await health.json()).provider).toBe("mock");
+});
 
+test("a local POST /guess reaches the mock provider and comes back", async ({
+  request,
+}) => {
   const res = await request.post(`${AI}/guess`, {
     data: { ops: STROKES, hint: HINT },
   });
@@ -63,4 +63,22 @@ test("a hint with no blanks is refused as a hint, since it would be the answer",
   const body = await res.json();
   // The word itself was ignored, so the answer is not shaped by it.
   expect(body.guess).not.toBe("elephant");
+});
+
+test("an invite preview renders its room with the bundled font", async ({
+  request,
+}) => {
+  const response = await request.get(
+    `${AI}/og?room=an-unofficial-art-show&mode=Classic`,
+  );
+  expect(response.ok()).toBeTruthy();
+  expect(response.headers()["content-type"]).toBe("image/png");
+  const png = await response.body();
+  expect(png.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+  expect(png.readUInt32BE(16)).toBe(1200);
+  expect(png.readUInt32BE(20)).toBe(630);
+  if (process.env.CAPTURE_UI === "1") {
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile("docs/ui-review/studio/room-invite.png", png);
+  }
 });

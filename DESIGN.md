@@ -1,47 +1,45 @@
-# The drawing club
+# iguess: draw badly, guess wildly
 
-iguess should feel like a small drawing club with questionable talent and good presentation.
-The drawing is the main event. Personality belongs in the margins, the transitions, and the
-machine’s misplaced confidence. Never obscure a word, timer, player action, or error for a joke.
+The current direction is an expressive drawing studio: oversized ink typography, acid-green
+accents, rough little drawings, and dry commentary. Keep the controls calm and the game quick.
+The previous rounded drawing-club panels are historical, not the layout target.
 
 ## Visual language
 
-- Warm paper, dark ink, coral actions, green selected states, and a pale chartreuse face.
-- Inter for functional information; Fredoka for the wordmark, conversational headings,
-  chosen words, and gallery captions. Keep functional text legible rather than decorative.
-- Use solid surfaces and thin rules. Cream drawing slips remain cream in dark mode.
-- Keep the canvas white so shared ink looks consistent across themes.
-- Selected states need an outline/check as well as a color change. User content is never restyled
-  into a joke or rewritten.
-- Motion confirms an action: selecting a tool, a turn changing, a correct guess, or a reaction.
-  Reduced-motion preferences suppress decorative movement.
+- Paper #f2f2e9, ink #202522, acid #d8ed79, muted green-gray and a small warm pink accent.
+- Inter carries confident, tightly spaced headlines and all functional text. Fredoka is for
+  the wordmark, annotations and hand-drawn personality rather than every heading.
+- Use open composition, rules, and one strong play surface. Avoid wrapping every region in
+  the same rounded panel. The entry form is a contrasting ink surface with an acid action.
+- The drawing stays white in both themes. Gallery prints stay paper-colored in dark mode.
+- Selection is labeled and outlined. Never change or joke-rewrite a player’s own content.
+- Animate useful feedback and small expressions; respect reduced motion. Celebrations are
+  restrained and earned, with no emoji rain after a zero-score game.
 
-## Screen priorities
+## Product priorities
 
-Join: explain the game, enter a name, confirm the room and mode, then play. Avatar options expand
-on request. The example is clearly labeled. Public information remains available without joining.
+Enter: a name, a mode, and one primary action. Put room codes and extra modes behind a labeled
+expansion. Invitations identify their room and defer the live mode to its host. Avatar selection
+is available without becoming a required step. Public help, privacy and terms remain reachable.
 
-Lobby: name the room, explain whether it can start, make the host action clear, and provide a live
-warm-up canvas. Ready is optional; settings are host-controlled. Show the current rules without
-requiring everyone to open the editor.
+Play: use a compact room header and a canvas/chat split instead of a permanent tall sidebar.
+Players and scores expand when needed. The word/hint, time and pen controls have priority.
+Keep drawing tools contextual, chat reachable, and mobile controls clear at narrow widths.
 
-Game: the canvas, word/hint and time outrank the roster. Show drawing tools only to someone who
-can draw; guessing players retain Save. On phones, the roster collapses and chat stays reachable.
-Tool shortcuts apply only when focus is in the drawing area, never while typing a guess.
-
-Results: announce the outcome, reveal the work, then offer replay, sharing, and another game.
-Tie and zero-score cases must tell the truth. Awards require actual game evidence.
+Finish: lead with the actual result, then the exhibition. Number real drawings and identify their
+artists. Share and replay the work, with awards grounded in game events. Handle empty, tied and
+zero-score games honestly.
 
 ## Voice
 
-Dry, relaxed, specific. Let the situation be funny without mocking a player. Use direct functional
-labels; jokes belong in supporting copy. Avoid slang that needs an explanation, fake urgency,
-invented achievements, and the same joke repeated after every action. Errors and privacy text
-explain what happened and what a person can do.
+Nonchalant, funny, specific. Let the situation and the machine’s confidence supply the joke.
+Use dry asides and short reactions; avoid slang substitutions, fake urgency and constant
+exclamation marks. Instructions, errors, confirmations and privacy text stay clear.
 
-## Verification
+## Acceptance
 
-Review the entire room at desktop and phone sizes, in light and dark palettes. Include a narrow
-phone and landscape, keyboard focus, reduced motion, long names, dropped sockets, and results.
-Capture real local rooms with disposable QA identities. Mock tests verify the flow, not AI quality.
-The acceptance record lives in `docs/ui-review/drawing-club/README.md`.
+Inspect desktop and phone layouts in light and dark palettes, including 320 px and landscape.
+Check keyboard joining, disclosure controls, dialogs, drawing, guessing, reconnects, results,
+replay and sharing. Use disposable local rooms and mock AI. Record screenshots and limitations
+in `docs/ui-review/studio/README.md`. Browser checks do not establish physical-device or paid-AI
+quality.

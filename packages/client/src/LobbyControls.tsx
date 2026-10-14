@@ -1,0 +1,69 @@
+import type { RoomBannerProps } from "./roomBanner.types";
+import { lobbyStatus } from "./labels";
+import { HostSettings } from "./HostSettings";
+import { styles } from "./styles";
+
+export function LobbyControls(p: RoomBannerProps) {
+  const needsFriend = p.soloWaiting && !p.isAIMode;
+  return (
+    <>
+      <div className="lobby-welcome">
+        <span className="eyebrow">The warm-up</span>
+        <h1>
+          Warm up. <em>Or don’t.</em>
+        </h1>
+        <p className="lobby-status" role="status">
+          {lobbyStatus({
+            youAreWatching: p.youAreWatching,
+            soloWaiting: p.soloWaiting,
+            isAIMode: p.isAIMode,
+            readyCount: p.readyCount,
+            humanCount: p.humans.length,
+            watchingCount: p.watching.length,
+          })}
+        </p>
+      </div>
+      <div className="lobby-actions">
+        <HostSettings
+          settings={p.settings}
+          youAreHost={p.youAreHost && p.connected}
+          isAIMode={p.isAIMode}
+          onChange={p.updateSettings}
+        />
+        {!p.youAreWatching && (
+          <button
+            type="button"
+            style={{
+              ...styles.ghostButton,
+              ...(p.youAreReady ? styles.readyOn : null),
+            }}
+            disabled={!p.connected}
+            aria-pressed={p.youAreReady}
+            onClick={() => p.setReady(!p.youAreReady)}
+          >
+            {p.youAreReady ? "✓ Ready" : "I’m ready"}
+          </button>
+        )}
+        <button
+          type="button"
+          className="lobby-start"
+          style={styles.button}
+          onClick={p.startGame}
+          disabled={!p.youAreHost || !p.connected || needsFriend}
+          title={
+            !p.connected
+              ? "Reconnect to start"
+              : !p.youAreHost
+                ? "Only the host can start"
+                : needsFriend
+                  ? "Classic needs another player"
+                  : undefined
+          }
+        >
+          {p.youAreHost ? "Start game" : "Waiting for the host"}
+          <span aria-hidden>↗</span>
+        </button>
+      </div>
+    </>
+  );
+}

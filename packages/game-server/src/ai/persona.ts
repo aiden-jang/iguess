@@ -7,21 +7,21 @@ export const AI_NAME = "dogbot";
 
 // Said when it loses a turn it was sure about.
 const SALTY = [
-  "that was NOT a %. i refuse.",
-  "ok whoever drew that owes me an apology",
-  "i had it. i genuinely had it.",
-  "this is why i guess dog.",
-  "we're calling that a % are we",
-  "unbelievable. next.",
+  "A %, apparently. Noted.",
+  "I had a different interpretation. Several, actually.",
+  "The resemblance was a private matter.",
+  "This is why I guess dog.",
+  "A %. I admire the confidence.",
+  "An ambitious use of lines.",
 ];
 
 // Said when it wins.
 const SMUG = [
-  "too easy honestly",
-  "i saw it in like two strokes",
-  "humans: 0",
-  "was that supposed to be hard",
-  "i'm built different",
+  "I’ll add art critic to the résumé.",
+  "Two strokes. Modest of me to wait.",
+  "Recognized it. Tried to be normal about it.",
+  "A win. My extensive training finally pays off.",
+  "Correct. I’ll need a moment to act surprised.",
 ];
 
 const pick = (xs: string[]) => xs[Math.floor(Math.random() * xs.length)]!;

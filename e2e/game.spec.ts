@@ -17,6 +17,9 @@ async function join(
   await page
     .getByRole("textbox", { name: "Your name", exact: true })
     .fill(name);
+  await page
+    .getByText("Room code & more ways to play", { exact: true })
+    .click();
   await page.getByRole("textbox", { name: /^Room code/ }).fill(room);
   await page.getByRole("button", { name: new RegExp(mode, "i") }).click();
   await page.getByRole("button", { name: /Enter room|Join the room/i }).click();
@@ -142,7 +145,8 @@ test("a finished game shows the gallery, a replay and the shareable card", async
   await expect(page.locator(".turn-recap")).toBeVisible({ timeout: 40_000 });
   if (process.env.CAPTURE_UI === "1")
     await page.screenshot({
-      path: "docs/ui-review/drawing-club/turn-recap-desktop.jpg",
+      animations: "disabled",
+      path: "docs/ui-review/studio/turn-recap-desktop.jpg",
       fullPage: true,
     });
   // Round over, then the results screen.
@@ -152,28 +156,34 @@ test("a finished game shows the gallery, a replay and the shareable card", async
   // The first round's drawing has to survive: the game_state after turn_end still carries the
   // old turn index, and a zero-check here used to wipe the gallery the moment it was filled.
   await expect(page.locator("figure")).toHaveCount(1);
+  await expect(page.getByRole("list", { name: "Game awards" })).toHaveCount(0);
+  await expect(page.locator(".drawing-card")).toContainText("AI: no comment.");
   await expect(
     page.getByRole("button", { name: /replay/i }).first(),
   ).toBeVisible();
 
   if (process.env.CAPTURE_UI === "1") {
     await page.screenshot({
-      path: "docs/ui-review/drawing-club/results-desktop.jpg",
+      animations: "disabled",
+      path: "docs/ui-review/studio/results-desktop.jpg",
       fullPage: true,
     });
     await page.emulateMedia({ colorScheme: "dark" });
     await page.screenshot({
-      path: "docs/ui-review/drawing-club/results-desktop-dark.jpg",
+      animations: "disabled",
+      path: "docs/ui-review/studio/results-desktop-dark.jpg",
       fullPage: true,
     });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({
-      path: "docs/ui-review/drawing-club/results-mobile-dark.jpg",
+      animations: "disabled",
+      path: "docs/ui-review/studio/results-mobile-dark.jpg",
       fullPage: true,
     });
     await page.emulateMedia({ colorScheme: "light" });
     await page.screenshot({
-      path: "docs/ui-review/drawing-club/results-mobile.jpg",
+      animations: "disabled",
+      path: "docs/ui-review/studio/results-mobile.jpg",
       fullPage: true,
     });
   }
@@ -186,6 +196,22 @@ test("a finished game shows the gallery, a replay and the shareable card", async
   await expect(
     page.getByRole("button", { name: /still/i }).first(),
   ).toBeVisible();
+
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "canShare", {
+      value: () => false,
+      configurable: true,
+    });
+  });
+  const download = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Share the evidence", exact: true })
+    .click();
+  const evidence = await download;
+  expect(evidence.suggestedFilename()).toMatch(/^iguess-evidence-.*\.png$/);
+  expect(await evidence.failure()).toBeNull();
+  if (process.env.CAPTURE_UI === "1")
+    await evidence.saveAs("docs/ui-review/studio/shared-evidence.png");
 });
 
 test("Classic waits for another player and only the host can start", async ({

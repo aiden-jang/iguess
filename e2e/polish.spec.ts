@@ -9,6 +9,9 @@ async function enter(page: Page, room = roomCode(), name = "Art department") {
   await page
     .getByRole("textbox", { name: "Your name", exact: true })
     .fill(name);
+  await page
+    .getByText("Room code & more ways to play", { exact: true })
+    .click();
   await page.getByRole("textbox", { name: /^Room code/ }).fill(room);
   await page.getByRole("button", { name: /Classic/ }).click();
   await page.getByRole("button", { name: /Enter room|Join the room/i }).click();
@@ -16,9 +19,10 @@ async function enter(page: Page, room = roomCode(), name = "Art department") {
 }
 async function capture(page: Page, name: string) {
   if (process.env.CAPTURE_UI !== "1") return;
-  await mkdir("docs/ui-review/drawing-club", { recursive: true });
+  await mkdir("docs/ui-review/studio", { recursive: true });
   await page.screenshot({
-    path: `docs/ui-review/drawing-club/${name}.jpg`,
+    animations: "disabled",
+    path: `docs/ui-review/studio/${name}.jpg`,
     fullPage: true,
   });
 }
@@ -52,9 +56,7 @@ test("leaving requires confirmation and browser Back returns to joining", async 
   await page.keyboard.press("Escape");
   await expect(page.getByText("Connected", { exact: true })).toBeVisible();
   await page.goBack();
-  await expect(
-    page.getByRole("heading", { name: /Good guesses/ }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Draw badly/ })).toBeVisible();
 });
 
 test("pen shortcuts are scoped to drawing and never consume chat typing", async ({
@@ -85,9 +87,27 @@ test("the narrow lobby keeps its roster optional and help reachable", async ({
   await expect(
     page.getByRole("list", { name: "Player standings" }),
   ).toBeVisible();
-  await page.locator(".room-roster summary").click();
+  const sound = page.locator(".roster-utilities button");
+  const before = await sound.getAttribute("aria-pressed");
+  await sound.click();
+  await expect(sound).not.toHaveAttribute("aria-pressed", before!);
+  await sound.press("Escape");
+  await expect(page.locator(".room-roster")).not.toHaveAttribute("open", "");
+  await expect(page.locator(".room-roster summary")).toBeFocused();
   await page.getByRole("link", { name: "How to play", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Privacy", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "Your drawing. Your business.",
+  );
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Terms", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toContainText("The house rules.");
   await page.keyboard.press("Escape");
   expect(
     await page.evaluate(
@@ -115,6 +135,7 @@ test("join layouts fit both palettes and expose privacy and terms", async ({
         viewport.width !== 320
       ) {
         await page.screenshot({
+          animations: "disabled",
           path: `packages/client/public/screenshots/${viewport.width > 700 ? "join-current" : "join-current-mobile"}.jpg`,
         });
       }
@@ -154,7 +175,9 @@ test("word choices, drawing and viewer controls stay usable at both widths", asy
     await expect(page.locator(".word-choice")).toHaveCount(3);
     await capture(page, "word-choice-desktop");
     await page.setViewportSize({ width: 390, height: 844 });
-    expect((await page.locator(".word-choice").first().boundingBox())!.width).toBeGreaterThan(260);
+    expect(
+      (await page.locator(".word-choice").first().boundingBox())!.width,
+    ).toBeGreaterThan(260);
     await capture(page, "word-choice-mobile");
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.locator(".word-choice").first().click();
@@ -176,6 +199,10 @@ test("word choices, drawing and viewer controls stay usable at both widths", asy
     await page.emulateMedia({ colorScheme: "light" });
     await capture(guest, "guessing-mobile");
     await page.setViewportSize({ width: 390, height: 844 });
+    await expect(
+      page.getByRole("textbox", { name: "Your guess", exact: true }),
+    ).toHaveCount(0);
+    await expect(page.locator(".reaction-bar")).not.toBeVisible();
     await capture(page, "drawing-mobile");
     await page.setViewportSize({ width: 320, height: 740 });
     await capture(page, "drawing-tiny");
@@ -210,4 +237,28 @@ test("a chat draft survives refresh and rejoining the same room", async ({
   await expect(page.getByRole("textbox", { name: "Chat message" })).toHaveValue(
     "",
   );
+});
+
+test("settings keep room changes when dismissed and return focus on Escape", async ({
+  page,
+}) => {
+  await enter(page);
+  const settings = page.locator(".host-settings");
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: width === 1440 ? 1000 : 844 });
+    await settings.locator("summary").click();
+    await page.getByRole("combobox", { name: /Turn time/ }).selectOption("30");
+    await page.getByLabel("Custom words", { exact: true }).fill("moon, teapot");
+    await capture(page, `settings-${width === 1440 ? "desktop" : "mobile"}`);
+    await page.locator(".room-wordmark").click();
+    await expect(settings).not.toHaveAttribute("open", "");
+    await expect(settings.locator("summary")).toContainText("30s");
+    await settings.locator("summary").click();
+    await expect(page.getByLabel("Custom words", { exact: true })).toHaveValue(
+      "moon, teapot",
+    );
+    await page.getByLabel("Custom words", { exact: true }).press("Escape");
+    await expect(settings).not.toHaveAttribute("open", "");
+    await expect(settings.locator("summary")).toBeFocused();
+  }
 });

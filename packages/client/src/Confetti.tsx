@@ -1,43 +1,51 @@
 import { useEffect, useState } from "react";
-// The stylesheet already hides confetti for people who asked for less motion, but hidden
-// pieces still get built. Don't make 160 of them for someone who won't see any.
-const stillPlease = () =>
+
+const reducedMotion = () =>
   typeof matchMedia === "function" &&
   matchMedia("(prefers-reduced-motion: reduce)").matches;
+interface Piece {
+  id: number;
+  left: number;
+  delay: number;
+  duration: number;
+  color: string;
+}
 
-export function Confetti({ go, count = 48 }: { go: boolean; count?: number }) {
-  const [pieces, setPieces] = useState<
-    { id: number; left: number; delay: number; dur: number; emoji: string }[]
-  >([]);
+export function Confetti({ go, count = 14 }: { go: boolean; count?: number }) {
+  const [pieces, setPieces] = useState<Piece[]>([]);
   useEffect(() => {
-    if (!go || stillPlease()) return;
-    const emojis = ["🎉", "🎨", "🐶", "🔥", "💀", "✨", "🏆", "💅", "🤖"];
-    const burst = Array.from({ length: count }, (_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      delay: Math.random() * 0.6,
-      dur: 2.4 + Math.random() * 1.8,
-      emoji: emojis[Math.floor(Math.random() * emojis.length)],
-    }));
-    setPieces(burst);
-    const t = setTimeout(() => setPieces([]), 4800);
-    return () => clearTimeout(t);
+    if (!go || reducedMotion()) {
+      setPieces([]);
+      return;
+    }
+    const colors = ["#d8ed79", "#e6ad96", "#92a484", "#e8ebdf"];
+    setPieces(
+      Array.from({ length: count }, (_, id) => ({
+        id,
+        left: Math.random() * 100,
+        delay: Math.random() * 0.3,
+        duration: 2.2 + Math.random(),
+        color: colors[id % colors.length]!,
+      })),
+    );
+    const timer = setTimeout(() => setPieces([]), 3600);
+    return () => clearTimeout(timer);
   }, [go, count]);
-  if (pieces.length === 0) return null;
   return (
     <>
-      {pieces.map((p) => (
-        <span
-          key={p.id}
+      {pieces.map((piece) => (
+        <i
+          key={piece.id}
           aria-hidden
           className="confetti-piece"
           style={{
-            left: `${p.left}vw`,
-            animation: `confettiFall ${p.dur}s linear ${p.delay}s forwards`,
+            left: `${piece.left}vw`,
+            width: 6,
+            height: 11,
+            background: piece.color,
+            animation: `confettiFall ${piece.duration}s linear ${piece.delay}s both`,
           }}
-        >
-          {p.emoji}
-        </span>
+        />
       ))}
     </>
   );

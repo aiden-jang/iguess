@@ -139,7 +139,7 @@ export function startGuessLoop(
     const hit = [guess, ...alternatives].find((g) => matchesWord(g, turn.word));
     const correct = hit !== undefined;
     const say = (text: string) =>
-      ctx.broadcast({ type: "chat", from: { id: opts.aiId, name: opts.aiName }, text });
+      ctx.broadcast({ type: "chat", from: { id: opts.aiId, name: opts.aiName }, text, isGuess: true });
 
     if (!correct) {
       say(phraseGuess(guess, alternatives));

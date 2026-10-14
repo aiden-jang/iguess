@@ -9,6 +9,9 @@ async function join(page: Page, room: string) {
   await page
     .getByRole("textbox", { name: "Your name", exact: true })
     .fill("Returning player");
+  await page
+    .getByText("Room code & more ways to play", { exact: true })
+    .click();
   await page.getByRole("textbox", { name: /^Room code/ }).fill(room);
   await page.getByRole("button", { name: /AI Guesser/i }).click();
   await page.getByRole("button", { name: /Enter room|Join the room/i }).click();
@@ -111,6 +114,9 @@ test("a first visit supports keyboard joining and saving a drawing", async ({
   await page
     .getByRole("textbox", { name: "Your name", exact: true })
     .fill("Keyboard player");
+  await page
+    .getByText("Room code & more ways to play", { exact: true })
+    .click();
   await page.getByRole("textbox", { name: /^Room code/ }).fill(roomFor());
   await page
     .getByRole("textbox", { name: "Your name", exact: true })
@@ -164,9 +170,9 @@ test("light and dark mobile join screens stay within the viewport with reduced m
     await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
     await page.goto("/");
     await expect(
-      page.getByRole("heading", { name: /Good guesses/ }),
+      page.getByRole("heading", { name: /Draw badly/ }),
     ).toBeVisible();
-    await page.getByRole("link", { name: /Play/ }).click();
+    await page.getByRole("link", { name: "Let’s play", exact: true }).click();
     await expect(
       page.getByRole("textbox", { name: "Your name", exact: true }),
     ).toBeInViewport();

@@ -1,13 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-<rect width="1200" height="630" fill="#f4f1e9"/>
-<text x="70" y="84" font-family="sans-serif" font-size="34" font-weight="700" fill="#292d29">iguess ✳</text>
-<path d="M70 112h1060" stroke="#d9d4c8"/>
-<text x="70" y="247" font-family="sans-serif" font-size="67" font-weight="700" letter-spacing="-3" fill="#292d29">Good guesses.</text>
-<text x="70" y="326" font-family="sans-serif" font-size="67" font-weight="700" letter-spacing="-3" fill="#bd4938">Questionable art.</text>
-<text x="70" y="404" font-family="sans-serif" font-size="24" fill="#666b63">The drawing club. Talent not checked.</text>
-<rect x="760" y="165" width="350" height="315" rx="16" fill="#fffcf5" stroke="#d9d4c8"/>
-<g transform="translate(740 164) scale(.9)" fill="none" stroke="#292d29" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="m133 112-7-68 55 34q29-12 58 3l47-38-7 73q23 55-21 75-46 23-99-1-40-15-26-78Z"/><path d="m168 125 4 2m65-1 4-2m-43 26 12 1-7 9Zm-34 1-64-8m63 18-64 7m131-16 59-15m-55 29 60 3m-100-8q-8 19-18 7m18-7q9 17 18 5"/></g>
-<text x="795" y="437" font-family="sans-serif" font-size="22" fill="#236b64">AI: “a toaster?”</text>
-<g transform="translate(1060 455) rotate(9)"><path d="M-25-20Q10-30 45-16L50 38Q10 58-32 36Z" fill="#e7ed9b"/><path d="m-8 4 1 4m31-4-1 4m-23 19 25-1" fill="none" stroke="#292d29" stroke-width="4" stroke-linecap="round"/></g>
-<text x="70" y="558" font-family="sans-serif" font-size="18" fill="#666b63">iguess.aidenjang.com</text>
+<rect width="1200" height="630" fill="#f2f2e9"/>
+<g fill="#202522" font-family="sans-serif">
+<text x="64" y="78" font-size="32" font-weight="700" letter-spacing="-2">iguess</text>
+<text x="1136" y="72" font-size="14" text-anchor="end">A DRAWING GAME. TECHNICALLY.</text>
+<path d="M64 106h1072" stroke="#cdd1c4"/>
+<text x="60" y="240" font-size="90" font-weight="700" letter-spacing="-6">Draw badly.</text>
+<text x="60" y="336" font-size="90" font-weight="700" letter-spacing="-6">Guess wildly.</text>
+<text x="66" y="412" font-size="22" fill="#65705e">You, your friends, and a deeply confident machine.</text>
+<text x="66" y="449" font-size="22" fill="#65705e">No talent required. We checked, loosely.</text>
+<text x="64" y="567" font-size="16">iguess.aidenjang.com</text>
+</g>
+<g transform="translate(790 145) rotate(3 162 165)">
+<rect width="330" height="335" fill="#fcfcf4" stroke="#cdd1c4"/>
+<text x="20" y="31" font-family="sans-serif" font-size="10" letter-spacing="2" fill="#65705e">EXAMPLE / A CAT, ALLEGEDLY</text>
+<g transform="translate(-38 18)" fill="none" stroke="#202522" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="m133 112-7-68 55 34q29-12 58 3l47-38-7 73q23 55-21 75-46 23-99-1-40-15-26-78Z"/><path d="m168 125 4 2m65-1 4-2m-43 26 12 1-7 9Zm-34 1-64-8m63 18-64 7m131-16 59-15m-55 29 60 3m-100-8q-8 19-18 7m18-7q9 17 18 5"/></g>
+<path d="M20 253h290" stroke="#cdd1c4"/>
+<text x="20" y="280" font-family="sans-serif" font-size="10" letter-spacing="1" fill="#65705e">THE AI, CONFIDENTLY</text>
+<text x="20" y="310" font-family="sans-serif" font-size="24" fill="#202522">“a stapler?”</text>
+</g>
+<g transform="translate(1090 447) rotate(9)"><path d="M-30-25Q10-35 48-21L53 37Q10 60-37 36Z" fill="#d8ed79"/><path d="m-12 1 1 4m34-4-1 4m-25 19 25-1" fill="none" stroke="#202522" stroke-width="4" stroke-linecap="round"/></g>
 </svg>

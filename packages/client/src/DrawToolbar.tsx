@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { COLORS, COLOR_NAMES, widthDot } from "./brushStyle";
 import type { Brush } from "./useBrush";
 import { useDrawingShortcuts } from "./useDrawingShortcuts";
-import { styles } from "./styles";
 
 interface DrawToolbarProps {
   brush: Brush;
@@ -33,7 +32,6 @@ export function DrawToolbar({
       aria-label="Drawing tools"
       className="glass draw-toolbar"
       data-editable={canDraw}
-      style={styles.toolbar}
     >
       {canDraw ? (
         <>
@@ -43,12 +41,13 @@ export function DrawToolbar({
                 key={color}
                 className="color-swatch"
                 onClick={() => brush.pickColor(color)}
-                style={{ ...styles.swatch, background: color }}
                 aria-label={`Color ${COLOR_NAMES[color]}`}
                 title={COLOR_NAMES[color]}
                 aria-pressed={color === brush.color}
               >
-                <span aria-hidden>{color === brush.color ? "✓" : ""}</span>
+                <span aria-hidden style={{ background: color }}>
+                  {color === brush.color ? "✓" : ""}
+                </span>
               </button>
             ))}
           </div>

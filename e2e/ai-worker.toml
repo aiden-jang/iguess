@@ -1,0 +1,13 @@
+name = "iguess-ai-browser-tests"
+main = "../packages/ai-worker/src/worker.ts"
+compatibility_date = "2024-12-30"
+compatibility_flags = ["nodejs_compat"]
+
+# Browser tests have no Workers AI binding and never need provider credentials.
+[vars]
+VISION_PROVIDER = "mock"
+
+[[rules]]
+type = "Data"
+globs = ["**/*.woff2"]
+fallthrough = true

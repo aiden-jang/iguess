@@ -18,7 +18,7 @@
   background: var(--panel);
   color: var(--text);
   border: 1px solid var(--line);
-  border-radius: 22px;
+  border-radius: 8px;
   box-shadow: 0 24px 100px #0004;
   overflow-y: auto;
 }
@@ -44,7 +44,7 @@
   color: var(--text);
 }
 .resource-dialog h2 {
-  font-family: "Fredoka Variable", sans-serif;
+  font-family: "Inter Variable", sans-serif;
   font-size: 32px;
   font-weight: 500;
   line-height: 1.1;
@@ -95,4 +95,24 @@ kbd {
   padding: 2px 5px;
   font: inherit;
   background: var(--panel-2);
+}
+.resource-navigation {
+  display: flex;
+  gap: 20px;
+  border-top: 1px solid var(--line);
+}
+.resource-navigation button {
+  padding: 8px 0;
+  min-height: 44px;
+  border: 0;
+  border-radius: 0;
+  font-size: 11px;
+  color: var(--muted);
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.resource-navigation button[aria-pressed="true"] {
+  color: var(--text);
+  text-decoration-thickness: 2px;
 }

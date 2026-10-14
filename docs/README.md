@@ -17,6 +17,6 @@ Inspect desktop and mobile widths, light/dark palettes, focus states and reduced
 motion. Record unavailable browser or physical-device checks separately; a test
 suite does not establish visual fidelity.
 
-The current drawing-club review and screen inventory live in
-[the acceptance record](ui-review/drawing-club/README.md). Its captures supersede the October 13
-layout captures. See `DESIGN.md` for the product direction and role-specific priorities.
+The current studio review and screen inventory live in
+[the acceptance record](ui-review/studio/README.md). Its captures supersede the earlier
+drawing-club and October 13 layout captures. See `DESIGN.md` for the product direction and role-specific priorities.

@@ -221,6 +221,7 @@ export type ServerMessage =
       type: "chat";
       from: PlayerInfo;
       text: string;
+      isGuess?: boolean;
     }
   | {
       type: "system";

@@ -11,8 +11,8 @@
   "launch_handler": {
     "client_mode": "focus-existing"
   },
-  "background_color": "#f4f1e9",
-  "theme_color": "#f4f1e9",
+  "background_color": "#f2f2e9",
+  "theme_color": "#f2f2e9",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -58,14 +58,14 @@
       "sizes": "1440x1000",
       "type": "image/jpeg",
       "form_factor": "wide",
-      "label": "Good guesses. Questionable art."
+      "label": "Draw badly. Guess wildly."
     },
     {
       "src": "/screenshots/join-current-mobile.jpg",
       "sizes": "390x844",
       "type": "image/jpeg",
       "form_factor": "narrow",
-      "label": "Good guesses. Questionable art."
+      "label": "Draw badly. Guess wildly."
     }
   ],
   "share_target": {

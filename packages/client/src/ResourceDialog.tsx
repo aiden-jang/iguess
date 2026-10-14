@@ -85,6 +85,25 @@ export function ResourceLinks() {
             <p className="resource-contact">
               Questions? <a href="mailto:me@aidenjang.com">me@aidenjang.com</a>
             </p>
+            <nav className="resource-navigation" aria-label="Information pages">
+              {(["help", "privacy", "terms"] as const).map((item) => (
+                <button
+                  type="button"
+                  key={item}
+                  aria-pressed={active === item}
+                  onClick={() => {
+                    setActive(item);
+                    dialog.current?.scrollTo(0, 0);
+                  }}
+                >
+                  {item === "help"
+                    ? "How to play"
+                    : item === "privacy"
+                      ? "Privacy"
+                      : "Terms"}
+                </button>
+              ))}
+            </nav>
           </>
         )}
       </dialog>

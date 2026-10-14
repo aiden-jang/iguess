@@ -82,8 +82,8 @@ export function GameBoard({
       {phase === "lobby" && !scribbled && (
         <div className="board-watermark" aria-hidden="true">
           <ClubFace />
-          <span>Warm-up space.</span>
-          <small>Draw here while your people arrive.</small>
+          <span>A blank canvas. Very on brand.</span>
+          <small>Draw here. We’ll call it a warm-up.</small>
         </div>
       )}
       {hint && (

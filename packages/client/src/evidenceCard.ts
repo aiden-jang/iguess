@@ -4,12 +4,12 @@ import { isAI } from "./roomView";
 // the layout is a plain grid, so turning the real DOM into a picture would need a whole library
 // to do a worse job.
 
-const BG = "#f4f1e9";
-const PANEL = "#fffcf5";
-const LINE = "#d9d4c8";
-const TEXT = "#292d29";
-const MUTED = "#666b63";
-const GOOD = "#236b64";
+const BG = "#f2f2e9";
+const PANEL = "#fcfcf4";
+const LINE = "#cdd2c5";
+const TEXT = "#202522";
+const MUTED = "#65705e";
+const GOOD = "#435c3a";
 
 export interface EvidenceItem {
   word: string;
@@ -76,10 +76,11 @@ export async function renderEvidencePng(
   const cols = Math.min(PER_ROW, Math.max(1, shown.length));
   const rows = Math.ceil(shown.length / cols);
 
-  const width = PAD * 2 + cols * CELL + (cols - 1) * GAP;
+  const gridWidth = cols * CELL + (cols - 1) * GAP;
+  const width = Math.max(640, PAD * 2 + gridWidth);
   // Awards get their own band, not a squeeze into the subtitle.
-  const awardsH = awards.length ? 26 + awards.length * 30 : 0;
-  const headerH = 150 + awardsH;
+  const awardsH = awards.length ? 26 + awards.length * 60 : 0;
+  const headerH = 174 + awardsH;
   const height = headerH + rows * (CELL + CAPTION_H) + (rows - 1) * GAP + PAD;
 
   const canvas = document.createElement("canvas");
@@ -100,7 +101,9 @@ export async function renderEvidencePng(
 
   ctx.fillStyle = MUTED;
   ctx.font = "500 26px system-ui, -apple-system, sans-serif";
-  ctx.fillText(subtitle, PAD, 116);
+  wrap(ctx, subtitle, width - PAD * 2, 2).forEach((line, index) =>
+    ctx.fillText(line, PAD, 116 + index * 28, width - PAD * 2),
+  );
 
   ctx.fillStyle = MUTED;
   ctx.font = "700 20px system-ui, -apple-system, sans-serif";
@@ -108,14 +111,17 @@ export async function renderEvidencePng(
   ctx.fillText(label, width - PAD - ctx.measureText(label).width, 78);
 
   awards.forEach((a, i) => {
-    const y = 168 + i * 30;
+    const y = 190 + i * 60;
     ctx.font = "700 22px system-ui, -apple-system, sans-serif";
     ctx.fillStyle = TEXT;
-    ctx.fillText(`${a.title}  ${a.who}`, PAD, y);
-    const w = ctx.measureText(`${a.title}  ${a.who}`).width;
+    ctx.fillText(
+      wrap(ctx, `${a.title}  ${a.who}`, width - PAD * 2, 1)[0] ?? "",
+      PAD,
+      y,
+    );
     ctx.font = "500 20px system-ui, -apple-system, sans-serif";
     ctx.fillStyle = MUTED;
-    ctx.fillText(`  ${a.detail}`, PAD + w, y);
+    ctx.fillText(wrap(ctx, a.detail, width - PAD * 2, 1)[0] ?? "", PAD, y + 26);
   });
 
   const images = await Promise.all(shown.map((i) => loadImage(i.png)));
@@ -123,7 +129,7 @@ export async function renderEvidencePng(
   shown.forEach((item, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
-    const x = PAD + col * (CELL + GAP);
+    const x = (width - gridWidth) / 2 + col * (CELL + GAP);
     const y = headerH + row * (CELL + CAPTION_H + GAP);
 
     // White behind it first: the board is see-through, and a transparent picture on a dark
@@ -165,8 +171,8 @@ export async function renderEvidencePng(
         ctx.fillText(l, x + CELL / 2, y + CELL + 66 + li * 24),
       );
     } else {
-      ctx.fillStyle = LINE;
-      ctx.fillText("the AI said nothing", x + CELL / 2, y + CELL + 68);
+      ctx.fillStyle = MUTED;
+      ctx.fillText("AI: no comment.", x + CELL / 2, y + CELL + 68);
     }
     ctx.textAlign = "left";
   });

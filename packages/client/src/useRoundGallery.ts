@@ -26,12 +26,12 @@ export function useRoundGallery({
   const [botGuess, setBotGuess] = useState<string | null>(null);
   const [gallery, setGallery] = useState<GalleryShot[]>([]);
   // `botGuess` clears itself after a few seconds, so by the end of a turn it is usually empty.
-  // The gallery needs whatever the machine said LAST, which is the whole joke.
+  // Keep the last actual guess; post-round commentary is not a verdict on the drawing.
   const lastGuess = useRef<{ guess: string | null; right: boolean }>({
     guess: null,
     right: false,
   });
-  const latestAi = log.filter((line) => isAI(line.from?.id)).at(-1);
+  const latestAi = log.filter((line) => isAI(line.from?.id) && line.isGuess).at(-1);
   useEffect(() => {
     const latest = latestAi?.text ?? null;
     setBotGuess(latest);

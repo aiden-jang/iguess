@@ -33,7 +33,11 @@ export function ChatPanel({
     useChatScroll(log.length);
 
   return (
-    <main className="glass chat-panel" style={styles.main}>
+    <aside
+      aria-label="Chat and guesses"
+      className="glass chat-panel"
+      data-drawing={drawingNow}
+    >
       <div className="chat-heading">
         <span style={styles.sectionLabel}>Chat & guesses</span>
         <span className="chat-hint">
@@ -89,7 +93,7 @@ export function ChatPanel({
           </button>
         )}
       </div>
-      <div style={styles.reactRow}>
+      <div className="reaction-bar">
         {REACTIONS.map((emoji) => (
           <button
             key={emoji}
@@ -110,7 +114,7 @@ export function ChatPanel({
           : "Type and press Enter to send. Correct guesses score automatically."}
       </span>
       <form
-        style={styles.inputRow}
+        className="chat-compose"
         onSubmit={(e) => {
           e.preventDefault();
           const t = text.trim();
@@ -145,6 +149,6 @@ export function ChatPanel({
           Send
         </button>
       </form>
-    </main>
+    </aside>
   );
 }

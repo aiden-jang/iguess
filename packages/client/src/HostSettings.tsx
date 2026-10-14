@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { RoomSettings } from "@iguess/shared";
 import { PACK_NAMES } from "@iguess/shared/words";
 import { styles } from "./styles";
+import { useDismissibleDetails } from "./useDismissibleDetails";
 
 interface HostSettingsProps {
   settings: RoomSettings;
@@ -17,11 +18,12 @@ export function HostSettings({
   isAIMode,
   onChange,
 }: HostSettingsProps) {
+  const disclosure = useDismissibleDetails();
   const customWords = settings.customWords.join(", ");
   const [draftWords, setDraftWords] = useState(customWords);
   useEffect(() => setDraftWords(customWords), [customWords]);
   return (
-    <details className="host-settings">
+    <details className="host-settings" {...disclosure}>
       <summary>
         <span>Game settings</span>
         <small className="settings-compact">
@@ -39,7 +41,7 @@ export function HostSettings({
           : `${settings.rounds} ${settings.rounds === 1 ? "round" : "rounds"}`}{" "}
         · {youAreHost ? "You’re hosting" : "Host chooses the rules"}
       </p>
-      <div className="settings-fields" style={styles.settingsRow}>
+      <div className="settings-fields">
         <p className="settings-guidance">
           Changes apply to this room. No packs selected means all words. Custom
           words save when you leave the field.

@@ -28,14 +28,12 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      // The ai-worker, pinned to the mock provider. VISION_PROVIDER=mock returns before any paid
-      // provider is even constructed (see selectProviders), and .dev.vars sets only a key, never
-      // this, so the flag applies. aiWorker.spec.ts asserts /health agrees before it POSTs, so a
-      // broken pin fails the run rather than spending money. Nothing else here talks to it.
-      command: "npx wrangler dev --port 33400 --var VISION_PROVIDER:mock",
-      cwd: "packages/ai-worker",
+      // This separate config has no Workers AI binding or adjacent provider credentials.
+      // Every AI test also checks /health before POSTing; a broken mock pin fails closed.
+      command:
+        "pnpm --filter @iguess/ai-worker exec wrangler dev --config ../../e2e/ai-worker.toml --port 33400 --var VISION_PROVIDER:mock",
       url: "http://127.0.0.1:33400/health",
-      reuseExistingServer: true,
+      reuseExistingServer: false,
       timeout: 120_000,
     },
     {

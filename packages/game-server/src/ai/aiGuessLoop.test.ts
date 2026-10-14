@@ -68,7 +68,12 @@ function loopHarness(word: string) {
     hasGuessed: () => guessed,
     canvasOpCount: () => 0,
     hintsRevealed: () => 0,
-    broadcast: (m: { type: string; text?: string }) => { if (m.type === "chat") chats.push(m.text ?? ""); },
+    broadcast: (m: { type: string; text?: string; isGuess?: boolean }) => {
+      if (m.type === "chat") {
+        assert.equal(m.isGuess, true, "AI guesses must be distinct from post-round commentary");
+        chats.push(m.text ?? "");
+      }
+    },
   } as unknown as EngineContext;
   return { chats, ctx, turn: { word } as TurnContext, markCorrect: () => { guessed = true; } };
 }

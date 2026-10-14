@@ -10,9 +10,9 @@ const WIN_LINES = [
   "Frame it. Or don’t.",
 ];
 const LOSS_LINES = [
-  "A learning experience. Annoying.",
-  "Someone had to come second.",
-  "Bold effort. Questionable result.",
+  "A strong concept. Execution pending.",
+  "An excellent time to blame the pen.",
+  "The next one is definitely the one.",
   "We can pretend that was practice.",
 ];
 const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]!;
@@ -36,7 +36,7 @@ export function useGameFeedback({
   showToast,
 }: Props) {
   const [burstKey, setBurstKey] = useState(0);
-  const [winConfetti, setWinConfetti] = useState(48);
+  const [winConfetti, setWinConfetti] = useState(0);
   const prevGuessed = useRef<string[]>([]);
   useEffect(() => {
     document.title =
@@ -75,11 +75,14 @@ export function useGameFeedback({
   }, [game?.guessedIds]);
 
   useEffect(() => {
-    if (phase !== "ended") return;
+    if (phase !== "ended") {
+      setWinConfetti(0);
+      return;
+    }
     const won = didWin(ranked, game?.scores ?? {}, you?.id ?? null);
     const streak = bumpStreak(won);
     if (won) {
-      setWinConfetti(Math.min(48 + streak * 16, 160));
+      setWinConfetti(Math.min(12 + streak * 2, 24));
       blip([523, 659, 784, 1047], muted);
       buzz([25, 50, 25, 50, 90]);
       showToast(
@@ -87,7 +90,7 @@ export function useGameFeedback({
         2000,
       );
     } else {
-      setWinConfetti(48);
+      setWinConfetti(0);
       blip([330, 247], muted);
       buzz(140);
       showToast(pick(LOSS_LINES), 2000);

@@ -11,7 +11,7 @@ import { useAppBadge } from "./useAppBadge";
 import type { DrawOp } from "@iguess/shared";
 import { awardsFor } from "@iguess/shared/awards";
 import { styles } from "./styles";
-import { RoomSidebar } from "./RoomSidebar";
+import { RoomHeader } from "./RoomHeader";
 import { Scoreboard } from "./Scoreboard";
 import { ChatPanel } from "./ChatPanel";
 import { useToast } from "./useToast";
@@ -137,7 +137,6 @@ export function Room({
       ? { won: aiGuessedRight, guess: botGuess }
       : null;
 
-  // The drawer sees the word. Everyone else sees one tile per letter, filling in over time.
   const wordLetters = isDrawer
     ? (myWord ?? "").split("")
     : game?.hint
@@ -166,9 +165,9 @@ export function Room({
   if (fatal) return <RoomError reason={fatal} onLeave={onLeave} />;
 
   return (
-    <div className="app-layout" data-phase={phase} style={styles.layout}>
-      <Confetti go={phase === "ended"} count={winConfetti} />
-      {burstKey > 0 && <Confetti key={burstKey} go count={28} />}
+    <div className="app-layout" data-phase={phase} data-drawing={drawingNow}>
+      <Confetti go={phase === "ended" && winConfetti > 0} count={winConfetti} />
+      {burstKey > 0 && <Confetti key={burstKey} go count={10} />}
       {toast && (
         <div
           className="toast-in"
@@ -187,9 +186,8 @@ export function Room({
           <Dots />
         </div>
       )}
-      <RoomSidebar
+      <RoomHeader
         room={room}
-        modeIcon={modeMeta?.icon}
         modeLabel={modeMeta?.label ?? effectiveMode}
         connected={connected}
         everConnected={everConnected}
@@ -206,9 +204,9 @@ export function Room({
           youAreHost={youAreHost}
           onKick={kick}
         />
-      </RoomSidebar>
+      </RoomHeader>
 
-      <section className="pane-canvas" style={styles.canvasPane}>
+      <main aria-label="Drawing board" className="pane-canvas">
         <RoomBanner
           {...{
             phase,
@@ -272,12 +270,13 @@ export function Room({
         {phase === "ended" && (
           <EndScreen
             gallery={gallery}
+            players={players}
             awards={awards}
             onSave={saveEvidence}
             saving={savingEvidence}
           />
         )}
-      </section>
+      </main>
 
       <ChatPanel
         room={room}

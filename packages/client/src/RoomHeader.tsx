@@ -1,0 +1,88 @@
+import type { ReactNode } from "react";
+import { useDismissibleDetails } from "./useDismissibleDetails";
+import { connectionLabel, inviteLabel, type InviteResult } from "./labels";
+import { ResourceLinks } from "./ResourceDialog";
+import { ClubFace } from "./ClubFace";
+import { ConfirmButton } from "./ConfirmButton";
+
+interface Props {
+  room: string;
+  modeLabel: string;
+  connected: boolean;
+  everConnected: boolean;
+  inviteResult: InviteResult;
+  onInvite: () => void;
+  muted: boolean;
+  onToggleMute: () => void;
+  onLeave: () => void;
+  children: ReactNode;
+}
+
+export function RoomHeader(p: Props) {
+  const roster = useDismissibleDetails();
+  return (
+    <header className="room-header" aria-label="Room controls">
+      <div className="room-identity">
+        <span className="room-wordmark">
+          iguess
+          <ClubFace />
+        </span>
+        <div className="room-context">
+          <span title={p.room} className="room-code">
+            #{p.room}
+          </span>
+          <span className="room-mode">{p.modeLabel}</span>
+        </div>
+      </div>
+      <div className="room-connection" data-connected={p.connected}>
+        <span aria-hidden />
+        {connectionLabel(p.connected, p.everConnected)}
+      </div>
+      <div className="room-actions">
+        <details {...roster} className="room-roster">
+          <summary>
+            <span>Players & scores</span>
+            <span aria-hidden>⌄</span>
+          </summary>
+          <div className="roster-popover">
+            <div className="roster-heading">
+              <span className="eyebrow">The jury</span>
+              <span>Everybody has an opinion.</span>
+            </div>
+            {p.children}
+            <div className="roster-utilities">
+              <button
+                type="button"
+                aria-pressed={!p.muted}
+                onClick={p.onToggleMute}
+              >
+                {p.muted ? "Sound off" : "Sound on"}
+              </button>
+            </div>
+          </div>
+        </details>
+        <button type="button" className="room-invite" onClick={p.onInvite}>
+          {inviteLabel(p.inviteResult)} <span aria-hidden>↗</span>
+        </button>
+        <button
+          type="button"
+          className="room-sound"
+          aria-pressed={!p.muted}
+          onClick={p.onToggleMute}
+        >
+          {p.muted ? "Sound off" : "Sound on"}
+        </button>
+        <ConfirmButton
+          className="room-leave"
+          title="Leave this room?"
+          description="You’ll return to the join screen. Save any drawings you want to keep first."
+          confirmLabel="Leave room"
+          onConfirm={p.onLeave}
+        >
+          ← Leave
+        </ConfirmButton>
+        <ResourceLinks />
+      </div>
+    </header>
+  );
+}

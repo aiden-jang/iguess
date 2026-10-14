@@ -1,6 +1,6 @@
 # iguess
 
-Good guesses. Questionable art.
+Draw badly. Guess wildly.
 
 A multiplayer drawing game where an AI can guess, draw, or play against you.
 Draw a secret word, race to guess it, and keep the evidence afterward. No account required.
@@ -48,8 +48,8 @@ server’s asset binding points to its output directory.
 Local games do not require an AI key. The server’s development command points to
 the local mock AI worker. Mock guesses exercise the game flow without recognizing
 the drawing. If that worker is stopped, AI guessing reports that it is unavailable;
-human play and the curated AI drawer still work. Automated tests also pin the AI
-worker to mock mode. Do not point local testing at a paid production provider.
+human play and the curated AI drawer still work. Automated tests use a separate mock-only configuration with no Workers AI
+binding and check its provider before each AI request. Do not point local testing at a paid production provider.
 
 ## Development
 

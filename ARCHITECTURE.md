@@ -6,17 +6,17 @@ and a vision worker. Shared types and pure rules live in `shared/`.
 ## Client
 
 `App` owns the join draft; `useRoomEntry` owns entry, leaving, and browser Back behavior. `JoinScreen` renders the
-join form and a clearly labeled static drawing example. `roomLinks` parses
+join form and a clearly labeled static drawing example through `JoinForm` and `DoodlePoster`. `roomLinks` parses
 current and legacy invitations; `playerStats` owns browser-local statistics.
 
-`Room` connects the socket to the board, banner, sidebar, scoreboard and chat.
+`Room` connects the socket to the board, banner, compact room header, scoreboard and chat.
 `roomView` derives roles and permissions from the server snapshot. Component
 state does not grant authority to start games, score guesses or choose drawers.
 
 Room effects have separate owners:
 
 - `useGameFeedback`: audio, vibration and result celebrations.
-- `useRoundGallery`: capture completed drawings, preserve stroke replays and track AI guesses.
+- `useRoundGallery`: capture completed drawings, preserve stroke replays and track explicitly marked AI guesses, excluding post-round commentary.
 - `useRoomSharing`: invites, copied results and evidence images, including failure feedback.
 - `useChatDraft`: session-scoped unsent chat, preserved across refresh and cleared after sending.
 - `useDrawingShortcuts`: drawing-area shortcuts that leave text fields and dialogs alone.
@@ -27,10 +27,10 @@ server operations for everyone else. Coordinates are normalized, and shared
 undo rules keep client and server stroke handling aligned. The eraser removes
 pixels rather than painting white, so fill remains consistent with transparency.
 
-`index.css` owns the palette, game layout, shared motion and responsive rules;
-`join.css` owns the public join screen, `game.css` the drawing-club workspace, and
+`index.css` owns the palette, typography and shared motion;
+`join.css` owns the public join screen, `game.css` the studio workspace, and
 `resources.css` the shared help/legal and confirmation dialogs. `styles.ts` contains typed component
-styles. Token-based light and dark palettes follow system preferences. Reduced
+styles. `useDismissibleDetails` gives room disclosures consistent outside-click and Escape behavior. Token-based light and dark palettes follow system preferences. Reduced
 motion suppresses decorative animation, and confetti is not constructed when
 motion is reduced.
 

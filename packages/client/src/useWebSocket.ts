@@ -57,6 +57,7 @@ export interface ChatLine {
   kind: "chat" | "system";
   from?: PlayerInfo;
   text: string;
+  isGuess?: boolean;
 }
 
 // Both of these are final. Retrying is pointless: a full room won't empty because you asked
@@ -146,7 +147,7 @@ export function useGameSocket(room: string, name: string, mode: string, avatar: 
           setPlayers(msg.players);
           break;
         case "chat":
-          setLog((l) => [...l, { kind: "chat", from: msg.from, text: msg.text }]);
+          setLog((l) => [...l, { kind: "chat", from: msg.from, text: msg.text, isGuess: msg.isGuess }]);
           break;
         case "system":
           setLog((l) => [...l, { kind: "system", text: msg.text }]);

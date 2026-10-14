@@ -1,6 +1,6 @@
 import { isAI } from "./roomView";
 import { useState } from "react";
-import type { DrawOp } from "@iguess/shared";
+import type { DrawOp, PlayerInfo } from "@iguess/shared";
 import type { EvidenceItem } from "./evidenceCard";
 import { Replay } from "./Replay";
 import { styles } from "./styles";
@@ -23,9 +23,16 @@ interface EndScreenProps {
   awards: Award[];
   onSave: () => Promise<void> | void;
   saving: boolean;
+  players: PlayerInfo[];
 }
 
-export function EndScreen({ gallery, awards, onSave, saving }: EndScreenProps) {
+export function EndScreen({
+  gallery,
+  awards,
+  onSave,
+  saving,
+  players,
+}: EndScreenProps) {
   const [replayIdx, setReplayIdx] = useState<number | null>(null);
   if (gallery.length === 0)
     return (
@@ -38,18 +45,14 @@ export function EndScreen({ gallery, awards, onSave, saving }: EndScreenProps) {
       </section>
     );
   return (
-    <section
-      className="results-gallery"
-      aria-label="Finished drawings"
-      style={styles.gallery}
-    >
-      <div className="gallery-heading" style={styles.galleryHead}>
+    <section className="results-gallery" aria-label="Finished drawings">
+      <div className="gallery-heading">
         <div>
           <p className="eyebrow">
             {gallery.length} {gallery.length === 1 ? "work" : "works"} of
-            questionable genius
+            questionable cultural importance
           </p>
-          <h2>The evidence.</h2>
+          <h2>The exhibition.</h2>
         </div>
         <button
           className="lift"
@@ -61,36 +64,44 @@ export function EndScreen({ gallery, awards, onSave, saving }: EndScreenProps) {
           {saving ? "Preparing image…" : "Share the evidence"}
         </button>
       </div>
-      <div className="gallery-strip" style={styles.galleryStrip}>
+      <div className="gallery-strip" data-count={gallery.length}>
         {awards.length > 0 && (
-          <ul
-            className="gallery-awards"
-            aria-label="Game awards"
-            style={styles.awardList}
-          >
+          <ul className="gallery-awards" aria-label="Game awards">
             {awards.map((a) => (
-              <li key={a.title} style={styles.awardItem}>
-                <span style={styles.awardTitle}>{a.title}</span>
-                <strong style={styles.awardWho}>{a.who}</strong>
-                <span style={styles.awardDetail}>{a.detail}</span>
+              <li key={a.title}>
+                <span>{a.title}</span>
+                <strong>{a.who}</strong>
+                <span>{a.detail}</span>
               </li>
             ))}
           </ul>
         )}
         {gallery.map((g, i) => (
-          <figure key={i} className="drawing-card" style={styles.galleryItem}>
+          <figure key={i} className="drawing-card">
+            <div className="exhibit-label">
+              <span>EXHIBIT {String(i + 1).padStart(2, "0")}</span>
+              <span>
+                {g.aiParticipated === false
+                  ? isAI(g.drawerId)
+                    ? "MACHINE-MADE"
+                    : "HUMAN-MADE"
+                  : g.right
+                    ? "AI GOT IT"
+                    : g.guess
+                      ? "OPEN TO INTERPRETATION"
+                      : "NO AI VERDICT"}
+              </span>
+            </div>
             {replayIdx === i ? (
               <Replay ops={g.ops} size={200} aspectRatio={g.aspectRatio} />
             ) : (
               <img
                 src={g.png}
                 alt={`the drawing for "${g.word}"`}
-                style={styles.galleryImg}
                 loading="lazy"
               />
             )}
             <button
-              style={styles.replayButton}
               aria-pressed={replayIdx === i}
               aria-label={`${replayIdx === i ? "Show still" : "Replay"}: ${g.word}`}
               onClick={() => setReplayIdx(replayIdx === i ? null : i)}
@@ -102,21 +113,22 @@ export function EndScreen({ gallery, awards, onSave, saving }: EndScreenProps) {
             >
               {replayIdx === i ? "◼ still" : "▶ replay"}
             </button>
-            <figcaption style={styles.galleryCaption}>{g.word}</figcaption>
+            <figcaption>
+              <strong className="exhibit-word">{g.word}</strong>
+              <span className="exhibit-artist">
+                {isAI(g.drawerId)
+                  ? "A curated doodle from the machine"
+                  : `By ${players.find((player) => player.id === g.drawerId)?.name ?? "an uncredited artist"}`}
+              </span>
+            </figcaption>
             {g.aiParticipated === false ? (
-              <p style={styles.galleryGuess}>
-                {isAI(g.drawerId) ? "Drawn by AI" : "Human-made. Somehow."}
-              </p>
+              <p>{isAI(g.drawerId) ? "Drawn by AI" : "Human-made. Somehow."}</p>
             ) : g.right ? (
-              <p style={{ ...styles.galleryGuess, color: "#236b64" }}>
-                AI got it. Credit where due.
-              </p>
+              <p>AI got it. Credit where due.</p>
             ) : g.guess ? (
-              <p style={styles.galleryGuess}>🤖 &ldquo;{g.guess}&rdquo;</p>
+              <p>The machine: &ldquo;{g.guess}&rdquo;</p>
             ) : (
-              <p style={{ ...styles.galleryGuess, opacity: 1 }}>
-                AI: no idea. Same, honestly.
-              </p>
+              <p>AI: no comment. Probably for the best.</p>
             )}
           </figure>
         ))}

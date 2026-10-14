@@ -1,163 +1,51 @@
-import type { useGameSocket } from "./useWebSocket";
-import { roomView } from "./roomView";
+import type { RoomBannerProps } from "./roomBanner.types";
+import { LobbyControls } from "./LobbyControls";
 import { styles } from "./styles";
-import { lobbyStatus } from "./labels";
-import { HostSettings } from "./HostSettings";
 import { Countdown } from "./Countdown";
 import { TIER_LABEL } from "./gameModes";
 
-type Socket = ReturnType<typeof useGameSocket>;
-type View = ReturnType<typeof roomView>;
-type Props = Pick<
-  View,
-  | "phase"
-  | "youAreWatching"
-  | "soloWaiting"
-  | "readyCount"
-  | "humans"
-  | "watching"
-  | "youAreHost"
-  | "youAreReady"
-  | "isDrawer"
-  | "inGame"
-> &
-  Pick<
-    Socket,
-    | "turnEnd"
-    | "connected"
-    | "settings"
-    | "updateSettings"
-    | "setReady"
-    | "startGame"
-    | "game"
-    | "wordChoices"
-    | "chooseWord"
-    | "skipWord"
-    | "players"
-  > & {
-    isAIMode: boolean;
-    copyResults: () => Promise<void>;
-    resultsCopied: boolean;
-    resultSummary: () => string;
-    wordLetters: string[];
-  };
-
-export function RoomBanner({
-  phase,
-  turnEnd,
-  connected,
-  youAreWatching,
-  soloWaiting,
-  isAIMode,
-  readyCount,
-  humans,
-  watching,
-  settings,
-  youAreHost,
-  updateSettings,
-  youAreReady,
-  setReady,
-  startGame,
-  copyResults,
-  resultsCopied,
-  resultSummary,
-  game,
-  isDrawer,
-  wordChoices,
-  chooseWord,
-  skipWord,
-  players,
-  inGame,
-  wordLetters,
-}: Props) {
+export function RoomBanner(props: RoomBannerProps) {
+  const {
+    phase,
+    turnEnd,
+    connected,
+    settings,
+    youAreHost,
+    startGame,
+    copyResults,
+    resultsCopied,
+    resultSummary,
+    game,
+    isDrawer,
+    wordChoices,
+    chooseWord,
+    skipWord,
+    players,
+    inGame,
+    wordLetters,
+  } = props;
   const highScore = Math.max(0, ...Object.values(game?.scores ?? {}));
   const leaders = players.filter(
     (player) => !player.spectator && game?.scores[player.id] === highScore,
   );
   return (
-    <div className="glass play-banner" data-phase={phase} style={styles.banner}>
-      {phase === "lobby" && (
-        <>
-          <div className="lobby-welcome">
-            <span className="eyebrow">The pre-game scribble</span>
-            <h1>
-              Everyone’s an artist.
-              <br />
-              <em>Pending review.</em>
-            </h1>
-          </div>
-          <span
-            className="lobby-status"
-            role="status"
-            style={styles.bannerText}
-          >
-            {lobbyStatus({
-              youAreWatching,
-              soloWaiting,
-              isAIMode,
-              readyCount,
-              humanCount: humans.length,
-              watchingCount: watching.length,
-            })}
-          </span>
-          <HostSettings
-            settings={settings}
-            youAreHost={youAreHost && connected}
-            isAIMode={isAIMode}
-            onChange={updateSettings}
-          />
-          {!youAreWatching && (
-            <button
-              className="lift"
-              style={{
-                ...styles.ghostButton,
-                ...(youAreReady ? styles.readyOn : null),
-              }}
-              disabled={!connected}
-              aria-pressed={youAreReady}
-              onClick={() => setReady(!youAreReady)}
-            >
-              {youAreReady ? "✓ Ready" : "I’m ready"}
-            </button>
-          )}
-          <button
-            className="lift pulse-cta"
-            style={{
-              ...styles.button,
-              marginLeft: "auto",
-              ...(youAreHost ? null : styles.disabled),
-            }}
-            onClick={startGame}
-            disabled={!youAreHost || !connected || (soloWaiting && !isAIMode)}
-            title={
-              !connected
-                ? "Reconnect to start"
-                : !youAreHost
-                  ? "Only the host can start"
-                  : soloWaiting && !isAIMode
-                    ? "Classic needs another player"
-                    : undefined
-            }
-          >
-            {youAreHost ? "Start game" : "Waiting for the host"}
-          </button>
-        </>
-      )}
+    <div className="glass play-banner" data-phase={phase}>
+      {phase === "lobby" && <LobbyControls {...props} />}
       {phase === "ended" && (
         <>
           <div className="results-title">
-            <span className="eyebrow">Game over / the evidence remains</span>
+            <span className="eyebrow">Final verdict / very official</span>
             <h1>
               {highScore === 0
-                ? "No points. Plenty of material."
+                ? "No points. Incredible commitment."
                 : leaders.length > 1
-                  ? "A shared victory. Awkward."
+                  ? "Joint custody of first place."
                   : `${leaders[0]?.name ?? "Someone"} takes it.`}
             </h1>
             <p>
               {highScore > 0
                 ? `${highScore} points at the top.`
-                : "Consider that a rehearsal."}{" "}
+                : "Let’s call that experimental."}{" "}
               Another round?
             </p>
           </div>
