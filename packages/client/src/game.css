@@ -470,6 +470,7 @@
 }
 .draw-toolbar[data-editable="false"] {
   grid-template-columns: 1fr auto;
+  padding: 10px 16px;
 }
 .canvas-wrap {
   order: 1;
@@ -1067,6 +1068,7 @@
   }
   .draw-toolbar[data-editable="false"] {
     grid-template-columns: minmax(0, 1fr) auto;
+    padding: 8px 12px;
   }
   .draw-toolbar[data-editable="false"] .viewer-note {
     grid-column: 1;

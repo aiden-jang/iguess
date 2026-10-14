@@ -9,6 +9,7 @@ Mobile play keeps short words beside the round and timer; longer words get the f
 Letter spacing stays readable without padded desktop-sized tiles. The viewer's Save action
 uses one row. Short lobbies condense their introduction, and landscape word choices use
 columns. Functional game settings and actions remain available.
+The viewer toolbar has inset padding around its note and Save action at both sizes.
 
 While the simulated phone keyboard is open, the word, timer, live drawing and composer take
 priority. The toolbar and secondary round labels return when the keyboard closes. Message
