@@ -13,6 +13,7 @@ const GOOD = "#435c3a";
 
 export interface EvidenceItem {
   word: string;
+  artist?: string;
   png: string;
   guess: string | null;
   right: boolean;
@@ -23,7 +24,7 @@ export interface EvidenceItem {
 const PAD = 44;
 const CELL = 260;
 const GAP = 20;
-const CAPTION_H = 96;
+const CAPTION_H = 120;
 const PER_ROW = 4;
 
 function wrap(
@@ -124,7 +125,9 @@ export async function renderEvidencePng(
     ctx.fillText(wrap(ctx, a.detail, width - PAD * 2, 1)[0] ?? "", PAD, y + 26);
   });
 
-  const images = await Promise.all(shown.map((i) => loadImage(i.png)));
+  const images = await Promise.all(
+    shown.map((i) => loadImage(i.png).catch(() => null)),
+  );
 
   shown.forEach((item, i) => {
     const col = i % cols;
@@ -136,11 +139,17 @@ export async function renderEvidencePng(
     // card just looks like a hole.
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(x, y, CELL, CELL);
-    const img = images[i]!;
-    const scale = Math.min(CELL / img.width, CELL / img.height);
-    const w = img.width * scale;
-    const h = img.height * scale;
-    ctx.drawImage(img, x + (CELL - w) / 2, y + (CELL - h) / 2, w, h);
+    const img = images[i];
+    if (img) {
+      const scale = Math.min(CELL / img.width, CELL / img.height);
+      const w = img.width * scale,
+        h = img.height * scale;
+      ctx.drawImage(img, x + (CELL - w) / 2, y + (CELL - h) / 2, w, h);
+    } else {
+      ctx.fillStyle = MUTED;
+      ctx.font = "500 18px system-ui, sans-serif";
+      ctx.fillText("Preview unavailable", x + 24, y + CELL / 2);
+    }
     ctx.strokeStyle = LINE;
     ctx.lineWidth = 2;
     ctx.strokeRect(x + 1, y + 1, CELL - 2, CELL - 2);
@@ -153,30 +162,52 @@ export async function renderEvidencePng(
     ctx.font = "700 26px system-ui, -apple-system, sans-serif";
     ctx.fillText(item.word, x + CELL / 2, y + CELL + 36, CELL - 20);
 
+    ctx.fillStyle = MUTED;
+    ctx.font = "500 14px system-ui, -apple-system, sans-serif";
+    ctx.fillText(
+      item.artist
+        ? `By ${item.artist}`
+        : isAI(item.drawerId)
+          ? "Curated AI doodle"
+          : "Human-made",
+      x + CELL / 2,
+      y + CELL + 60,
+      CELL - 20,
+    );
     ctx.font = "500 20px system-ui, -apple-system, sans-serif";
     if (item.aiParticipated === false) {
       ctx.fillStyle = MUTED;
       ctx.fillText(
         isAI(item.drawerId) ? "Drawn by AI" : "Human-made. Somehow.",
         x + CELL / 2,
-        y + CELL + 68,
+        y + CELL + 92,
       );
     } else if (item.right) {
       ctx.fillStyle = GOOD;
-      ctx.fillText("the AI got it", x + CELL / 2, y + CELL + 68);
+      ctx.fillText("the AI got it", x + CELL / 2, y + CELL + 92);
     } else if (item.guess) {
       ctx.fillStyle = MUTED;
       const lines = wrap(ctx, `“${item.guess}”`, CELL - 24, 2);
       lines.forEach((l, li) =>
-        ctx.fillText(l, x + CELL / 2, y + CELL + 66 + li * 24),
+        ctx.fillText(l, x + CELL / 2, y + CELL + 88 + li * 24),
       );
     } else {
       ctx.fillStyle = MUTED;
-      ctx.fillText("AI: no comment.", x + CELL / 2, y + CELL + 68);
+      ctx.fillText("AI: no comment.", x + CELL / 2, y + CELL + 92);
     }
     ctx.textAlign = "left";
   });
 
+  if (items.length > shown.length) {
+    ctx.fillStyle = MUTED;
+    ctx.font = "500 14px system-ui, sans-serif";
+    ctx.fillText(
+      `${shown.length} of ${items.length} drawings · the complete exhibition stays in the room`,
+      PAD,
+      height - 16,
+      width - PAD * 2,
+    );
+  }
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (b) => (b ? resolve(b) : reject(new Error("encode failed"))),

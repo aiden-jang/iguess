@@ -39,7 +39,21 @@ export function resultsText(
   { modeLabel, inviteUrl, streak }: FlexContext,
 ): string {
   const { ranked, youId } = standings;
-  const place = youId ? ranked.findIndex((p) => p.id === youId) + 1 : 0;
+  const participant = ranked.find((player) => player.id === youId);
+  const place = participant
+    ? 1 +
+      ranked.filter(
+        (player) =>
+          scoreOf(standings, player.id) > scoreOf(standings, participant.id),
+      ).length
+    : 0;
+  const tied =
+    participant &&
+    ranked.some(
+      (player) =>
+        player.id !== youId &&
+        scoreOf(standings, player.id) === scoreOf(standings, participant.id),
+    );
   const aiScores = ranked
     .filter((p) => isAI(p.id))
     .map((p) => scoreOf(standings, p.id));
@@ -64,7 +78,12 @@ export function resultsText(
 
   return [
     `iguess ✏️ · ${modeLabel}`,
-    `i came #${place || "?"}/${ranked.length} — witnessed.`,
+    !place
+      ? "i watched. strong opinions, no placing."
+      : top === 1 &&
+          ranked.every((player) => scoreOf(standings, player.id) === 0)
+        ? "nobody scored. a collective decision."
+        : `i ${tied ? "tied" : "came"} #${place}/${ranked.length} — witnessed.`,
     "",
     ...rows,
     ...(brags.length ? ["", ...brags] : []),
@@ -81,7 +100,7 @@ export async function shareOrDownload(
   blob: Blob,
   filename: string,
   sheet: { title: string; text: string },
-): Promise<void> {
+): Promise<"shared" | "downloaded" | "cancelled"> {
   const file = new File([blob], filename, { type: blob.type });
   if (
     typeof navigator.share === "function" &&
@@ -90,10 +109,10 @@ export async function shareOrDownload(
   ) {
     try {
       await navigator.share({ ...sheet, files: [file] });
-      return;
+      return "shared";
     } catch (err) {
       // They cancelled on purpose. Don't surprise them with a download instead.
-      if (err instanceof Error && err.name === "AbortError") return;
+      if (err instanceof Error && err.name === "AbortError") return "cancelled";
     }
   }
   const href = URL.createObjectURL(blob);
@@ -104,4 +123,5 @@ export async function shareOrDownload(
   a.click();
   a.remove();
   URL.revokeObjectURL(href);
+  return "downloaded";
 }

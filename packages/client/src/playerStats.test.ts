@@ -11,3 +11,12 @@ test("a scoreless or unfinished game does not count as a lifetime win", () => {
   );
   assert.equal(didWin([{ id: "me" }], { me: 10 }, "me"), true);
 });
+
+test("joint leaders count equally regardless of roster order", () => {
+  const ranked = [{ id: "first" }, { id: "second" }, { id: "third" }];
+  const scores = { first: 80, second: 80, third: 20 };
+  assert.equal(didWin(ranked, scores, "first"), true);
+  assert.equal(didWin(ranked, scores, "second"), true);
+  assert.equal(didWin(ranked, scores, "third"), false);
+  assert.equal(didWin(ranked, { first: 0, second: 0 }, "second"), false);
+});

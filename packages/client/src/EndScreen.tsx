@@ -2,6 +2,7 @@ import { isAI } from "./roomView";
 import { useState } from "react";
 import type { DrawOp, PlayerInfo } from "@iguess/shared";
 import type { EvidenceItem } from "./evidenceCard";
+import { DrawingThumbnail } from "./DrawingThumbnail";
 import { Replay } from "./Replay";
 import { styles } from "./styles";
 
@@ -21,26 +22,32 @@ export interface Award {
 interface EndScreenProps {
   gallery: GalleryShot[];
   awards: Award[];
-  onSave: () => Promise<void> | void;
+  onSave: () => Promise<string | void> | string | void;
+  blankRounds?: number;
   saving: boolean;
   players: PlayerInfo[];
 }
 
 export function EndScreen({
   gallery,
+  blankRounds = 0,
   awards,
   onSave,
   saving,
   players,
 }: EndScreenProps) {
+  const [shareMessage, setShareMessage] = useState("");
   const [replayIdx, setReplayIdx] = useState<number | null>(null);
   if (gallery.length === 0)
     return (
       <section className="empty-gallery">
-        <h2>No evidence on file.</h2>
+        <h2>
+          {blankRounds ? "Minimalism. Committed." : "No evidence on file."}
+        </h2>
         <p>
-          Drawings are collected while you’re in the room. Play another game to
-          start your gallery.
+          {blankRounds
+            ? `${blankRounds} blank ${blankRounds === 1 ? "canvas" : "canvases"}. Nothing to save this time. Another round?`
+            : "Drawings are collected while you’re in the room. Play another game to start your gallery."}
         </p>
       </section>
     );
@@ -54,16 +61,46 @@ export function EndScreen({
           </p>
           <h2>The exhibition.</h2>
         </div>
-        <button
-          className="lift"
-          style={styles.ghostButton}
-          disabled={saving}
-          onClick={() => void onSave()}
-          title="one image of every drawing and what the AI thought it was"
-        >
-          {saving ? "Preparing image…" : "Share the evidence"}
-        </button>
+        <div className="gallery-actions">
+          <button
+            className="lift"
+            style={styles.ghostButton}
+            disabled={saving}
+            onClick={async () => {
+              setShareMessage("");
+              try {
+                setShareMessage((await onSave()) || "");
+              } catch {
+                setShareMessage(
+                  "Couldn’t prepare the image. Please try again.",
+                );
+              }
+            }}
+            title={
+              gallery.length > 8
+                ? "The share image includes the first eight drawings. All drawings stay in this room."
+                : "One image of every drawing and the AI verdicts"
+            }
+          >
+            {saving ? "Preparing image…" : "Share the evidence"}
+          </button>
+          {gallery.length > 8 && (
+            <small className="share-limit">
+              First 8 of {gallery.length} drawings in the image.
+            </small>
+          )}
+          <p className="share-feedback" role="status">
+            {shareMessage}
+          </p>
+        </div>
       </div>
+      {blankRounds > 0 && (
+        <p className="blank-round-note">
+          Also submitted: {blankRounds} blank{" "}
+          {blankRounds === 1 ? "canvas" : "canvases"}. A restrained
+          contribution.
+        </p>
+      )}
       <div className="gallery-strip" data-count={gallery.length}>
         {awards.length > 0 && (
           <ul className="gallery-awards" aria-label="Game awards">
@@ -95,11 +132,7 @@ export function EndScreen({
             {replayIdx === i ? (
               <Replay ops={g.ops} size={200} aspectRatio={g.aspectRatio} />
             ) : (
-              <img
-                src={g.png}
-                alt={`the drawing for "${g.word}"`}
-                loading="lazy"
-              />
+              <DrawingThumbnail src={g.png} word={g.word} />
             )}
             <button
               aria-pressed={replayIdx === i}

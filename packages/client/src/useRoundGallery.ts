@@ -24,6 +24,7 @@ export function useRoundGallery({
   roundOps,
 }: Props) {
   const [botGuess, setBotGuess] = useState<string | null>(null);
+  const [blankRounds, setBlankRounds] = useState(0);
   const [gallery, setGallery] = useState<GalleryShot[]>([]);
   // `botGuess` clears itself after a few seconds, so by the end of a turn it is usually empty.
   // Keep the last actual guess; post-round commentary is not a verdict on the drawing.
@@ -31,7 +32,9 @@ export function useRoundGallery({
     guess: null,
     right: false,
   });
-  const latestAi = log.filter((line) => isAI(line.from?.id) && line.isGuess).at(-1);
+  const latestAi = log
+    .filter((line) => isAI(line.from?.id) && line.isGuess)
+    .at(-1);
   useEffect(() => {
     const latest = latestAi?.text ?? null;
     setBotGuess(latest);
@@ -51,7 +54,11 @@ export function useRoundGallery({
     const el = canvasElRef.current;
     if (!el) return;
     const png = thumbnailOf(el);
-    if (!png) return;
+    if (!png) {
+      setBlankRounds((value) => value + 1);
+      lastGuess.current = { guess: null, right: false };
+      return;
+    }
     const { guess, right } = lastGuess.current;
     // Keep the strokes as well as the picture: one is for sharing, one is for the replay.
     setGallery((g) => [
@@ -74,9 +81,12 @@ export function useRoundGallery({
   const wasLive = useRef(false);
   useEffect(() => {
     const live = phase === "choosing" || phase === "playing";
-    if (live && !wasLive.current) setGallery([]);
+    if (live && !wasLive.current) {
+      setGallery([]);
+      setBlankRounds(0);
+    }
     wasLive.current = live || phase === "intermission";
   }, [phase]);
 
-  return { gallery, botGuess };
+  return { gallery, botGuess, blankRounds };
 }

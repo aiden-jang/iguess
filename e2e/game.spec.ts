@@ -156,6 +156,10 @@ test("a finished game shows the gallery, a replay and the shareable card", async
   // The first round's drawing has to survive: the game_state after turn_end still carries the
   // old turn index, and a zero-check here used to wipe the gallery the moment it was filled.
   await expect(page.locator("figure")).toHaveCount(1);
+  await expect(page.locator(".chat-disclosure")).not.toHaveAttribute(
+    "open",
+    "",
+  );
   await expect(page.getByRole("list", { name: "Game awards" })).toHaveCount(0);
   await expect(page.locator(".drawing-card")).toContainText("AI: no comment.");
   await expect(
@@ -195,6 +199,19 @@ test("a finished game shows the gallery, a replay and the shareable card", async
     .click();
   await expect(
     page.getByRole("button", { name: /still/i }).first(),
+  ).toBeVisible();
+  await page
+    .locator(".replay-controls")
+    .getByRole("button", { name: "Restart replay", exact: true })
+    .click();
+  await page
+    .locator(".replay-controls")
+    .getByRole("button", { name: "Pause", exact: true })
+    .click();
+  await expect(
+    page
+      .locator(".replay-controls")
+      .getByRole("button", { name: "Play", exact: true }),
   ).toBeVisible();
 
   await page.evaluate(() => {

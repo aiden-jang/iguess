@@ -98,7 +98,7 @@ export function Room({
     soloWaiting,
   } = roomView(game, players, you);
   const canUseCanvas = connected && canDraw;
-  const { gallery, botGuess } = useRoundGallery({
+  const { gallery, botGuess, blankRounds } = useRoundGallery({
     turnEnd,
     game,
     phase,
@@ -120,7 +120,6 @@ export function Room({
   const awards = phase === "ended" ? awardsFor(gallery, players) : [];
   useWakeLock(inGame || phase === "choosing");
   useAppBadge(canDraw || (phase === "choosing" && isDrawer) ? 1 : 0);
-
   const hint = boardHint({
     canDraw,
     youAreWatching,
@@ -160,7 +159,6 @@ export function Room({
   });
 
   if (fatal) return <RoomError reason={fatal} onLeave={onLeave} />;
-
   return (
     <div className="app-layout" data-phase={phase} data-drawing={drawingNow}>
       <Confetti go={phase === "ended" && winConfetti > 0} count={winConfetti} />
@@ -250,6 +248,7 @@ export function Room({
         {phase === "ended" && (
           <EndScreen
             gallery={gallery}
+            blankRounds={blankRounds}
             players={players}
             awards={awards}
             onSave={saveEvidence}
@@ -259,6 +258,7 @@ export function Room({
       </main>
 
       <ChatPanel
+        ended={phase === "ended"}
         guessed={!!you && !!game?.guessedIds.includes(you.id)}
         notice={toast}
         onDismissNotice={hideToast}

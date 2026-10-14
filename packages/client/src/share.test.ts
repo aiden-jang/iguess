@@ -93,5 +93,19 @@ test("a room with no AI never claims to have beaten one", () => {
 
 test("a spectator has no placing", () => {
   const out = resultsText({ ...standings(), youId: "cam" }, context);
-  assert.ok(out.includes("i came #?/3"));
+  assert.ok(out.includes("no placing"));
+});
+
+test("a tied placing and a scoreless room are described honestly", () => {
+  const tied = {
+    ranked: [p("alex"), p("bo")],
+    scores: { alex: 40, bo: 40 },
+    youId: "bo",
+  };
+  assert.ok(resultsText(tied, context).includes("i tied #1/2"));
+  assert.ok(
+    resultsText({ ...tied, scores: { alex: 0, bo: 0 } }, context).includes(
+      "nobody scored",
+    ),
+  );
 });

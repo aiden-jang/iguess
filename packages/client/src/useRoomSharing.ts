@@ -75,16 +75,28 @@ export function useRoomSharing({
     setSavingEvidence(true);
     try {
       const blob = await renderEvidencePng(
-        gallery,
+        gallery.map((item) => ({
+          ...item,
+          artist: players.find((player) => player.id === item.drawerId)?.name,
+        })),
         scoreLine(standings),
         awardsFor(gallery, players),
       );
-      await shareOrDownload(blob, `iguess-evidence-${room}.png`, {
-        title: "iguess evidence",
-        text: "the drawings, the score, and what the AI thought it saw",
-      });
+      const outcome = await shareOrDownload(
+        blob,
+        `iguess-evidence-${room}.png`,
+        {
+          title: "iguess evidence",
+          text: "the drawings, the score, and what the AI thought it saw",
+        },
+      );
+      return outcome === "cancelled"
+        ? "Share cancelled. The drawings are still here."
+        : outcome === "shared"
+          ? "Shared."
+          : "Download started.";
     } catch {
-      showToast("Couldn’t save the image. Please try again.");
+      return "Couldn’t save the image. Please try again.";
     } finally {
       setSavingEvidence(false);
     }

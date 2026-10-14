@@ -48,7 +48,11 @@ export function didWin(
   scores: Record<string, number>,
   playerId: string | null,
 ): boolean {
+  if (!playerId || !ranked.some((player) => player.id === playerId))
+    return false;
+  const score = scores[playerId] ?? 0;
   return (
-    !!playerId && ranked[0]?.id === playerId && (scores[playerId] ?? 0) > 0
+    score > 0 &&
+    score === Math.max(0, ...ranked.map((player) => scores[player.id] ?? 0))
   );
 }

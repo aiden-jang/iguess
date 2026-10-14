@@ -49,28 +49,25 @@ export function RoomBanner(props: RoomBannerProps) {
               Another round?
             </p>
           </div>
-          <button
-            className="lift"
-            style={{ ...styles.ghostButton, marginLeft: "auto" }}
-            onClick={copyResults}
-          >
-            {resultsCopied ? "Copied ✓" : "Copy results"}
-          </button>
-          <button
-            className="lift"
-            style={styles.xButton}
-            onClick={() => shareToX(resultSummary())}
-          >
-            Post to X
-          </button>
-          <button
-            className="lift pulse-cta"
-            style={styles.button}
-            onClick={startGame}
-            disabled={!youAreHost || !connected}
-          >
-            {youAreHost ? "Play again" : "Waiting for the host"}
-          </button>
+          <div className="result-actions">
+            <button
+              className="lift pulse-cta"
+              style={styles.button}
+              onClick={startGame}
+              disabled={!youAreHost || !connected}
+            >
+              {youAreHost ? "Play again" : "Waiting for the host"}
+            </button>
+            <button className="result-text-action" onClick={copyResults}>
+              {resultsCopied ? "Copied ✓" : "Copy results"}
+            </button>
+            <button
+              className="result-text-action"
+              onClick={() => shareToX(resultSummary())}
+            >
+              Post to X ↗
+            </button>
+          </div>
         </>
       )}
       {phase === "choosing" && (
