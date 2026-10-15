@@ -1,3 +1,4 @@
+import { drawingFilename } from "./downloadName";
 import { useEffect, useState } from "react";
 import type { PlayerInfo } from "@iguess/shared";
 import { awardsFor } from "@iguess/shared/awards";
@@ -84,7 +85,7 @@ export function useRoomSharing({
       );
       const outcome = await shareOrDownload(
         blob,
-        `iguess-evidence-${room}.png`,
+        drawingFilename("evidence", room),
         {
           title: "iguess evidence",
           text: "the drawings, the score, and what the AI thought it saw",

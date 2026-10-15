@@ -1,3 +1,5 @@
+import { drawingFilename } from "./downloadName";
+
 // Turning the live board into something you can keep: a full-size download, and the small
 // thumbnail the gallery and the share card are built from. Both paint white behind it, because
 // the board itself is see-through.
@@ -11,7 +13,7 @@ export function saveCanvasPng(canvas: HTMLCanvasElement, room: string) {
   c.fillRect(0, 0, out.width, out.height);
   c.drawImage(canvas, 0, 0);
   const a = document.createElement("a");
-  a.download = `iguess-${room}-${Date.now()}.png`;
+  a.download = drawingFilename("drawing", room);
   a.href = out.toDataURL("image/png");
   a.click();
   return true;
@@ -41,4 +43,3 @@ function isBlank(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
   }
   return true;
 }
-
