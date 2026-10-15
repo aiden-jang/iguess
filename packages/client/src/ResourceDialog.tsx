@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ClubFace } from "./ClubFace";
+import { modifierKey } from "./keyboardLabel";
 import "./resources.css";
 
 type Resource = "help" | "privacy" | "terms";
@@ -198,7 +199,7 @@ function ResourceContent({ resource }: { resource: Resource }) {
           <span>
             Use the pen, eraser, or fill tool. Undo removes your last stroke.
             With the canvas focused, B selects the pen, E the eraser, F the fill
-            tool, and Ctrl/⌘ Z undoes. Clear removes the drawing after
+            tool, and {modifierKey()} Z undoes. Clear removes the drawing after
             confirmation.
           </span>
         </li>

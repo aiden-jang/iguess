@@ -5,6 +5,7 @@ import { useDrawingShortcuts } from "./useDrawingShortcuts";
 import { PalettePicker } from "./PalettePicker";
 import { ConfirmButton } from "./ConfirmButton";
 import { Icon } from "./Icon";
+import { modifierKey } from "./keyboardLabel";
 interface Props {
   brush: Brush;
   canDraw: boolean;
@@ -134,7 +135,7 @@ export function DrawToolbar({
       )}
       {canDraw && (
         <span className="tool-shortcuts">
-          B Pen · E Erase · F Fill · Ctrl/⌘ Z Undo
+          B Pen · E Erase · F Fill · {modifierKey()} Z Undo
         </span>
       )}
     </div>

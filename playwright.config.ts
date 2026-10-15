@@ -24,7 +24,7 @@ export default defineConfig({
       command: "npx wrangler dev --port 33300",
       cwd: "packages/game-server",
       url: "http://127.0.0.1:33300/health",
-      reuseExistingServer: true,
+      reuseExistingServer: false,
       timeout: 120_000,
     },
     {
@@ -39,7 +39,7 @@ export default defineConfig({
     {
       command: "pnpm --filter @iguess/client dev",
       url: "http://127.0.0.1:33100",
-      reuseExistingServer: true,
+      reuseExistingServer: false,
       timeout: 60_000,
     },
   ],

@@ -1,3 +1,4 @@
+import { AppUpdate } from "./AppUpdate";
 import { ClubFace } from "./ClubFace";
 import { ResourceLinks } from "./ResourceDialog";
 import { JoinForm } from "./JoinForm";
@@ -8,6 +9,7 @@ import "./join.css";
 export function JoinScreen(props: JoinProps) {
   return (
     <div className="join-page" data-invited={props.invited}>
+      <AppUpdate />
       <header className="join-header">
         <a href="/" className="wordmark" aria-label="iguess home">
           iguess<span aria-hidden>✳</span>

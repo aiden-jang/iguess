@@ -38,34 +38,62 @@ async function enter(page: Page, room: string, name: string) {
 }
 
 async function fits(page: Page, phase: string, keyboard = false) {
-  const dimensions = await page.evaluate(() => {
-    const pane = document.querySelector<HTMLElement>(".pane-canvas")!;
-    return {
-      pageWidth: document.documentElement.scrollWidth - innerWidth,
-      pageHeight: document.documentElement.scrollHeight - innerHeight,
-      boardOverflow: pane.scrollHeight - pane.clientHeight,
-    };
-  });
-  expect(dimensions, phase).toEqual({
-    pageWidth: 0,
-    pageHeight: 0,
-    boardOverflow: 0,
-  });
-  if (!keyboard)
-    await expect(
-      page.getByRole("button", { name: "Save", exact: true }),
-    ).toBeInViewport({ ratio: 1 });
-  // WebKit rounds fractional canvas edges; the bounds below limit that allowance to one pixel.
-  await expect(page.locator("canvas")).toBeInViewport({ ratio: 0.99 });
-  const canvas = (await page.locator("canvas").boundingBox())!;
-  const pane = (await page.locator(".pane-canvas").boundingBox())!;
-  expect(canvas.y, phase).toBeGreaterThanOrEqual(pane.y - 1);
-  expect(canvas.y + canvas.height, phase).toBeLessThanOrEqual(
-    pane.y + pane.height + 1,
-  );
-  expect(canvas.height, phase).toBeGreaterThanOrEqual(
-    keyboard || phase === "choosing" ? 40 : 80,
-  );
+  // Measure one layout frame so background WebKit tabs do not need repeated observer round trips.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          ({ keyboard, phase }) => {
+            const pane = document.querySelector<HTMLElement>(".pane-canvas");
+            const canvas = document.querySelector("canvas");
+            const save = [
+              ...document.querySelectorAll(".draw-toolbar button"),
+            ].find((button) => button.textContent?.trim() === "Save");
+            if (!pane || !canvas || (!keyboard && !save))
+              return { missing: true };
+            const board = pane.getBoundingClientRect();
+            const drawing = canvas.getBoundingClientRect();
+            const visibleRatio = (rect: DOMRect) => {
+              const width = Math.max(
+                0,
+                Math.min(innerWidth, rect.right) - Math.max(0, rect.left),
+              );
+              const height = Math.max(
+                0,
+                Math.min(innerHeight, rect.bottom) - Math.max(0, rect.top),
+              );
+              return rect.width > 0 && rect.height > 0
+                ? (width * height) / (rect.width * rect.height)
+                : 0;
+            };
+            return {
+              pageWidth: document.documentElement.scrollWidth - innerWidth,
+              pageHeight: document.documentElement.scrollHeight - innerHeight,
+              boardOverflow: pane.scrollHeight - pane.clientHeight,
+              saveVisible:
+                keyboard || visibleRatio(save!.getBoundingClientRect()) === 1,
+              canvasVisible: visibleRatio(drawing) >= 0.99,
+              // WebKit rounds fractional canvas edges; keep the existing one-pixel allowance.
+              canvasInsideBoard:
+                drawing.top >= board.top - 1 &&
+                drawing.bottom <= board.bottom + 1,
+              canvasTallEnough:
+                drawing.height >= (keyboard || phase === "choosing" ? 40 : 80),
+            };
+          },
+          { keyboard, phase },
+        ),
+      { message: phase },
+    )
+    .toEqual({
+      pageWidth: 0,
+      pageHeight: 0,
+      boardOverflow: 0,
+      saveVisible: true,
+      canvasVisible: true,
+      canvasInsideBoard: true,
+      canvasTallEnough: true,
+    });
 }
 
 for (const view of views) {
