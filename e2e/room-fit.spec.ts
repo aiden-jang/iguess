@@ -63,9 +63,9 @@ async function fits(page: Page, phase: string, keyboard = false) {
   expect(canvas.y + canvas.height, phase).toBeLessThanOrEqual(
     pane.y + pane.height + 1,
   );
-  if (phase !== "choosing") {
-    expect(canvas.height, phase).toBeGreaterThanOrEqual(keyboard ? 40 : 80);
-  }
+  expect(canvas.height, phase).toBeGreaterThanOrEqual(
+    keyboard || phase === "choosing" ? 40 : 80,
+  );
 }
 
 for (const view of views) {
@@ -87,6 +87,13 @@ for (const view of views) {
         .click();
       await expect(page.locator(".word-choice")).toHaveCount(3);
       await fits(page, "choosing");
+      if (process.env.CAPTURE_ROOM_FIT === "1" && view.name === "small-phone") {
+        await mkdir("docs/ui-review/room-fit", { recursive: true });
+        await page.screenshot({
+          path: `docs/ui-review/room-fit/small-phone-choosing-${info.project.name}.jpg`,
+          animations: "disabled",
+        });
+      }
       for (const choice of await page.locator(".word-choice").all())
         await expect(choice).toBeInViewport({ ratio: 1 });
       await page.locator(".word-choice").first().click();

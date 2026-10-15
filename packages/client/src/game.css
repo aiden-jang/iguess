@@ -1223,6 +1223,17 @@
     display: none;
   }
 }
+@media (max-width: 880px) and (max-height: 620px) and (orientation: portrait) {
+  .app-layout[data-phase="choosing"] .chat-panel {
+    flex-basis: 72px;
+  }
+  .app-layout[data-phase="choosing"] .reaction-bar {
+    display: none;
+  }
+  .app-layout[data-phase="choosing"] .canvas-wrap {
+    min-height: 42px !important;
+  }
+}
 @media (max-height: 540px) and (max-width: 880px) and (orientation: landscape) {
   .app-layout {
     display: grid;
