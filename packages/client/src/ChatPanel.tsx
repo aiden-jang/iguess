@@ -2,7 +2,7 @@ import { ReactionSticker } from "./ReactionSticker";
 import { useOnline } from "./useOnline";
 import { useRoomViewport } from "./useRoomViewport";
 import { ClubFace } from "./ClubFace";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { RoomNotice } from "./RoomNotice";
 import { useChatDraft } from "./useChatDraft";
@@ -52,6 +52,7 @@ export function ChatPanel({
   useRoomViewport();
   const online = useOnline();
   const [text, setText] = useChatDraft(room);
+  const composing = useRef(false);
   const { chatLogRef, hasNewChat, scrollChatToBottom, onChatScroll } =
     useChatScroll(log.at(-1));
 
@@ -158,6 +159,7 @@ export function ChatPanel({
           className="chat-compose"
           onSubmit={(e) => {
             e.preventDefault();
+            if (composing.current) return;
             const t = text.trim();
             if (!t) return;
             // An emptied box is how you know you sent it.
@@ -185,6 +187,18 @@ export function ChatPanel({
             disabled={drawingNow}
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onCompositionStart={() => (composing.current = true)}
+            onCompositionEnd={() => (composing.current = false)}
+            onKeyDown={(e) => {
+              // Safari can end composition before its confirming Enter arrives.
+              if (
+                e.key === "Enter" &&
+                (composing.current ||
+                  e.nativeEvent.isComposing ||
+                  e.keyCode === 229)
+              )
+                e.preventDefault();
+            }}
           />
           <button
             className="lift"
