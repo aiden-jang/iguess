@@ -1,3 +1,4 @@
+import { ReactionSticker } from "./ReactionSticker";
 import { useOnline } from "./useOnline";
 import { useRoomViewport } from "./useRoomViewport";
 import { ClubFace } from "./ClubFace";
@@ -132,7 +133,7 @@ export function ChatPanel({
             aria-label={`React with ${name}`}
             title={`${emoji} ${caption}`}
           >
-            {emoji}
+            <ReactionSticker emoji={emoji} />
           </button>
         ))}
       </div>
@@ -170,6 +171,9 @@ export function ChatPanel({
             aria-label={inGame ? "Your guess" : "Chat message"}
             maxLength={500}
             autoComplete="off"
+            spellCheck={!inGame}
+            autoCorrect={inGame ? "off" : "on"}
+            autoCapitalize={inGame ? "none" : "sentences"}
             enterKeyHint="send"
             placeholder={
               !connected

@@ -1,3 +1,4 @@
+import { ReactionSticker } from "./ReactionSticker";
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import type { DrawOp, Point } from "@iguess/shared";
 import { ClubFace } from "./ClubFace";
@@ -84,7 +85,7 @@ export function GameBoard({
           className="reaction-float"
           style={{ left: `${8 + r.at * 84}%` }}
         >
-          {r.emoji}
+          <ReactionSticker emoji={r.emoji} />
         </span>
       ))}
       {phase === "lobby" && !scribbled && (

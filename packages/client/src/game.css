@@ -2114,3 +2114,15 @@ html[data-motion="false"] .confetti-piece {
 .reaction-bar button {
   min-width: 28px;
 }
+
+.reaction-sticker {
+  display: inline-block;
+  width: 1.25em;
+  height: 1.25em;
+  vertical-align: middle;
+  overflow: visible;
+}
+.reaction-float .reaction-sticker {
+  width: 1em;
+  height: 1em;
+}

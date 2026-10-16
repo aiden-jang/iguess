@@ -21,6 +21,9 @@ for (const view of [
       "true",
     );
     await expect(page.locator(".reaction-bar button")).toHaveCount(8);
+    await expect(
+      page.locator(".reaction-bar svg.reaction-sticker"),
+    ).toHaveCount(8);
     for (const { emoji, name, caption } of REACTION_OPTIONS) {
       const button = page.getByRole("button", {
         name: `React with ${name}`,
@@ -30,7 +33,7 @@ for (const view of [
       await expect(button).toHaveAttribute("title", `${emoji} ${caption}`);
       await button.click();
       await expect(
-        page.locator(".reaction-float").filter({ hasText: emoji }),
+        page.locator(`.reaction-float [data-reaction="${emoji}"]`),
       ).toBeVisible();
     }
     await expect(page.locator(".reaction-float")).toHaveCount(0);
@@ -42,6 +45,10 @@ for (const view of [
       height: document.documentElement.scrollHeight - innerHeight,
     }));
     expect(dimensions).toEqual({ width: 0, height: 0 });
+    await page.screenshot({
+      path: info.outputPath(`refinement-reactions-${view.name}.png`),
+      animations: "disabled",
+    });
     if (process.env.CAPTURE_REACTIONS === "1") {
       await mkdir("docs/ui-review/reactions", { recursive: true });
       await page.screenshot({
