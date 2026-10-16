@@ -78,6 +78,7 @@ export function JoinScreen(props: JoinProps) {
         <a
           href="https://aidenjang.com"
           target="_blank"
+          aria-describedby="external-link-hint"
           rel="noopener noreferrer"
         >
           By Aiden ↗

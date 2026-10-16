@@ -232,6 +232,8 @@ test("a finished game shows the gallery, a replay and the shareable card", async
   expect(await evidence.failure()).toBeNull();
   if (process.env.CAPTURE_UI === "1")
     await evidence.saveAs("docs/ui-review/finish/shared-evidence.png");
+  if (process.env.CAPTURE_DETAILS4 === "1")
+    await evidence.saveAs(test.info().outputPath("evidence-card.png"));
   await page
     .getByRole("button", { name: /Show still:/ })
     .first()

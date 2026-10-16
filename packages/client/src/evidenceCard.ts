@@ -24,33 +24,43 @@ const GAP = 20;
 const CAPTION_H = 120;
 const PER_ROW = 4;
 
-function wrap(
-  ctx: CanvasRenderingContext2D,
+export function wrapCaption(
+  ctx: Pick<CanvasRenderingContext2D, "measureText">,
   text: string,
   maxWidth: number,
   maxLines: number,
 ): string[] {
-  const words = text.split(/\s+/);
+  const parts = Array.from(
+    new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(
+      text.trim(),
+    ),
+    ({ segment }) => segment,
+  );
   const lines: string[] = [];
-  let line = "";
-  for (const w of words) {
-    const next = line ? `${line} ${w}` : w;
-    if (ctx.measureText(next).width <= maxWidth || !line) {
-      line = next;
-    } else {
-      lines.push(line);
-      line = w;
-      if (lines.length === maxLines) break;
+  let start = 0;
+  while (start < parts.length && lines.length < maxLines) {
+    while (parts[start] === " ") start++;
+    let end = start;
+    const last = lines.length === maxLines - 1;
+    const suffix = (at: number) => (last && at < parts.length ? "…" : "");
+    while (
+      end < parts.length &&
+      ctx.measureText(parts.slice(start, end + 1).join("") + suffix(end + 1))
+        .width <= maxWidth
+    )
+      end++;
+    if (end === start) {
+      // A single grapheme can be wider than the cell. An ellipsis still stays inside it.
+      if (ctx.measureText("…").width <= maxWidth) lines.push("…");
+      break;
     }
-  }
-  if (lines.length < maxLines && line) lines.push(line);
-  if (lines.length === maxLines) {
-    // Keep trimming until the "…" fits, or a long guess spills out of its cell.
-    let last = lines[maxLines - 1]!;
-    while (last && ctx.measureText(`${last}…`).width > maxWidth)
-      last = last.slice(0, -1);
-    lines[maxLines - 1] =
-      words.join(" ") === lines.join(" ") ? last : `${last}…`;
+    if (end < parts.length && !last) {
+      const space = parts.lastIndexOf(" ", end);
+      if (space > start) end = space;
+    }
+    lines.push(parts.slice(start, end).join("").trimEnd() + suffix(end));
+    start = end;
+    if (last) break;
   }
   return lines;
 }
@@ -99,7 +109,7 @@ export async function renderEvidencePng(
 
   ctx.fillStyle = MUTED;
   ctx.font = "500 26px system-ui, -apple-system, sans-serif";
-  wrap(ctx, subtitle, width - PAD * 2, 2).forEach((line, index) =>
+  wrapCaption(ctx, subtitle, width - PAD * 2, 2).forEach((line, index) =>
     ctx.fillText(line, PAD, 116 + index * 28, width - PAD * 2),
   );
 
@@ -113,13 +123,17 @@ export async function renderEvidencePng(
     ctx.font = "700 22px system-ui, -apple-system, sans-serif";
     ctx.fillStyle = TEXT;
     ctx.fillText(
-      wrap(ctx, `${a.title}  ${a.who}`, width - PAD * 2, 1)[0] ?? "",
+      wrapCaption(ctx, `${a.title}  ${a.who}`, width - PAD * 2, 1)[0] ?? "",
       PAD,
       y,
     );
     ctx.font = "500 20px system-ui, -apple-system, sans-serif";
     ctx.fillStyle = MUTED;
-    ctx.fillText(wrap(ctx, a.detail, width - PAD * 2, 1)[0] ?? "", PAD, y + 26);
+    ctx.fillText(
+      wrapCaption(ctx, a.detail, width - PAD * 2, 1)[0] ?? "",
+      PAD,
+      y + 26,
+    );
   });
 
   const images = await Promise.all(
@@ -184,7 +198,7 @@ export async function renderEvidencePng(
       ctx.fillText("the AI got it", x + CELL / 2, y + CELL + 92);
     } else if (item.guess) {
       ctx.fillStyle = MUTED;
-      const lines = wrap(ctx, `“${item.guess}”`, CELL - 24, 2);
+      const lines = wrapCaption(ctx, `“${item.guess}”`, CELL - 24, 2);
       lines.forEach((l, li) =>
         ctx.fillText(l, x + CELL / 2, y + CELL + 88 + li * 24),
       );

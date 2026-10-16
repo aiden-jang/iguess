@@ -6,6 +6,8 @@ test.describe("the join screen", () => {
   }) => {
     await page.addInitScript(() => localStorage.clear());
     await page.goto("/");
+    const about = page.locator('a[target="_blank"]').first();
+    await expect(about).toHaveAccessibleDescription("Opens in a new tab");
     await page
       .getByText("Room code & more ways to play", { exact: true })
       .click();
