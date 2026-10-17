@@ -16,8 +16,7 @@ binding = "AI"
 # those, the worker uses Workers AI — or the mock if the [ai] binding is unavailable.
 # VISION_PROVIDER can force one ("mock" | "openai" | "anthropic" | "workers").
 
-# Workers Logs — native error/log observability. Tail live with `wrangler tail`;
-# browse + query in the dashboard (Workers & Pages → the worker → Logs).
+# Worker logs are available through `wrangler tail` and the Cloudflare dashboard.
 [observability]
 enabled = true
 head_sampling_rate = 1

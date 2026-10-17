@@ -3,10 +3,7 @@
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
-    "types": [
-      "node",
-      "./packages/game-server/node_modules/@cloudflare/workers-types"
-    ]
+    "types": ["node", "@cloudflare/workers-types"]
   },
   "include": [
     "e2e",

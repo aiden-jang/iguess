@@ -97,14 +97,14 @@ test("buffered drawing flushes its final point before pointer-up", async ({
   await expect.poll(() => moves.length).toBeGreaterThan(0);
   expect(moves.at(-1)!.x).toBeCloseTo(0.9, 2);
 });
-test("reactions keep their canvas position and expire after appearing", async ({
-  page,
-}) => {
+test("reactions appear on the canvas and expire", async ({ page }) => {
   await enter(page, code());
   await page
     .getByRole("button", { name: "React with fire", exact: true })
     .click();
-  await expect(page.locator(".reaction-float")).toContainText("🔥");
+  await expect(
+    page.locator('.canvas-wrap .reaction-float [data-reaction="🔥"]'),
+  ).toBeVisible();
   await expect(page.locator(".reaction-float")).toHaveCount(0);
 });
 test("a released wake lock is reacquired when the live game becomes visible", async ({

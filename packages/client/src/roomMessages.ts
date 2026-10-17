@@ -8,8 +8,8 @@ import {
   type Point,
   type ServerMessage,
 } from "@iguess/shared";
-export type WordChoice = { word: string; tier: WordTier };
-export type Choices = { options: WordChoice[]; canSkip: boolean };
+type WordChoice = { word: string; tier: WordTier };
+type Choices = { options: WordChoice[]; canSkip: boolean };
 export interface ChatLine {
   kind: "chat" | "system";
   from?: PlayerInfo;

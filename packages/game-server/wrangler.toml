@@ -9,13 +9,9 @@ workers_dev = false
 [dev]
 port = 33300
 
-# AI_WORKER_URL is set on the deploy command (see this package's deploy script), NOT here. A
-# [vars] entry here also reaches `wrangler dev`, which would point local play and the e2e suite
-# at the paid production worker. Unset = AI modes tell the room the AI is unavailable, and
-# classic mode is unaffected.
+# Set AI_WORKER_URL only during deployment. Keeping it out of vars prevents local play and tests from reaching paid production AI.
 
-# Product events, written fire-and-forget from the room. One dataset across every app, with the
-# app name in index1 and blob1, so a single query can compare them.
+# Shared product-events dataset; the app name is recorded in index1 and blob1.
 [[analytics_engine_datasets]]
 binding = "EVENTS"
 dataset = "aidenjang_events"
@@ -36,28 +32,23 @@ name = "RATE_LIMITER"
 namespace_id = "1001"
 simple = { limit = 30, period = 60 }
 
-# Serve the built client SPA from this same Worker so the UI and /rooms/:id/ws share one origin.
-# run_worker_first = true → the Worker routes everything; /health + /rooms/* are handled, the rest
-# falls through to ASSETS (real files + index.html fallback for client routes).
+# Serve the SPA and room WebSockets on one origin; other requests fall through to assets.
 [assets]
 directory = "../client/dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 run_worker_first = true
 
-# Custom domain. Provisioned on `wrangler deploy` (two-step: deploy once with this commented so
-# the first deployment exists, then uncomment and redeploy to attach it). Ignored by local dev.
+# Custom domain provisioned on deployment; ignored by local development.
 [[routes]]
 pattern = "iguess.aidenjang.com"
 custom_domain = true
 
-# Cross-check the ai-worker on a schedule. Nothing else notices a vision key expiring: the worker
-# stays up and quietly answers from the mock, so players get random words and find out mid-game.
+# Check the AI Worker on a schedule to detect provider failure even when mock fallback keeps it available.
 [triggers]
 crons = ["*/30 * * * *"]
 
-# Workers Logs — native error/log observability. Tail live with `wrangler tail`;
-# browse + query in the dashboard (Workers & Pages → the worker → Logs).
+# Worker logs are available through `wrangler tail` and the Cloudflare dashboard.
 [observability]
 enabled = true
 head_sampling_rate = 1

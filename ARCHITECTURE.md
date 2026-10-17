@@ -61,12 +61,17 @@ word memory, AI budget and hashed reconnect credentials. Chat and browser galler
 server history. After a restart the clock resumes from the last completed checkpoint;
 previous seats have a short reconnect window.
 
+`visionTypes.ts` defines the vision-provider port independently of selection and configuration.
+Paid adapters implement that contract without importing the provider factory.
+
 ## Engine and modes
 
 `GameEngine` owns phase changes, word selection timing, hints, scoring and turn
 transitions. `EngineState` owns serializable game data; `GameClock` owns cancellable
 deadlines. Disposing an engine cancels all deadlines and mode loops. Modes snapshot their
 rotation, bets and AI progress and resume without starting a fresh turn. A `GameMode` supplies drawing order, word choices and chat rules.
+`engineContext.ts` owns the room-I/O port used by the engine and context adapter. Neither the
+context adapter nor a mode needs to import the concrete engine to name its dependencies.
 The engine does not contain separate branches for human and AI players.
 
 Classic is the base human mode. AI Guesser adds a virtual player; AI Drawer emits

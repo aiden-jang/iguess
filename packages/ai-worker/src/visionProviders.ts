@@ -1,18 +1,9 @@
+import type { VisionProvider } from "./visionTypes.ts";
+export type { VisionProvider } from "./visionTypes.ts";
 import { OpenAIProvider, AnthropicProvider } from "./paidProviders.ts";
-export { OpenAIProvider, AnthropicProvider } from "./paidProviders.ts";
 import { promptFor, rank } from "./visionText.ts";
 import type { AiBinding, Env } from "./env.ts";
 import { WORDS_BY_TIER } from "@iguess/shared/words";
-
-export interface VisionProvider {
-  readonly name: string;
-  // Best guess first. The runners-up are the fun part.
-  guess(
-    pngBase64: string,
-    hint?: string,
-    signal?: AbortSignal,
-  ): Promise<string[]>;
-}
 
 const COMMON = WORDS_BY_TIER.easy;
 

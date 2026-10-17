@@ -1,29 +1,13 @@
-import { createEngineContext } from "./engineContext.ts";
+export type { EngineDeps } from "./engineContext.ts";
+import { createEngineContext, type EngineDeps } from "./engineContext.ts";
 import { EngineState } from "./engineBase.ts";
 import type { EngineSnapshot } from "./engineState.ts";
-import type { ServerMessage, DrawOp, RoomSettings } from "@iguess/shared";
+import type { RoomSettings } from "@iguess/shared";
 import { tierOf } from "@iguess/shared/words";
-import type {
-  GameMode,
-  PlayerRef,
-  TurnContext,
-  EngineContext,
-} from "./modes/GameMode.ts";
+import type { GameMode, TurnContext, EngineContext } from "./modes/GameMode.ts";
 
 const INTERMISSION_MS = 5_000;
 const CHOOSE_MS = 15_000;
-
-// Room I/O is injected so game rules stay independent of WebSockets.
-export interface EngineDeps {
-  broadcast: (msg: ServerMessage) => void;
-  sendToPlayer: (playerId: string, msg: ServerMessage) => void;
-  clearCanvas: () => void | Promise<void>;
-  drawOp: (op: DrawOp) => void | Promise<void>;
-  getName: (playerId: string) => string;
-  canvasOpCount: () => number;
-  addVirtualPlayer: (p: PlayerRef) => void;
-  removeVirtualPlayer: (id: string) => void;
-}
 
 export class GameEngine extends EngineState {
   private revision = 0;

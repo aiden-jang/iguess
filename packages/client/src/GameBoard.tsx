@@ -8,7 +8,7 @@ import type { Brush } from "./useBrush";
 import { styles } from "./styles";
 
 /** The live drawing surface of the socket, which is all the board needs from it. */
-export interface BoardSocket {
+interface BoardSocket {
   sendDraw: (op: DrawOp) => void;
   subscribeDraw: (fn: (op: DrawOp | { kind: "reset" }) => void) => () => void;
   socketBacklog: () => number;
@@ -18,7 +18,7 @@ export interface BoardSocket {
 }
 
 /** What the bot has to say about the drawing, or null when it is not in this round. */
-export interface AiTake {
+interface AiTake {
   won: boolean;
   guess: string | null;
 }

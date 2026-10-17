@@ -7,7 +7,7 @@ import type {
 } from "@iguess/shared";
 import { initialRoomState, roomMessage } from "./roomMessages";
 import { roomTransport } from "./roomTransport";
-export type { ChatLine, WordChoice, Choices } from "./roomMessages";
+export type { ChatLine } from "./roomMessages";
 
 // Pointer traffic bypasses React; the canvas subscribes directly.
 type DrawListener = (op: DrawOp | { kind: "reset" }) => void;

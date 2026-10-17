@@ -9,7 +9,7 @@ import {
 import { base64, encodePng } from "./png.ts";
 
 export const WIDTH = 800;
-export const HEIGHT = 600;
+const HEIGHT = 600;
 type PixelRenderer = (svg: string) => Promise<PixelImage>;
 const wrap = (ink: string, white = false) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">${white ? `<rect width="${WIDTH}" height="${HEIGHT}" fill="white"/>` : ""}${ink}</svg>`;

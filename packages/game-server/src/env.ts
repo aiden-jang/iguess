@@ -18,6 +18,6 @@ export interface Env {
 }
 
 // Minimal shape of the Workers rate-limiting binding (avoids a hard dep on the ambient type).
-export interface RateLimiter {
+interface RateLimiter {
   limit(options: { key: string }): Promise<{ success: boolean }>;
 }

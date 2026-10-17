@@ -1,4 +1,4 @@
-import type { VisionProvider } from "./visionProviders.ts";
+import type { VisionProvider } from "./visionTypes.ts";
 import { promptFor, rank } from "./visionText.ts";
 interface ChatLike {
   choices?: { message?: { content?: string } }[];

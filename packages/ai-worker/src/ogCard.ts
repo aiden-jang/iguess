@@ -22,7 +22,7 @@ function esc(s: string): string {
   );
 }
 
-export function ogSvg(room: string, mode: string): string {
+function ogSvg(room: string, mode: string): string {
   const codeSize = Math.min(66, Math.floor(1000 / Math.max(1, room.length)));
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <rect width="${W}" height="${H}" fill="#f2f2e9"/>

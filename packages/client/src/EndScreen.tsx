@@ -13,7 +13,7 @@ export interface GalleryShot extends EvidenceItem {
   aspectRatio?: number;
 }
 
-export interface Award {
+interface Award {
   title: string;
   who: string;
   detail: string;
