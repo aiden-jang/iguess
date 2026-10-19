@@ -1,13 +1,13 @@
-// Same-origin assets and sockets; only the configured analytics beacon needs an external host.
+// Same-origin assets, sockets and aggregate analytics; private room paths never reach a URL beacon.
 const DEFAULT_CSP = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
-  "script-src 'self' https://static.cloudflareinsights.com https://cloudflareinsights.com",
+  "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https://static.cloudflareinsights.com https://cloudflareinsights.com",
+  "connect-src 'self'",
   "frame-ancestors 'none'",
   "form-action 'self'",
   "upgrade-insecure-requests",
@@ -17,7 +17,7 @@ const SECURITY_HEADERS: Record<string, string> = {
   "Content-Security-Policy": DEFAULT_CSP,
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Referrer-Policy": "no-referrer",
   "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
   "Permissions-Policy":
     "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",

@@ -1,5 +1,9 @@
 # Architecture
 
+Current analytics: `analytics/` holds the fixed browser/Worker event contract, bounded
+anonymous ingestion and credential-free transport. See [Analytics](docs/ANALYTICS.md) for
+coverage, privacy and dashboard queries. Private app paths are not traffic dimensions.
+
 iguess has three runtime boundaries: a browser client, a room-owning game server,
 and a vision worker. Shared types and pure rules live in `shared/`.
 

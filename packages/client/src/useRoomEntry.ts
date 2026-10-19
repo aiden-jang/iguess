@@ -1,3 +1,5 @@
+import { usePageAnalytics } from "./usePageAnalytics.ts";
+import { pageForPath } from "../../../analytics/schema.ts";
 import { useEffect, useState } from "react";
 
 interface Entry {
@@ -8,6 +10,7 @@ interface Entry {
 
 export function useRoomEntry() {
   const [joined, setJoined] = useState<Entry | null>(null);
+  usePageAnalytics(joined ? "game" : pageForPath(window.location.pathname));
   useEffect(() => {
     const backToJoin = () => setJoined(null);
     window.addEventListener("popstate", backToJoin);

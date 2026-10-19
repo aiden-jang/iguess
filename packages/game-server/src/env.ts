@@ -1,5 +1,8 @@
 /** Bindings declared in wrangler.toml, surfaced to the Worker + Durable Object. */
 export interface Env {
+  EVENT_LIMITER?: {
+    limit(options: { key: string }): Promise<{ success: boolean }>;
+  };
   // One GameRoom Durable Object instance per room id.
   GAME_ROOM: DurableObjectNamespace;
   // The built client SPA (packages/client/dist), served from this same Worker.

@@ -90,3 +90,5 @@ private drawings in public reports.
 
 Source code is [MIT licensed](LICENSE). Self-hosted Inter and Fredoka retain their
 [font licenses](packages/client/public/licenses), included with the public assets.
+
+Aggregate traffic and feature-event coverage, privacy boundaries and queries: [Analytics](docs/ANALYTICS.md).
