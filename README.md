@@ -72,6 +72,9 @@ pnpm audit --audit-level moderate  # runtime and development dependency advisori
 Built with React, TypeScript, Canvas, Cloudflare Workers, Durable Objects and raw
 WebSockets. CI verifies pull requests; pushes to `main` deploy after checks pass.
 
+CI uploads the verified client build for deployment. The release job downloads that same
+workflow artifact and publishes it without rebuilding the client; local deployment still builds first.
+
 ## Data and support
 
 Your name is visible to your room. Preferences and lifetime stats are saved in

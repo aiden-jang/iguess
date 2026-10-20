@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -37,6 +41,14 @@ jobs:
           path: test-results/
           if-no-files-found: ignore
           retention-days: 7
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          name: production-assets
+          path: packages/client/dist/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
 
   # Deploy after checks pass. The token needs Workers scope; this app has no D1 migrations.
   deploy:
@@ -56,13 +68,17 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: production-assets
+          path: packages/client/dist/
       - name: Deploy ai-worker
         run: pnpm run deploy
         working-directory: packages/ai-worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      - name: Deploy game-server (also serves the built client)
-        run: pnpm run deploy
+      - name: Deploy game-server and verified client
         working-directory: packages/game-server
+        run: pnpm run deploy:assets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
