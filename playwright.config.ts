@@ -4,6 +4,7 @@ import { defineConfig } from "@playwright/test";
 // Anything less would test a mock of the thing that actually breaks — the socket.
 export default defineConfig({
   testDir: "./e2e",
+  forbidOnly: Boolean(process.env.CI),
   timeout: 30_000,
   expect: { timeout: 8_000 },
   fullyParallel: false, // rooms are shared state; parallel specs would collide in one room
@@ -19,9 +20,9 @@ export default defineConfig({
   },
   webServer: [
     {
-      // No AI_WORKER_URL, so the game the browser specs play can never reach a vision worker at
-      // all. That is why wrangler.toml carries no [vars] block: this command would inherit it.
-      command: "npx wrangler dev --port 33300",
+      // Override adjacent dev credentials: browser journeys must never reach paid vision.
+      command:
+        "pnpm exec wrangler dev --port 33300 --var AI_WORKER_URL: --persist-to .wrangler/e2e-state",
       cwd: "packages/game-server",
       url: "http://127.0.0.1:33300/health",
       reuseExistingServer: false,
@@ -31,7 +32,7 @@ export default defineConfig({
       // This separate config has no Workers AI binding or adjacent provider credentials.
       // Every AI test also checks /health before POSTing; a broken mock pin fails closed.
       command:
-        "pnpm --filter @iguess/ai-worker exec wrangler dev --config wrangler.mock.toml --port 33400 --var VISION_PROVIDER:mock",
+        "pnpm --filter @iguess/ai-worker exec wrangler dev --config wrangler.mock.toml --port 33400 --var VISION_PROVIDER:mock --persist-to .wrangler/e2e-state",
       url: "http://127.0.0.1:33400/health",
       reuseExistingServer: false,
       timeout: 120_000,

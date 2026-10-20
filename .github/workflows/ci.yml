@@ -21,12 +21,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm audit --audit-level moderate
       # typecheck, lint, the size ceilings, the test floors, then the build. Same command
       # locally, so CI can't be the first place a check runs.
       - run: pnpm run verify
       - run: pnpm exec playwright install --with-deps chromium webkit
-      # The e2e stack starts the game-server without AI_WORKER_URL on purpose, so a CI run
+      # The e2e stack pins the game-server to an empty AI_WORKER_URL, so a CI run
       # can never reach a paid vision provider. See playwright.config.ts.
       # Chromium and WebKit share one local room stack; serialize to keep sockets isolated.
       - run: pnpm test:e2e --workers=1

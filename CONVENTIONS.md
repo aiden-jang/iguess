@@ -7,7 +7,7 @@ Module responsibilities are in [ARCHITECTURE.md](ARCHITECTURE.md).
 ## Verification
 
 Run `pnpm run verify` before reporting a change complete. CI runs the same gate:
-typechecking, lint, repository checks, package tests and production builds.
+dependency auditing, typechecking, lint, repository checks, package tests and production builds.
 Relevant game-flow changes also require end-to-end tests.
 
 - `check-size` pins file ceilings and rejects oversized unlisted source files.

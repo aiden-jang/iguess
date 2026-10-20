@@ -19,11 +19,12 @@
     "check-size": "node scripts/check-size.mjs",
     "check-comments": "node scripts/check-comments.mjs",
     "check-tests": "node scripts/check-tests.mjs",
-    "verify": "pnpm typecheck && pnpm lint && pnpm run check-size && pnpm run check-comments && pnpm run check-tests && pnpm build",
+    "verify": "pnpm run security:check && pnpm typecheck && pnpm lint && pnpm run check-size && pnpm run check-comments && pnpm run check-tests && pnpm build",
     "format": "prettier --write .",
     "test:e2e": "playwright test",
     "deploy": "pnpm run verify && pnpm run deploy:only",
-    "deploy:only": "pnpm --filter @iguess/ai-worker run deploy && pnpm --filter @iguess/game-server run deploy"
+    "deploy:only": "pnpm --filter @iguess/ai-worker run deploy && pnpm --filter @iguess/game-server run deploy",
+    "security:check": "pnpm audit --audit-level=low"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
