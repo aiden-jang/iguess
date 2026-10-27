@@ -26,7 +26,7 @@ provider when configured. The machine’s confidence is not a guarantee of talen
 
 ## Run locally
 
-Use Node.js 22 and pnpm 9.15.0, matching CI.
+Use Node.js 22.22.2 or another supported runtime from `package.json`, and pnpm 9.15.0.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -57,7 +57,7 @@ binding and check its provider before each AI request. Do not point local testin
 ```sh
 pnpm run verify    # types, lint, repository checks, tests and production build
 pnpm run test:e2e  # real local Workers, room sockets and browser flows
-pnpm audit --audit-level moderate  # runtime and development dependency advisories
+pnpm run security:check  # runtime and development dependency advisories
 ```
 
 - [Architecture](ARCHITECTURE.md): client boundaries, game engine, modes and AI flow.
@@ -67,6 +67,9 @@ pnpm audit --audit-level moderate  # runtime and development dependency advisori
 - [Deployment](DEPLOY.md): Cloudflare setup and secrets.
 - [Visual evidence](docs/README.md): screenshot provenance and refresh guidance.
 - [Repository audit](docs/REPOSITORY-AUDIT.md): architecture, cleanup and recovery verification.
+- [Quality checks](docs/quality.md): production browser coverage, local services and limits.
+- [Latest review](docs/ui-review/october-26/README.md): recovery and sharing evidence.
+- [Visitor walkthrough](docs/visitor-review.md): tasks for an observed multiplayer session.
 - [Finishing checklist](docs/ui-review/finish/README.md): acceptance evidence and device-testing limits.
 
 Built with React, TypeScript, Canvas, Cloudflare Workers, Durable Objects and raw
@@ -74,6 +77,11 @@ WebSockets. CI verifies pull requests; pushes to `main` deploy after checks pass
 
 CI uploads the verified client build for deployment. The release job downloads that same
 workflow artifact and publishes it without rebuilding the client; local deployment still builds first.
+
+**Save the evidence** downloads the gallery image. After preparation, browsers that support
+file sharing also offer **Share image**. That click opens sharing with the finished file;
+cancelling does not trigger another download. If an invitation cannot be shared or copied,
+a selectable room link remains available, including in an installed app without an address bar.
 
 ## Data and support
 

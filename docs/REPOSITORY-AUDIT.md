@@ -1,5 +1,8 @@
 # Repository audit
 
+The [October review](ui-review/october-26/README.md) records the latest recovery, sharing,
+dependency and production-browser follow-up. Use [quality checks](quality.md) for current commands.
+
 The audit covers the client, game Worker, AI Worker, shared rules, tests, build configuration,
 CI, public assets, comments and maintained documentation. Local development and browser
 tests share a binding-free mock configuration; obsolete environment examples have been
@@ -48,7 +51,7 @@ still public access to its room, not an account or private-room authentication s
 
 The repository gate and complete Chromium/WebKit browser suite passed on the final sources.
 The full dependency audit, including development tools, reported no known advisories. CI rejects
-moderate-or-higher advisories; patched Wrangler and Vite versions retain Node.js 22 support.
+low-or-higher advisories, including development dependencies. Supported runtimes are declared in the root package manifest.
 A separate local Worker restart
 restored a live room's identity, private drawer word, active turn, score and exact canvas;
 the observer still received only a masked word. This used local storage and no vision provider.

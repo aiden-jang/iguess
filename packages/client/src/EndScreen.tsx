@@ -23,6 +23,8 @@ interface EndScreenProps {
   gallery: GalleryShot[];
   awards: Award[];
   onSave: () => Promise<string | void> | string | void;
+  onShare: () => Promise<string | void>;
+  canShare: boolean;
   blankRounds?: number;
   saving: boolean;
   players: PlayerInfo[];
@@ -33,6 +35,8 @@ export function EndScreen({
   blankRounds = 0,
   awards,
   onSave,
+  onShare,
+  canShare,
   saving,
   players,
 }: EndScreenProps) {
@@ -82,8 +86,18 @@ export function EndScreen({
                 : "One image of every drawing and the AI verdicts"
             }
           >
-            {saving ? "Preparing image…" : "Share the evidence"}
+            {saving ? "Preparing image…" : "Save the evidence"}
           </button>
+          {canShare && (
+            <button
+              className="lift"
+              style={styles.ghostButton}
+              disabled={saving}
+              onClick={async () => setShareMessage((await onShare()) || "")}
+            >
+              Share image
+            </button>
+          )}
           {gallery.length > 8 && (
             <small className="share-limit">
               First 8 of {gallery.length} drawings in the image.

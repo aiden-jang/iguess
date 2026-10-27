@@ -1,4 +1,4 @@
-export type InviteResult = "copied" | "shared" | null;
+export type InviteResult = "sharing" | "failed" | "copied" | "shared" | null;
 
 export function chatPlaceholder(drawingNow: boolean, inGame: boolean): string {
   if (drawingNow) return "Draw on the canvas. No hints in chat.";
@@ -16,6 +16,8 @@ export function connectionLabel(
 }
 
 export function inviteLabel(result: InviteResult): string {
+  if (result === "sharing") return "Opening sharing…";
+  if (result === "failed") return "Try again";
   if (result === "shared") return "Invite shared ✓";
   if (result === "copied") return "Link copied ✓";
   return "Invite friends";

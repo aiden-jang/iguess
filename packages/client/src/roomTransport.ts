@@ -27,6 +27,18 @@ export function roomTransport(options: TransportOptions) {
   let attempt = 0;
   let socket: WebSocket | null = null;
   let retry: ReturnType<typeof setTimeout> | null = null;
+  const schedule = () => {
+    if (!alive) return;
+    options.connected(false);
+    if (retry) clearTimeout(retry);
+    retry = setTimeout(
+      () => {
+        retry = null;
+        if (alive) connect();
+      },
+      Math.min(5000, 500 * ++attempt),
+    );
+  };
   const connect = () => {
     const protocol = location.protocol === "https:" ? "wss" : "ws";
     const query = new URLSearchParams({
@@ -34,10 +46,16 @@ export function roomTransport(options: TransportOptions) {
       mode: options.mode,
       avatar: options.avatar,
     });
-    const ws = new WebSocket(
-      `${protocol}://${location.host}/rooms/${encodeURIComponent(options.room)}/ws?${query}`,
-      connectionProtocols(reconnectCredential(options.room)),
-    );
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(
+        `${protocol}://${location.host}/rooms/${encodeURIComponent(options.room)}/ws?${query}`,
+        connectionProtocols(reconnectCredential(options.room)),
+      );
+    } catch {
+      schedule();
+      return;
+    }
     socket = ws;
     ws.onopen = () => {
       if (!alive || socket !== ws) return;
@@ -52,7 +70,7 @@ export function roomTransport(options: TransportOptions) {
         options.fatal(FINAL_CLOSES[event.code]!);
         return;
       }
-      retry = setTimeout(connect, Math.min(5000, 500 * ++attempt));
+      schedule();
     };
     ws.onmessage = (event) => {
       if (!alive || socket !== ws || typeof event.data !== "string") return;
@@ -83,9 +101,15 @@ export function roomTransport(options: TransportOptions) {
   });
   return {
     send(message: ClientMessage): boolean {
-      if (socket?.readyState !== WebSocket.OPEN) return false;
-      socket.send(JSON.stringify(message));
-      return true;
+      if (!alive || socket?.readyState !== WebSocket.OPEN) return false;
+      try {
+        socket.send(JSON.stringify(message));
+        return true;
+      } catch {
+        options.connected(false);
+        socket.close();
+        return false;
+      }
     },
     backlog: () => socket?.bufferedAmount ?? 0,
     dispose() {

@@ -160,13 +160,10 @@ test("a rejected clipboard operation reports a useful recovery", async ({
     .getByRole("button", { name: "Invite friends", exact: true })
     .click();
   await expect(
-    page.getByText(
-      "Couldn’t copy the invite. Share the URL in your address bar.",
-      { exact: true },
-    ),
+    page.getByRole("textbox", { name: "Room invitation link", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Invite friends", exact: true }),
+    page.getByRole("button", { name: "Try again", exact: true }),
   ).toBeEnabled();
 });
 

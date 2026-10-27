@@ -140,15 +140,7 @@ export function Room({
       : Array.from({ length: game?.wordLength ?? 0 }, () => "");
 
   const modeMeta = MODES.find((m) => m.value === effectiveMode);
-  const {
-    inviteResult,
-    resultsCopied,
-    savingEvidence,
-    handleInvite,
-    copyResults,
-    saveEvidence,
-    resultSummary,
-  } = useRoomSharing({
+  const sharing = useRoomSharing({
     room,
     effectiveMode,
     modeLabel: modeMeta?.label ?? effectiveMode,
@@ -169,8 +161,9 @@ export function Room({
         modeLabel={modeMeta?.label ?? effectiveMode}
         connected={connected}
         everConnected={everConnected}
-        inviteResult={inviteResult}
-        onInvite={handleInvite}
+        inviteResult={sharing.inviteResult}
+        inviteUrl={sharing.inviteUrl}
+        onInvite={sharing.handleInvite}
         muted={muted}
         onToggleMute={toggleMuted}
         onLeave={onLeave}
@@ -202,9 +195,9 @@ export function Room({
             youAreReady,
             setReady,
             startGame,
-            copyResults,
-            resultsCopied,
-            resultSummary,
+            copyResults: sharing.copyResults,
+            resultsCopied: sharing.resultsCopied,
+            resultSummary: sharing.resultSummary,
             game,
             isDrawer,
             wordChoices,
@@ -251,8 +244,10 @@ export function Room({
             blankRounds={blankRounds}
             players={players}
             awards={awards}
-            onSave={saveEvidence}
-            saving={savingEvidence}
+            onSave={sharing.saveEvidence}
+            onShare={sharing.shareEvidence}
+            canShare={sharing.canShareEvidence}
+            saving={sharing.savingEvidence}
           />
         )}
       </main>

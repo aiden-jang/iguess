@@ -71,7 +71,9 @@ test("room controls pass accessibility checks and feedback preferences stay in s
     ).not.toBeChecked();
 });
 test("room loading failures offer a clear way back", async ({ page }) => {
-  await page.route("**/src/Room.tsx*", (route) => route.abort());
+  await page.route(/\/(?:src\/Room\.tsx|assets\/Room-[^/]+\.js)/, (route) =>
+    route.abort(),
+  );
   await page.goto("/r/load-check?mode=classic");
   await page.getByLabel("Your name", { exact: true }).fill("Guest");
   await page

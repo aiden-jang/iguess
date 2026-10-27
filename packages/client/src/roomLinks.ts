@@ -6,18 +6,21 @@ export async function copyText(text: string): Promise<boolean> {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
+    const focused = document.activeElement as HTMLElement | null;
+    let el: HTMLTextAreaElement | undefined;
     try {
-      const el = document.createElement("textarea");
+      el = document.createElement("textarea");
       el.value = text;
       el.style.position = "fixed";
       el.style.opacity = "0";
       document.body.appendChild(el);
       el.select();
-      const ok = document.execCommand("copy");
-      document.body.removeChild(el);
-      return ok;
+      return document.execCommand("copy");
     } catch {
       return false;
+    } finally {
+      el?.remove();
+      if (focused?.isConnected) focused.focus({ preventScroll: true });
     }
   }
 }

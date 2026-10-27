@@ -1,5 +1,8 @@
 # Finishing review
 
+This is an earlier acceptance record. The [October follow-up](../october-26/README.md)
+records the current sharing flow, production-browser stack and recovery verification.
+
 This is the acceptance record for the agreed finishing pass. [DESIGN.md](../../../DESIGN.md)
 defines the direction. The [studio review](../studio/README.md) records the previous build.
 Screenshots use disposable local rooms; the public cat remains a labeled example.

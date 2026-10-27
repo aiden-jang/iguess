@@ -27,12 +27,18 @@ Room effects have separate owners:
 - `usePreference` and `FeedbackSettings`: synchronized browser-local sound, haptics and motion choices.
 - `useRoomViewport`: keeps composition inside a reduced visual viewport when a mobile keyboard opens.
 - `useRoundGallery`: capture completed drawings, preserve stroke replays and track explicitly marked AI guesses, excluding post-round commentary.
-- `useRoomSharing`: invites, copied results and evidence images, including cancellation, download and failure feedback.
+- `useRoomSharing`: invitations and copied results, including pending requests and selectable link recovery.
+- `useEvidenceSharing`: gallery image preparation, downloads and native sharing from a fresh click; stale work cannot download after leaving or starting another gallery.
 - `Replay`: one-pass stroke playback with pause, restart, progress and background-tab pause.
-- `evidenceCard`: bounded image export with artist captions and missing-preview fallbacks; native sharing stays in `shareDelivery`.
+- `evidenceCard`: bounded image export with artist captions and missing-preview fallbacks; `share.ts` owns file capability checks and delivery.
 - `useChatDraft`: session-scoped unsent chat, preserved across refresh and cleared after sending.
 - `useDrawingShortcuts`: drawing-area shortcuts that leave text fields and dialogs alone.
 - `useGameSocket`: composes transport, state and outgoing actions. `roomTransport` owns retries and listeners; `roomMessages` reduces checked server messages. Drawing subscriptions bypass React state.
+
+Transport construction failures enter the retry loop. Sending returns false if the owner is
+disposed or the socket fails during submission, so the composer keeps its draft. Clipboard
+fallback removes its temporary field and restores focus. Invitations coalesce pending requests;
+unmounted sharing work cannot update the next room or start a fallback download.
 
 `DrawingCanvas` owns rendering and resize replay; `useCanvasPointer` owns pointer identity, animation-frame batching and final-batch flushing. The canvas renders local strokes immediately for the drawer. It replays
 server operations for everyone else. Coordinates are normalized, and shared
@@ -134,12 +140,19 @@ file ceilings, enforce comment constraints and hold package test floors.
 
 End-to-end tests run the real local game Worker and Durable Object. Their AI
 worker is pinned to mock, and the game server is started without a paid worker
-URL. Browser checks should include drawing/guessing roles, word secrecy, results,
-reconnects, keyboard access and narrow layouts.
+URL. Journeys use the production client served by that Worker. Two pure rendering/export
+probes use a separate Vite origin to import source modules. Browser checks include
+drawing/guessing roles, word secrecy, results, reconnects, keyboard access and narrow layouts.
+
+The service worker caches only same-origin static responses. Successful public homepage HTML
+refreshes the offline shell; invitation HTML, query-bearing pages and server failures cannot
+replace it. Cache writes extend the fetch event lifetime, and activation removes only older
+iguess caches. The installed-shell journey checks real cache behavior and offline reopening.
 
 The game Worker serves the client’s production assets and room sockets on one
 origin. GitHub Actions deploys both Workers after checks pass on `main`.
 See [DEPLOY.md](DEPLOY.md) for configuration.
+The [quality guide](docs/quality.md) records browser setup, local HTTP policy and coverage limits.
 
 ## Known limits
 

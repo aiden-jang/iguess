@@ -75,3 +75,61 @@ test("an unsupported file share downloads with the requested filename", async (t
   assert.equal(clicked, true);
   assert.equal(anchor.download, "art.png");
 });
+
+test("a browser refusing the file capability check still offers a download", async (t) => {
+  let clicked = false;
+  t.after(
+    replace("navigator", {
+      share: async () => {},
+      canShare: () => {
+        throw new Error("Policy denied");
+      },
+    }),
+  );
+  t.after(
+    replace("document", {
+      createElement: () => ({
+        click: () => {
+          clicked = true;
+        },
+        remove: () => {},
+      }),
+      body: { appendChild: () => {} },
+    }),
+  );
+  assert.equal(
+    await shareOrDownload(new Blob(["ink"]), "art.png", payload),
+    "downloaded",
+  );
+  assert.equal(clicked, true);
+});
+
+test("a native share failure after its owner closes cannot start a download", async (t) => {
+  let reject!: (error: Error) => void;
+  let current = true;
+  t.after(
+    replace("navigator", {
+      canShare: () => true,
+      share: () =>
+        new Promise((_done, fail) => {
+          reject = fail;
+        }),
+    }),
+  );
+  t.after(
+    replace("document", {
+      createElement: () => {
+        throw new Error("must not download after cleanup");
+      },
+    }),
+  );
+  const sharing = shareOrDownload(
+    new Blob(["ink"]),
+    "art.png",
+    payload,
+    () => current,
+  );
+  current = false;
+  reject(new Error("Native sheet failed"));
+  assert.equal(await sharing, "cancelled");
+});

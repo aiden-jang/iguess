@@ -49,7 +49,7 @@ test("browser drawing preserves transparent erasing, refill and pressure segment
   });
   expect(rendered.ok()).toBeTruthy();
   const png = (await rendered.body()).toString("base64");
-  await page.goto("/");
+  await page.goto("http://127.0.0.1:33100/");
   const colors = await page.evaluate(
     async ({ operations, png }) => {
       const { paintOp, newStrokeStates } = await import(`/src/${"paint"}.ts`);

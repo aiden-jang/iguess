@@ -92,21 +92,42 @@ export function resultsText(
   ].join("\n");
 }
 
-/**
- * Hand a file to the OS share sheet, or fall back to a download. Some browsers can share a link
- * but not a file, so ask about this exact file first or the sheet opens and then fails.
- */
+export function canShareFile(file: File): boolean {
+  try {
+    return (
+      typeof navigator.share === "function" &&
+      !!navigator.canShare?.({ files: [file] })
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function downloadFile(file: File): void {
+  const href = URL.createObjectURL(file);
+  const a = document.createElement("a");
+  a.download = file.name;
+  a.href = href;
+  try {
+    document.body.appendChild(a);
+    a.click();
+  } finally {
+    a.remove();
+    // Give the browser time to consume the file before releasing its URL.
+    setTimeout(() => URL.revokeObjectURL(href), 1000);
+  }
+}
+
+// Pass a prepared file from the share click; asynchronous rendering can lose user activation.
 export async function shareOrDownload(
   blob: Blob,
   filename: string,
   sheet: { title: string; text: string },
+  current: () => boolean = () => true,
 ): Promise<"shared" | "downloaded" | "cancelled"> {
+  if (!current()) return "cancelled";
   const file = new File([blob], filename, { type: blob.type });
-  if (
-    typeof navigator.share === "function" &&
-    typeof navigator.canShare === "function" &&
-    navigator.canShare({ files: [file] })
-  ) {
+  if (canShareFile(file)) {
     try {
       await navigator.share({ ...sheet, files: [file] });
       return "shared";
@@ -115,13 +136,7 @@ export async function shareOrDownload(
       if (err instanceof Error && err.name === "AbortError") return "cancelled";
     }
   }
-  const href = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.download = filename;
-  a.href = href;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(href);
+  if (!current()) return "cancelled";
+  downloadFile(file);
   return "downloaded";
 }

@@ -1,4 +1,4 @@
-import { galleryProbe } from "./visualProbe";
+import { capture, captureResults, galleryProbe } from "./visualProbe";
 import { audit } from "./accessibility";
 import type { Page } from "@playwright/test";
 import { test, expect } from "./fixtures";
@@ -196,6 +196,7 @@ test("a finished game shows the gallery, a replay and the shareable card", async
 
   await audit(page);
   // The replay swaps the still for a live canvas that redraws the round.
+  await captureResults(page);
   await page
     .getByRole("button", { name: /replay/i })
     .first()
@@ -219,17 +220,44 @@ test("a finished game shows the gallery, a replay and the shareable card", async
 
   await page.evaluate(() => {
     Object.defineProperty(navigator, "canShare", {
-      value: () => false,
+      value: () => true,
       configurable: true,
     });
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: (data: ShareData) => {
+        Object.assign(window, {
+          evidenceShare: {
+            active: navigator.userActivation.isActive,
+            files: data.files?.length,
+          },
+        });
+        return Promise.reject(new DOMException("Cancelled", "AbortError"));
+      },
+    });
+  });
+  let downloads = 0;
+  page.on("download", () => {
+    downloads += 1;
   });
   const download = page.waitForEvent("download");
   await page
-    .getByRole("button", { name: "Share the evidence", exact: true })
+    .getByRole("button", { name: "Save the evidence", exact: true })
     .click();
   const evidence = await download;
   expect(evidence.suggestedFilename()).toMatch(/^iguess-evidence-.*\.png$/);
   expect(await evidence.failure()).toBeNull();
+  await page.getByRole("button", { name: "Share image", exact: true }).click();
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { evidenceShare: unknown }).evidenceShare,
+    ),
+  ).toEqual({ active: true, files: 1 });
+  await expect(
+    page.getByRole("status").filter({ hasText: "Share cancelled." }),
+  ).toBeVisible();
+  expect(downloads).toBe(1);
+  await capture(page, "evidence-ready-mobile");
   if (process.env.CAPTURE_UI === "1")
     await evidence.saveAs("docs/ui-review/finish/shared-evidence.png");
   if (process.env.CAPTURE_DETAILS4 === "1")

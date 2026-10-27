@@ -1,14 +1,26 @@
 import type { Page } from "@playwright/test";
-import { expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 export async function capture(page: Page, name: string, fullPage = true) {
-  if (process.env.CAPTURE_UI !== "1") return;
-  await mkdir("docs/ui-review/finish", { recursive: true });
+  const output = process.env.CAPTURE_UI_OUTPUT;
+  if (process.env.CAPTURE_UI !== "1" && !output) return;
+  const folder = output ?? "docs/ui-review/finish";
+  await mkdir(folder, { recursive: true });
   await page.screenshot({
     animations: "disabled",
-    path: `docs/ui-review/finish/${name}.jpg`,
+    path: `${folder}/${name}${output ? `-${test.info().project.name}` : ""}.jpg`,
     fullPage,
   });
+}
+export async function captureResults(page: Page) {
+  if (!process.env.CAPTURE_UI_OUTPUT) return;
+  await capture(page, "results-desktop");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await capture(page, "results-desktop-dark");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await capture(page, "results-mobile-dark");
+  await page.emulateMedia({ colorScheme: "light" });
+  await capture(page, "results-mobile");
 }
 export async function galleryProbe(page: Page) {
   // Clones are an isolated layout probe, never sent to the room or stored as fixtures.

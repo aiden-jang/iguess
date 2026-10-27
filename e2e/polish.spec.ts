@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { test, expect } from "./fixtures";
-import { mkdir } from "node:fs/promises";
+import { capture } from "./visualProbe";
 
 const roomCode = () =>
   `club-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -16,15 +16,6 @@ async function enter(page: Page, room = roomCode(), name = "Art department") {
   await page.getByRole("button", { name: /Classic/ }).click();
   await page.getByRole("button", { name: /Enter room|Join the room/i }).click();
   await expect(page.getByText("Connected", { exact: true })).toBeVisible();
-}
-async function capture(page: Page, name: string) {
-  if (process.env.CAPTURE_UI !== "1") return;
-  await mkdir("docs/ui-review/finish", { recursive: true });
-  await page.screenshot({
-    animations: "disabled",
-    path: `docs/ui-review/finish/${name}.jpg`,
-    fullPage: true,
-  });
 }
 
 test("information dialogs support deep links, Escape and returning focus", async ({

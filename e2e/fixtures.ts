@@ -7,7 +7,7 @@ let nextClient = 1;
 export const test = base.extend<{ localClient: void }>({
   localClient: [
     async ({ context, baseURL }, use, testInfo) => {
-      if (baseURL !== "http://127.0.0.1:33100")
+      if (baseURL !== "http://127.0.0.1:33300")
         throw new Error("Browser fixtures require the local stack");
       await context.setExtraHTTPHeaders({
         "CF-Connecting-IP": `192.0.${testInfo.workerIndex % 255}.${(nextClient++ % 254) + 1}`,

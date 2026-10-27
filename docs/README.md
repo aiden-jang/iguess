@@ -1,5 +1,8 @@
 # Visual evidence
 
+The [October review](ui-review/october-26/README.md) records the latest production-build
+checks and selected recovery captures. [Quality checks](quality.md) describes how to reproduce them.
+
 The root README uses the current generated share card. Its source is
 `packages/client/public/og.svg`; regenerate it with the client’s `gen:og` script.
 The favicon and install icons come from `public/icon.svg` through `gen:icons`.

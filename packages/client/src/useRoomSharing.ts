@@ -1,17 +1,11 @@
-import { drawingFilename } from "./downloadName";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { PlayerInfo } from "@iguess/shared";
-import { awardsFor } from "@iguess/shared/awards";
-import { renderEvidencePng } from "./evidenceCard";
-import {
-  resultsText,
-  scoreLine,
-  shareOrDownload,
-  type Standings,
-} from "./share";
+import { resultsText, type Standings } from "./share";
 import { copyText, inviteLink } from "./roomLinks";
 import { getStreak } from "./playerStats";
 import type { GalleryShot } from "./EndScreen";
+import type { InviteResult } from "./labels";
+import { useEvidenceSharing } from "./useEvidenceSharing";
 
 type Props = {
   room: string;
@@ -31,13 +25,26 @@ export function useRoomSharing({
   players,
   showToast,
 }: Props) {
-  const [inviteResult, setInviteResult] = useState<"copied" | "shared" | null>(
-    null,
-  );
+  const [inviteResult, setInviteResult] = useState<InviteResult>(null);
   const [resultsCopied, setResultsCopied] = useState(false);
-  const [savingEvidence, setSavingEvidence] = useState(false);
+  const invitePending = useRef(false);
+  const lifetime = useRef(0);
+  useLayoutEffect(() => {
+    lifetime.current += 1;
+    return () => {
+      lifetime.current += 1;
+      invitePending.current = false;
+    };
+  }, []);
+  const evidence = useEvidenceSharing(room, gallery, players, standings);
+  const inviteUrl = inviteLink(room, effectiveMode);
   useEffect(() => {
-    if (!inviteResult) return;
+    if (
+      !inviteResult ||
+      inviteResult === "sharing" ||
+      inviteResult === "failed"
+    )
+      return;
     const timer = setTimeout(() => setInviteResult(null), 1800);
     return () => clearTimeout(timer);
   }, [inviteResult]);
@@ -47,59 +54,46 @@ export function useRoomSharing({
     return () => clearTimeout(timer);
   }, [resultsCopied]);
   const handleInvite = async () => {
-    const url = inviteLink(room, effectiveMode);
-
-    if (typeof navigator.share === "function") {
-      try {
-        await navigator.share({
-          title: "iguess",
-          text: `Join room ${room} · ${modeLabel}`,
-          url,
-        });
-        setInviteResult("shared");
-        return;
-      } catch (err) {
-        // Closing the share sheet is a decision, not a failure. Real errors fall through to copy.
-        if (err instanceof Error && err.name === "AbortError") return;
-      }
-    }
-
-    if (await copyText(url)) {
-      setInviteResult("copied");
-    } else {
-      showToast("Couldn’t copy the invite. Share the URL in your address bar.");
-    }
-  };
-
-  const saveEvidence = async () => {
-    if (savingEvidence || gallery.length === 0) return;
-    setSavingEvidence(true);
+    if (invitePending.current) return;
+    invitePending.current = true;
+    const owner = lifetime.current;
+    const opener = document.activeElement as HTMLElement | null;
+    const current = () => owner === lifetime.current;
+    setInviteResult("sharing");
     try {
-      const blob = await renderEvidencePng(
-        gallery.map((item) => ({
-          ...item,
-          artist: players.find((player) => player.id === item.drawerId)?.name,
-        })),
-        scoreLine(standings),
-        awardsFor(gallery, players),
-      );
-      const outcome = await shareOrDownload(
-        blob,
-        drawingFilename("evidence", room),
-        {
-          title: "iguess evidence",
-          text: "the drawings, the score, and what the AI thought it saw",
-        },
-      );
-      return outcome === "cancelled"
-        ? "Share cancelled. The drawings are still here."
-        : outcome === "shared"
-          ? "Shared."
-          : "Download started.";
-    } catch {
-      return "Couldn’t save the image. Please try again.";
+      if (typeof navigator.share === "function") {
+        try {
+          await navigator.share({
+            title: "iguess",
+            text: `Join room ${room} · ${modeLabel}`,
+            url: inviteUrl,
+          });
+          if (current()) setInviteResult("shared");
+          return;
+        } catch (err) {
+          // Closing the share sheet is a decision, not a failure. Real errors fall through to copy.
+          if (!current()) return;
+          if (err instanceof Error && err.name === "AbortError") {
+            setInviteResult(null);
+            return;
+          }
+        }
+      }
+      if (!current()) return;
+      const copied = await copyText(inviteUrl);
+      if (current()) setInviteResult(copied ? "copied" : "failed");
     } finally {
-      setSavingEvidence(false);
+      if (current()) {
+        invitePending.current = false;
+        requestAnimationFrame(() => {
+          if (
+            current() &&
+            opener?.isConnected &&
+            document.activeElement === document.body
+          )
+            opener.focus({ preventScroll: true });
+        });
+      }
     }
   };
 
@@ -112,7 +106,9 @@ export function useRoomSharing({
     });
 
   const copyResults = async () => {
+    const owner = lifetime.current;
     const ok = await copyText(resultSummary());
+    if (owner !== lifetime.current) return;
     if (ok) {
       setResultsCopied(true);
     } else {
@@ -122,11 +118,11 @@ export function useRoomSharing({
 
   return {
     inviteResult,
+    inviteUrl,
     resultsCopied,
-    savingEvidence,
     handleInvite,
     copyResults,
-    saveEvidence,
+    ...evidence,
     resultSummary,
   };
 }

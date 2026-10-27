@@ -1,14 +1,13 @@
 import { test, expect } from "./fixtures";
 
-test("the installed shell never replays cached AI availability", async ({
+test.use({ serviceWorkers: "allow" });
+
+test("the installed public shell rejects stale AI availability and opens offline after an invitation", async ({
   page,
+  context,
 }) => {
   await page.goto("/");
   await page.evaluate(async () => {
-    // The development client unregisters workers; register the shipped script explicitly.
-    for (const registration of await navigator.serviceWorker.getRegistrations())
-      await registration.unregister();
-    await navigator.serviceWorker.register("/sw.js");
     await navigator.serviceWorker.ready;
     if (!navigator.serviceWorker.controller)
       await new Promise<void>((resolve) =>
@@ -35,6 +34,25 @@ test("the installed shell never replays cached AI availability", async ({
     return response.json();
   });
   expect(result).toEqual({ vision: "unavailable" });
+  await page.reload();
+  await page.evaluate(() => document.fonts.ready);
+  const publicShell = await page.evaluate(async () =>
+    (await caches.match("/"))!.text(),
+  );
+  await page.goto(`/r/offline-${Date.now().toString(36)}?mode=classic`);
+  await expect(
+    page.getByRole("button", { name: "Join the room", exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(async () => (await caches.match("/"))!.text()),
+  ).toBe(publicShell);
+  await context.setOffline(true);
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: /Draw badly/ })).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: "Your name", exact: true }),
+  ).toBeVisible();
+  await context.setOffline(false);
   await page.evaluate(async () => {
     for (const registration of await navigator.serviceWorker.getRegistrations())
       await registration.unregister();

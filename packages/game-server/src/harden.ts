@@ -26,9 +26,18 @@ const SECURITY_HEADERS: Record<string, string> = {
 // Return a copy of `res` with the security headers stamped on. Static-asset responses from
 // env.ASSETS.fetch carry immutable headers, so rebuild with a fresh, mutable Headers rather than
 // mutating in place (which would throw).
-export function withSecurityHeaders(res: Response): Response {
+export function withSecurityHeaders(res: Response, url?: URL): Response {
   const headers = new Headers(res.headers);
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) headers.set(k, v);
+  // Local HTTP has no TLS listener; WebKit otherwise upgrades even loopback assets.
+  if (
+    url?.protocol === "http:" &&
+    ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
+  )
+    headers.set(
+      "Content-Security-Policy",
+      DEFAULT_CSP.replace("; upgrade-insecure-requests", ""),
+    );
   return new Response(res.body, {
     status: res.status,
     statusText: res.statusText,

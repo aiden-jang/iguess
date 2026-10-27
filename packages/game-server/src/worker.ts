@@ -12,18 +12,19 @@ import { rewriteInviteMeta } from "./inviteMeta.ts";
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    const secure = (response: Response) => withSecurityHeaders(response, url);
     if (url.pathname === "/api/analytics")
-      return withSecurityHeaders(await handleAnalytics(request, env));
+      return secure(await handleAnalytics(request, env));
 
     if (url.pathname === "/play-status")
-      return withSecurityHeaders(
+      return secure(
         Response.json(await playStatus(env.AI_WORKER_URL), {
           headers: { "Cache-Control": "public, max-age=30" },
         }),
       );
 
     if (url.pathname === "/health") {
-      return withSecurityHeaders(
+      return secure(
         new Response(JSON.stringify({ status: "ok", service: "iguess" }), {
           headers: { "content-type": "application/json" },
         }),
@@ -65,9 +66,9 @@ export default {
       const shell = await env.ASSETS.fetch(
         new Request(new URL("/", url), request),
       );
-      if (!shell.ok) return withSecurityHeaders(shell);
+      if (!shell.ok) return secure(shell);
       const html = await shell.text();
-      return withSecurityHeaders(
+      return secure(
         new Response(rewriteInviteMeta(html, room, mode, env.AI_WORKER_URL), {
           status: 200,
           headers: { "content-type": "text/html; charset=utf-8" },
@@ -76,7 +77,7 @@ export default {
     }
 
     // Everything else is the client SPA (real files + index.html fallback for client routes).
-    const asset = withSecurityHeaders(await env.ASSETS.fetch(request));
+    const asset = secure(await env.ASSETS.fetch(request));
     // Vite's hashed bundles cannot change under a given name, so a year and `immutable`. Workers
     // Assets serves them `max-age=0, must-revalidate`, which spends a round trip per chunk on
     // every repeat visit. index.html keeps its name and is left to revalidate.

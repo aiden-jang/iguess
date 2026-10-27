@@ -3,7 +3,7 @@ import { writeFile } from "node:fs/promises";
 test("evidence export survives missing previews long captions and a larger gallery", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("http://127.0.0.1:33100/");
   const result = await page.evaluate(async () => {
     const modulePath = "/src/evidenceCard.ts";
     const { renderEvidencePng } = await import(modulePath);

@@ -2,9 +2,8 @@
 // The realtime game WebSocket lives under /rooms/*, so that traffic always
 // goes to the network and is never cached.
 
-// Bump this on any sw.js change: the activate handler deletes every cache that isn't the current
-// one, so a version bump purges stale entries on update.
-const CACHE = "iguess-v9";
+// Bump this when the shell or cache rules change; activation removes only older iguess caches.
+const CACHE = "iguess-v10";
 const SHELL = "/";
 
 self.addEventListener("install", (event) => {
@@ -18,7 +17,9 @@ self.addEventListener("activate", (event) => {
       .keys()
       .then((keys) =>
         Promise.all(
-          keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)),
+          keys
+            .filter((k) => k.startsWith("iguess-") && k !== CACHE)
+            .map((k) => caches.delete(k)),
         ),
       ),
   );
@@ -29,6 +30,7 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.cache === "no-store") return;
   const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
 
   // Never cache realtime traffic.
   if (
@@ -38,14 +40,20 @@ self.addEventListener("fetch", (event) => {
     return;
   if (request.method !== "GET") return;
 
-  // Navigations: network first, and refresh the cached shell so an offline return visit gets the
-  // most recent shell instead of the one frozen at first install.
+  // Navigations use the network first. Only the successful public homepage refreshes the shell.
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(SHELL, copy));
+          if (
+            url.pathname === "/" &&
+            !url.search &&
+            res.ok &&
+            res.headers.get("content-type")?.includes("text/html")
+          ) {
+            const copy = res.clone();
+            event.waitUntil(caches.open(CACHE).then((c) => c.put(SHELL, copy)));
+          }
           return res;
         })
         .catch(() => caches.match(SHELL)),
@@ -59,8 +67,12 @@ self.addEventListener("fetch", (event) => {
       (hit) =>
         hit ||
         fetch(request).then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(request, copy));
+          if (res.ok && res.type === "basic") {
+            const copy = res.clone();
+            event.waitUntil(
+              caches.open(CACHE).then((c) => c.put(request, copy)),
+            );
+          }
           return res;
         }),
     ),

@@ -15,6 +15,7 @@ interface Props {
   connected: boolean;
   everConnected: boolean;
   inviteResult: InviteResult;
+  inviteUrl: string;
   onInvite: () => void;
   muted: boolean;
   onToggleMute: () => void;
@@ -63,6 +64,7 @@ export function RoomHeader(p: Props) {
           type="button"
           className="room-invite"
           onClick={p.onInvite}
+          disabled={p.inviteResult === "sharing"}
           aria-label={inviteLabel(p.inviteResult)}
         >
           <span className="invite-full" aria-hidden>
@@ -71,9 +73,13 @@ export function RoomHeader(p: Props) {
           <span className="invite-short" aria-hidden>
             {p.inviteResult === "copied"
               ? "Copied ✓"
-              : p.inviteResult === "shared"
-                ? "Shared ✓"
-                : "Invite"}
+              : p.inviteResult === "sharing"
+                ? "Sharing…"
+                : p.inviteResult === "failed"
+                  ? "Try again"
+                  : p.inviteResult === "shared"
+                    ? "Shared ✓"
+                    : "Invite"}
           </span>
           {!p.inviteResult && <Icon name="arrow" />}
         </button>
@@ -96,6 +102,20 @@ export function RoomHeader(p: Props) {
         </ConfirmButton>
         <ResourceLinks />
       </div>
+      {p.inviteResult === "failed" && (
+        <div className="invite-recovery">
+          <p role="alert">
+            Couldn’t share or copy. Select the invitation below, or try again.
+          </p>
+          <label htmlFor="invite-link">Room invitation link</label>
+          <input
+            id="invite-link"
+            value={p.inviteUrl}
+            readOnly
+            onFocus={(event) => event.currentTarget.select()}
+          />
+        </div>
+      )}
     </header>
   );
 }

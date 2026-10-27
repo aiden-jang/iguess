@@ -1,6 +1,8 @@
 # Deploying iguess → iguess.aidenjang.com
 
-**Status: live** at [iguess.aidenjang.com](https://iguess.aidenjang.com). Run the steps below to ship a new version. Two Cloudflare Workers:
+**Status: live** at [iguess.aidenjang.com](https://iguess.aidenjang.com). Pushes to main deploy
+automatically after CI verifies the revision and tests its client build. The steps below cover
+initial setup, self-hosting and manual recovery. Two Cloudflare Workers:
 
 - **`iguess-ai`** is the vision worker (`/guess`). Its `*.workers.dev` URL is public, so real
   vision providers require a shared Bearer secret; it also serves public share-card images at
