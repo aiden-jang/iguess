@@ -66,11 +66,8 @@ pnpm run security:check  # runtime and development dependency advisories
 - [Security reports](SECURITY.md): private reporting and room trust boundaries.
 - [Deployment](DEPLOY.md): Cloudflare setup and secrets.
 - [Visual evidence](docs/README.md): screenshot provenance and refresh guidance.
-- [Repository audit](docs/REPOSITORY-AUDIT.md): architecture, cleanup and recovery verification.
 - [Quality checks](docs/quality.md): production browser coverage, local services and limits.
-- [Latest review](docs/ui-review/october-26/README.md): recovery and sharing evidence.
 - [Visitor walkthrough](docs/visitor-review.md): tasks for an observed multiplayer session.
-- [Finishing checklist](docs/ui-review/finish/README.md): acceptance evidence and device-testing limits.
 
 Built with React, TypeScript, Canvas, Cloudflare Workers, Durable Objects and raw
 WebSockets. CI verifies pull requests; pushes to `main` deploy after checks pass.

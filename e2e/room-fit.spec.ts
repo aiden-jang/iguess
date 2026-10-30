@@ -116,9 +116,9 @@ for (const view of views) {
       await expect(page.locator(".word-choice")).toHaveCount(3);
       await fits(page, "choosing");
       if (process.env.CAPTURE_ROOM_FIT === "1" && view.name === "small-phone") {
-        await mkdir("docs/ui-review/room-fit", { recursive: true });
+        await mkdir("test-results/visual-review/room-fit", { recursive: true });
         await page.screenshot({
-          path: `docs/ui-review/room-fit/small-phone-choosing-${info.project.name}.jpg`,
+          path: `test-results/visual-review/room-fit/small-phone-choosing-${info.project.name}.jpg`,
           animations: "disabled",
         });
       }
@@ -135,13 +135,13 @@ for (const view of views) {
         guest.getByRole("textbox", { name: "Your guess", exact: true }),
       ).toBeInViewport({ ratio: 1 });
       if (process.env.CAPTURE_ROOM_FIT === "1") {
-        await mkdir("docs/ui-review/room-fit", { recursive: true });
+        await mkdir("test-results/visual-review/room-fit", { recursive: true });
         for (const [role, target] of [
           ["drawer", page],
           ["guesser", guest],
         ] as const)
           await target.screenshot({
-            path: `docs/ui-review/room-fit/${view.name}-${role}-${info.project.name}.jpg`,
+            path: `test-results/visual-review/room-fit/${view.name}-${role}-${info.project.name}.jpg`,
             animations: "disabled",
           });
       }
@@ -167,7 +167,7 @@ for (const view of views) {
         expect(inputBox.y + inputBox.height).toBeLessThanOrEqual(401);
         if (process.env.CAPTURE_ROOM_FIT === "1")
           await guest.screenshot({
-            path: `docs/ui-review/room-fit/keyboard-guesser-${info.project.name}.jpg`,
+            path: `test-results/visual-review/room-fit/keyboard-guesser-${info.project.name}.jpg`,
             animations: "disabled",
           });
       }

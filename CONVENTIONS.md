@@ -48,3 +48,5 @@ the source comment scanner excludes test files.
 
 Do not write live test totals, check totals or file lengths into prose docs.
 Tools report those values. Describe the current system; Git records its history.
+
+Keep generated review output out of Git; follow the [artifact policy](docs/quality.md#review-artifacts).

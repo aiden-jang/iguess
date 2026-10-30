@@ -58,9 +58,11 @@ for (const source of ["new", "invited"] as const) {
       expect(new URL(page.url()).pathname).toBe(`/r/${freshRoom}`);
       expect(new URL(page.url()).searchParams.get("mode")).toBe("ai");
       if (process.env.CAPTURE_MODE_SWITCH === "1" && exit === "back") {
-        await mkdir("docs/ui-review/mode-switch", { recursive: true });
+        await mkdir("test-results/visual-review/mode-switch", {
+          recursive: true,
+        });
         await page.screenshot({
-          path: `docs/ui-review/mode-switch/${source}-${info.project.name}.jpg`,
+          path: `test-results/visual-review/mode-switch/${source}-${info.project.name}.jpg`,
           animations: "disabled",
         });
       }

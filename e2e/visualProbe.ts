@@ -4,7 +4,7 @@ import { mkdir } from "node:fs/promises";
 export async function capture(page: Page, name: string, fullPage = true) {
   const output = process.env.CAPTURE_UI_OUTPUT;
   if (process.env.CAPTURE_UI !== "1" && !output) return;
-  const folder = output ?? "docs/ui-review/finish";
+  const folder = output ?? "test-results/visual-review/finish";
   await mkdir(folder, { recursive: true });
   await page.screenshot({
     animations: "disabled",

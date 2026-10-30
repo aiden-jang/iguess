@@ -50,9 +50,9 @@ for (const view of [
       animations: "disabled",
     });
     if (process.env.CAPTURE_REACTIONS === "1") {
-      await mkdir("docs/ui-review/reactions", { recursive: true });
+      await mkdir("test-results/visual-review/reactions", { recursive: true });
       await page.screenshot({
-        path: `docs/ui-review/reactions/${view.name}-${info.project.name}.jpg`,
+        path: `test-results/visual-review/reactions/${view.name}-${info.project.name}.jpg`,
         animations: "disabled",
       });
     }

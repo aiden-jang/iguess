@@ -148,7 +148,7 @@ test("a finished game shows the gallery, a replay and the shareable card", async
   if (process.env.CAPTURE_UI === "1")
     await page.screenshot({
       animations: "disabled",
-      path: "docs/ui-review/finish/turn-recap-desktop.jpg",
+      path: "test-results/visual-review/finish/turn-recap-desktop.jpg",
       fullPage: true,
     });
   // Round over, then the results screen.
@@ -171,25 +171,25 @@ test("a finished game shows the gallery, a replay and the shareable card", async
   if (process.env.CAPTURE_UI === "1") {
     await page.screenshot({
       animations: "disabled",
-      path: "docs/ui-review/finish/results-desktop.jpg",
+      path: "test-results/visual-review/finish/results-desktop.jpg",
       fullPage: true,
     });
     await page.emulateMedia({ colorScheme: "dark" });
     await page.screenshot({
       animations: "disabled",
-      path: "docs/ui-review/finish/results-desktop-dark.jpg",
+      path: "test-results/visual-review/finish/results-desktop-dark.jpg",
       fullPage: true,
     });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({
       animations: "disabled",
-      path: "docs/ui-review/finish/results-mobile-dark.jpg",
+      path: "test-results/visual-review/finish/results-mobile-dark.jpg",
       fullPage: true,
     });
     await page.emulateMedia({ colorScheme: "light" });
     await page.screenshot({
       animations: "disabled",
-      path: "docs/ui-review/finish/results-mobile.jpg",
+      path: "test-results/visual-review/finish/results-mobile.jpg",
       fullPage: true,
     });
   }
@@ -259,7 +259,9 @@ test("a finished game shows the gallery, a replay and the shareable card", async
   expect(downloads).toBe(1);
   await capture(page, "evidence-ready-mobile");
   if (process.env.CAPTURE_UI === "1")
-    await evidence.saveAs("docs/ui-review/finish/shared-evidence.png");
+    await evidence.saveAs(
+      "test-results/visual-review/finish/shared-evidence.png",
+    );
   if (process.env.CAPTURE_DETAILS4 === "1")
     await evidence.saveAs(test.info().outputPath("evidence-card.png"));
   await page

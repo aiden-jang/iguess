@@ -48,7 +48,7 @@ test("evidence export survives missing previews long captions and a larger galle
   expect(result.size).toBeGreaterThan(10000);
   if (process.env.CAPTURE_UI === "1")
     await writeFile(
-      "docs/ui-review/finish/export-probe.png",
+      test.info().outputPath("export-probe.png"),
       Buffer.from(result.base64, "base64"),
     );
 });

@@ -150,7 +150,7 @@ test("a released wake lock is reacquired when the live game becomes visible", as
 test("updated privacy and room states remain coherent on desktop and mobile", async ({
   page,
 }, testInfo) => {
-  await mkdir("docs/ui-review/repository", { recursive: true });
+  await mkdir("test-results/visual-review/repository", { recursive: true });
   for (const [width, name] of [
     [1440, "desktop"],
     [390, "mobile"],
@@ -167,7 +167,7 @@ test("updated privacy and room states remain coherent on desktop and mobile", as
     ).toBe(true);
     if (process.env.CAPTURE_AUDIT === "1")
       await page.screenshot({
-        path: `docs/ui-review/repository/privacy-${name}-${testInfo.project.name}.jpg`,
+        path: `test-results/visual-review/repository/privacy-${name}-${testInfo.project.name}.jpg`,
         animations: "disabled",
       });
     const contact = page
@@ -180,7 +180,7 @@ test("updated privacy and room states remain coherent on desktop and mobile", as
     await expect(page.locator("canvas")).toBeVisible();
     if (process.env.CAPTURE_AUDIT === "1")
       await page.screenshot({
-        path: `docs/ui-review/repository/room-${name}-${testInfo.project.name}.jpg`,
+        path: `test-results/visual-review/repository/room-${name}-${testInfo.project.name}.jpg`,
         fullPage: true,
         animations: "disabled",
       });

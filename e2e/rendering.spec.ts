@@ -98,6 +98,6 @@ test("browser drawing preserves transparent erasing, refill and pressure segment
   expect(colors.vision).toEqual(expected);
   if (process.env.CAPTURE_AUDIT === "1")
     await page.locator("canvas").screenshot({
-      path: `docs/ui-review/repository/render-tools-${info.project.name}.png`,
+      path: `test-results/visual-review/repository/render-tools-${info.project.name}.png`,
     });
 });

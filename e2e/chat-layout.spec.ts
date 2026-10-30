@@ -107,9 +107,9 @@ for (const view of views) {
     await expect(input).toHaveValue("");
     await expect(log.getByText("Still here.", { exact: true })).toBeVisible();
     if (process.env.CAPTURE_CHAT === "1") {
-      await mkdir("docs/ui-review/chat", { recursive: true });
+      await mkdir("test-results/visual-review/chat", { recursive: true });
       await page.screenshot({
-        path: `docs/ui-review/chat/${view.name}-${info.project.name}.jpg`,
+        path: `test-results/visual-review/chat/${view.name}-${info.project.name}.jpg`,
         animations: "disabled",
       });
     }

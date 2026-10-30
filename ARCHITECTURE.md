@@ -161,5 +161,3 @@ The [quality guide](docs/quality.md) records browser setup, local HTTP policy an
 - Vision and browser rendering share stroke geometry and scanline fill rules; antialiasing can differ between renderers.
 - Raster fill replay at different sizes is visually close rather than bit-identical.
 - Mock-based tests do not establish paid-provider quality or real-device performance.
-
-The [repository audit](docs/REPOSITORY-AUDIT.md) records the boundaries, regressions and verification limits.

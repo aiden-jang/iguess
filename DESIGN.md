@@ -40,6 +40,5 @@ exclamation marks. Instructions, errors, confirmations and privacy text stay cle
 
 Inspect desktop and phone layouts in light and dark palettes, including 320 px and landscape.
 Check keyboard joining, disclosure controls, dialogs, drawing, guessing, reconnects, results,
-replay and sharing. Use disposable local rooms and mock AI. Record screenshots and limitations
-in `docs/ui-review/finish/README.md`. Browser checks do not establish physical-device or paid-AI
+replay and sharing. Use disposable local rooms and mock AI. Inspect temporary captures and record limitations in the change description. Browser checks do not establish physical-device or paid-AI
 quality.

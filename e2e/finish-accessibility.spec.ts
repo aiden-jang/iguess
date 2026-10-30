@@ -18,7 +18,7 @@ test("entry and legal dialogs pass accessibility checks in both palettes", async
     await audit(page);
     if (process.env.CAPTURE_AUDIT === "1")
       await page.screenshot({
-        path: `docs/ui-review/repository/join-ready-${colorScheme}-${info.project.name}.jpg`,
+        path: `test-results/visual-review/repository/join-ready-${colorScheme}-${info.project.name}.jpg`,
         fullPage: true,
         animations: "disabled",
       });
