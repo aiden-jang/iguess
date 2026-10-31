@@ -10,7 +10,6 @@ export default defineConfig({
   expect: { timeout: 8_000 },
   fullyParallel: false, // rooms are shared state; parallel specs would collide in one room
   retries: process.env.CI ? 1 : 0,
-  reporter: [["list"]],
   projects: [
     { name: "chromium", use: { browserName: "chromium" } },
     { name: "webkit", use: { browserName: "webkit" } },
