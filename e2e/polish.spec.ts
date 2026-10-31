@@ -73,6 +73,22 @@ test("the narrow lobby keeps its roster optional and help reachable", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await enter(page);
+  if (process.env.CAPTURE_UI_OUTPUT) {
+    for (const colorScheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
+      for (const width of [1440, 390]) {
+        await page.setViewportSize({ width, height: 900 });
+        expect(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        ).toBe(true);
+        await capture(page, `lobby-art-${colorScheme}-${width}`);
+      }
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ colorScheme: "light" });
+  }
   await expect(page.locator(".room-roster")).not.toHaveAttribute("open", "");
   await page.locator(".room-roster summary").click();
   await expect(

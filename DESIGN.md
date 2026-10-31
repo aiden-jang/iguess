@@ -42,3 +42,5 @@ Inspect desktop and phone layouts in light and dark palettes, including 320 px a
 Check keyboard joining, disclosure controls, dialogs, drawing, guessing, reconnects, results,
 replay and sharing. Use disposable local rooms and mock AI. Inspect temporary captures and record limitations in the change description. Browser checks do not establish physical-device or paid-AI
 quality.
+
+The lobby has a small pencil-and-paper sketch, and guests waiting for a word choice see a blank-paper/hourglass doodle. Both are decorative, static vector art in the studio palette; they never depend on the secret word, player drawings or scores. The actual drawing surface and result gallery stay primary.

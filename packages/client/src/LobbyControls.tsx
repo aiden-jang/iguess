@@ -3,12 +3,14 @@ import { VisionNotice } from "./VisionNotice";
 import { lobbyStatus } from "./labels";
 import { HostSettings } from "./HostSettings";
 import { styles } from "./styles";
+import { StudioSketch } from "./StudioSketch";
 
 export function LobbyControls(p: RoomBannerProps) {
   const needsFriend = p.soloWaiting && !p.isAIMode;
   return (
     <>
       <div className="lobby-welcome">
+        <StudioSketch kind="lobby" />
         <span className="eyebrow">The warm-up</span>
         <h1>
           Warm up. <em>Or don’t.</em>

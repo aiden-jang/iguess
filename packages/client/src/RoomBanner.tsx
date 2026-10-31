@@ -3,6 +3,7 @@ import { LobbyControls } from "./LobbyControls";
 import { styles } from "./styles";
 import { Countdown } from "./Countdown";
 import { TIER_LABEL } from "./gameModes";
+import { StudioSketch } from "./StudioSketch";
 
 export function RoomBanner(props: RoomBannerProps) {
   const {
@@ -119,6 +120,7 @@ export function RoomBanner(props: RoomBannerProps) {
             </span>
           ) : (
             <span className="word-zone" style={styles.wordZone}>
+              <StudioSketch kind="waiting" />
               <span style={styles.wordVerb}>
                 {game?.drawerId
                   ? playerName(players, game.drawerId)

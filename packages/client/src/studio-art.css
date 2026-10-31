@@ -1,0 +1,19 @@
+.studio-sketch {
+  display: inline-block;
+  width: 64px;
+  height: 48px;
+  flex: none;
+  vertical-align: middle;
+}
+.lobby-welcome > .studio-sketch {
+  float: right;
+  width: 88px;
+  height: 66px;
+  margin: 0 0 8px 12px;
+}
+@media (max-width: 420px) {
+  .lobby-welcome > .studio-sketch {
+    width: 64px;
+    height: 48px;
+  }
+}
