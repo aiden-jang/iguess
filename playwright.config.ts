@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 export default defineConfig({
   testDir: "./e2e",
   forbidOnly: Boolean(process.env.CI),
+  reporter: process.env.CI ? [["github"], ["list"]] : "list",
   timeout: 30_000,
   expect: { timeout: 8_000 },
   fullyParallel: false, // rooms are shared state; parallel specs would collide in one room
