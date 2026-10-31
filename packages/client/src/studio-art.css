@@ -17,3 +17,13 @@
     height: 48px;
   }
 }
+@media (max-width: 880px) and (max-height: 740px) {
+  .studio-sketch,
+  .lobby-welcome > .studio-sketch {
+    width: 32px;
+    height: 24px;
+  }
+  .lobby-welcome > .studio-sketch {
+    margin: 0 0 0 8px;
+  }
+}
