@@ -19,6 +19,9 @@ No source ceiling or test floor may be raised or lowered to hide a regression.
 
 ## Browser stack
 
+CI pins Ubuntu 24.04 for a stable browser dependency set rather than following
+runner-image migrations during a check.
+
 The browser suite refuses to reuse running servers. Keep its ports free:
 
 | Service        | Origin                   | Purpose                                                          |
