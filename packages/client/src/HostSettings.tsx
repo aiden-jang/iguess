@@ -132,7 +132,16 @@ export function HostSettings({
             aria-describedby={wordsHint}
             aria-invalid={!!preview.error}
             onBlur={saveWords}
-            onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+            onKeyDown={(event) => {
+              if (
+                event.key !== "Enter" ||
+                event.nativeEvent.isComposing ||
+                event.keyCode === 229
+              )
+                return;
+              event.preventDefault();
+              saveWords();
+            }}
           />
         </label>
         <p
@@ -140,8 +149,11 @@ export function HostSettings({
           id={wordsHint}
           role={preview.error ? "alert" : undefined}
         >
-          {preview.error ||
-            `${preview.words.length} custom words. Up to 40 unique words; save with Enter or leave the field.`}
+          {preview.error
+            ? `Not applied. ${preview.error} The room still uses its saved words.`
+            : youAreHost
+              ? `${preview.words.length} custom words. Up to 40 unique words; save with Enter or leave the field.`
+              : `${preview.words.length} custom words. The host chooses these words.`}
         </p>
         <label style={styles.settingLabel}>
           Turn time

@@ -44,3 +44,5 @@ replay and sharing. Use disposable local rooms and mock AI. Inspect temporary ca
 quality.
 
 The lobby has a small pencil-and-paper sketch, and guests waiting for a word choice see a blank-paper/hourglass doodle. Both are decorative, static vector art in the studio palette; they never depend on the secret word, player drawings or scores. The actual drawing surface and result gallery stay primary.
+
+Custom-word validation says when a draft has not been applied. Enter saves without blurring the field; guest settings explain host ownership rather than offering unavailable editing instructions.

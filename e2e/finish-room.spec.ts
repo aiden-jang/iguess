@@ -30,12 +30,15 @@ test("invalid custom words remain editable and never overwrite the saved room ru
   const words = page.getByLabel("Custom words", { exact: true });
   await words.fill("moon, teapot");
   await words.press("Enter");
+  await expect(words).toBeFocused();
   await expect.poll(() => !!releaseEcho).toBe(true);
   await words.fill("x");
   await words.press("Enter");
   releaseEcho!();
   await expect(words).toHaveAttribute("aria-invalid", "true");
   await expect(page.getByRole("alert")).toContainText("needs 2–24 letters");
+  await expect(page.getByRole("alert")).toContainText("Not applied.");
+  await expect(words).toBeFocused();
   const guest = await browser.newPage();
   try {
     await enter(guest, room, "Guest");
@@ -46,6 +49,9 @@ test("invalid custom words remain editable and never overwrite the saved room ru
     await expect(
       guest.getByLabel("Custom words", { exact: true }),
     ).toBeDisabled();
+    await expect(guest.locator(".custom-word-feedback")).toContainText(
+      "The host chooses these words.",
+    );
   } finally {
     await guest.close();
   }
