@@ -12,6 +12,7 @@ export const MODE_LABELS: Record<GameModeName, string> = {
   "ai-drawer": "AI Drawer",
   "team-battle": "Team Battle",
   duel: "You vs AI",
+  relay: "Drawing Relay",
 };
 export function normalizeMode(name: string | null): GameModeName {
   return name && Object.hasOwn(MODE_LABELS, name)
@@ -19,7 +20,7 @@ export function normalizeMode(name: string | null): GameModeName {
     : "classic";
 }
 export function createMode(
-  name: GameModeName,
+  name: Exclude<GameModeName, "relay">,
   requestGuess: () => Promise<AIGuess>,
 ): GameMode {
   switch (name) {

@@ -1,17 +1,15 @@
 import {
   DEFAULT_SETTINGS,
-  isAvatar,
   type ServerMessage,
   type PlayerInfo,
   type RoomSettings,
   type GameModeName,
 } from "@iguess/shared";
-import { readConnectionProtocol } from "@iguess/shared/reconnectProtocol";
 import { parseClientMessage } from "@iguess/shared/protocol";
 import { GameEngine } from "./engine.ts";
 import type { Env } from "./env.ts";
 import { WordMemory } from "./wordMemory.ts";
-import { requestAIGuess } from "./services/aiWorkerClient.ts";
+import { RoomVision } from "./roomVision.ts";
 import { shouldResetRoom } from "./roomReset.ts";
 import { writeEvent } from "./events.ts";
 import { allowMessage } from "./floodGuard.ts";
@@ -23,8 +21,13 @@ import { ROOM_TTL_MS } from "./checkpointStore.ts";
 import type { RoomSnapshot } from "./roomSnapshot.ts";
 import { createMode, MODE_LABELS, normalizeMode } from "./roomModes.ts";
 import { handleRoomAction } from "./roomActions.ts";
-
-const MAX_AI_CALLS_PER_ROOM = 240;
+import { RelayRoom } from "./relayRoom.ts";
+import {
+  openRoomSocket,
+  roomReconnectToken,
+  rejectRoomSocket,
+  upgradeRoomSocket,
+} from "./roomUpgrade.ts";
 export class GameRoom {
   private engine: GameEngine | null = null;
   private recovered: RoomSnapshot["engine"] = null;
@@ -33,6 +36,7 @@ export class GameRoom {
   private sessions = new ReconnectSessions();
   private roster = new RoomRoster((member, removed) => {
     this.engine?.onPlayerLeave(member.player.id);
+    this.relay.game.leave(member.player.id);
     this.broadcast({
       type: "system",
       text: `${member.player.name} ${removed ? "was removed by the host" : "left"}`,
@@ -41,8 +45,35 @@ export class GameRoom {
     this.presence();
     this.persistence.changed();
   });
-  private aiCallCount = 0;
-  private saidAiIsBlind = false;
+  private relay = new RelayRoom({
+    roster: this.roster,
+    send: (target, message) => this.send(target, message),
+    broadcast: (message) => this.broadcast(message),
+    dirty: (delay) => this.persistence.changed(delay),
+    flush: () => this.persistence.flush(),
+    wait: (task) => this.ctx.waitUntil(task),
+    presence: () => this.presence(),
+    revoke: (id) => this.sessions.revoke(id),
+    started: (count) =>
+      writeEvent(this.env, "game_started", "relay", "", count),
+    finished: (count) => writeEvent(this.env, "game_ended", "relay", "", count),
+  });
+  private vision = new RoomVision({
+    env: () => this.env,
+    engine: () => this.engine,
+    drawing: () => this.canvas.snapshot(),
+    checkpoint: () => {
+      this.persistence.changed();
+      return this.persistence.flush();
+    },
+    usedMock: () => {
+      writeEvent(this.env, "ai_blind", this.mode);
+      this.broadcast({
+        type: "system",
+        text: "The AI can’t see the canvas right now, so it’s just naming things.",
+      });
+    },
+  });
   private reportedEnd = false;
   private wordMemory = new WordMemory();
   private settings: RoomSettings = DEFAULT_SETTINGS;
@@ -65,8 +96,10 @@ export class GameRoom {
       this.canvas.restore(saved.strokes);
       this.roster.restore(saved.roster);
       this.recovered = saved.engine;
-      this.aiCallCount = saved.aiCallCount;
-      this.saidAiIsBlind = saved.saidAiIsBlind;
+      if (saved.relay && saved.mode === "relay")
+        this.relay.game.restore(saved.relay);
+      this.vision.count = saved.aiCallCount;
+      this.vision.saidMock = saved.saidAiIsBlind;
       this.reportedEnd = saved.reportedEnd;
       this.wordMemory.restore(saved.recentWords);
     });
@@ -77,16 +110,19 @@ export class GameRoom {
       return new Response("Expected a WebSocket upgrade.", { status: 426 });
     const url = new URL(request.url);
     this.roomId = (url.searchParams.get("room") || "lobby").slice(0, 32);
-    const suppliedToken = readConnectionProtocol(
-      request.headers.get("Sec-WebSocket-Protocol"),
-    ).token;
+    const suppliedToken = roomReconnectToken(request);
     const session = await this.sessions.resolve(suppliedToken);
-    if (session?.revoked) return this.reject(request, 4010, "Removed by host.");
+    if (session?.revoked)
+      return rejectRoomSocket(request, 4010, "Removed by host.");
     const existingId = session?.id ?? "";
     const returning = this.roster.has(existingId);
     let watching = this.shouldWatch(existingId);
     if (!this.roster.canJoin(existingId, watching))
-      return this.reject(request, 4009, "This room is full. Try another room.");
+      return rejectRoomSocket(
+        request,
+        4009,
+        "This room is full. Try another room.",
+      );
     const issued =
       session && suppliedToken
         ? { record: session, token: suppliedToken }
@@ -96,21 +132,12 @@ export class GameRoom {
     const id = issued.record.id;
     watching = this.shouldWatch(id);
     if (!this.roster.canJoin(id, watching))
-      return this.reject(request, 4009, "This room is full. Try another room.");
-    const pair = new WebSocketPair();
-    pair[1].accept();
-    const rawAvatar = url.searchParams.get("avatar");
-    const player: PlayerInfo = {
-      id,
-      name: (url.searchParams.get("name")?.trim() || "Anon").slice(0, 24),
-      avatar: isAvatar(rawAvatar) ? rawAvatar : undefined,
-    };
-    const connection: Connection = {
-      ws: pair[1],
-      player,
-      token: issued.token,
-      rate: { count: 0, windowStart: Date.now() },
-    };
+      return rejectRoomSocket(
+        request,
+        4009,
+        "This room is full. Try another room.",
+      );
+    const { pair, connection } = openRoomSocket(url, id, issued.token);
     this.roster.attach(connection, watching);
     let welcomed = false;
     const close = () => {
@@ -121,32 +148,33 @@ export class GameRoom {
     pair[1].addEventListener("error", close);
     const old = this.engine;
     const before = this.mode;
-    const game = this.gameFor(url.searchParams.get("mode"));
+    this.gameFor(url.searchParams.get("mode"), returning);
     this.persistence.changed();
     await this.persistence.flush();
     if (pair[1].readyState !== 1) {
       close();
-      return this.upgrade(request, pair[0]);
+      return upgradeRoomSocket(request, pair[0]);
     }
     welcomed = true;
     this.welcome(connection);
-    this.send(connection, { type: "canvas_sync", ops: this.canvas.snapshot() });
-    game.sendStateTo(id);
-    if (old && old !== game)
+    this.syncPlayer(connection);
+    if ((old && old !== this.engine) || before !== this.mode)
       for (const other of this.roster.connections.values()) {
         if (other === connection) continue;
         this.welcome(other);
-        this.send(other, { type: "draw", op: { kind: "clear" } });
-        game.sendStateTo(other.player.id);
+        this.syncPlayer(other);
       }
-    if (before !== this.mode && old)
+    if (before !== this.mode && this.roster.connections.size > 1)
       this.broadcast({
         type: "system",
         text: `Mode switched to ${MODE_LABELS[this.mode]}`,
       });
     this.presence();
     if (!returning)
-      this.broadcast({ type: "system", text: `${player.name} joined` });
+      this.broadcast({
+        type: "system",
+        text: `${connection.player.name} joined`,
+      });
     pair[1].addEventListener("message", (event) => {
       if (
         this.roster.connections.get(id) !== connection ||
@@ -154,7 +182,9 @@ export class GameRoom {
       )
         return;
       const message = parseClientMessage(event.data);
-      if (!message || !this.engine) return;
+      if (!message) return;
+      if (this.mode === "relay") return this.relay.handle(connection, message);
+      if (!this.engine || message.type === "relay") return;
       handleRoomAction(
         {
           game: this.engine,
@@ -188,126 +218,85 @@ export class GameRoom {
       if (message.type !== "cursor" && message.type !== "react")
         this.persistence.changed();
     });
-    return this.upgrade(request, pair[0]);
+    return upgradeRoomSocket(request, pair[0]);
   }
   private shouldWatch(id: string) {
-    const phase = this.engine?.currentPhase ?? this.recovered?.phase;
-    const active = phase && !["lobby", "ended"].includes(phase);
+    const active = !["lobby", "ended"].includes(this.phase);
     const participant =
-      this.engine?.hasParticipant(id) ??
-      this.recovered?.roster.some((member) => member.id === id);
+      this.mode === "relay"
+        ? this.relay.game.hasParticipant(id)
+        : (this.engine?.hasParticipant(id) ??
+          this.recovered?.roster.some((member) => member.id === id));
     return Boolean(active && !participant);
   }
-  private upgrade(request: Request, socket: WebSocket) {
-    const protocol = readConnectionProtocol(
-      request.headers.get("Sec-WebSocket-Protocol"),
-    ).selected;
-    return new Response(null, {
-      status: 101,
-      webSocket: socket,
-      headers: protocol ? { "Sec-WebSocket-Protocol": protocol } : undefined,
-    });
+  private get phase() {
+    return this.mode === "relay"
+      ? this.relay.game.phase
+      : (this.engine?.currentPhase ?? this.recovered?.phase ?? "lobby");
   }
-  private reject(request: Request, code: number, reason: string) {
-    const pair = new WebSocketPair();
-    pair[1].accept();
-    pair[1].close(code, reason);
-    return this.upgrade(request, pair[0]);
+  private syncPlayer(connection: Connection) {
+    if (this.mode === "relay") return this.relay.sync(connection);
+    this.send(connection, { type: "canvas_sync", ops: this.canvas.snapshot() });
+    this.engine?.sendStateTo(connection.player.id);
   }
   private resetEngine() {
     this.engine?.dispose();
+    this.relay.game.reset();
     this.engine = null;
     this.recovered = null;
     this.virtualPlayers.clear();
     this.canvas.apply({ kind: "clear" });
   }
-  private gameFor(requested: string | null) {
+  private gameFor(requested: string | null, returning: boolean) {
     const mode =
       this.roster.connections.size <= 1 ? normalizeMode(requested) : this.mode;
-    if (
-      shouldResetRoom(
-        this.engine?.currentPhase ?? this.recovered?.phase ?? "lobby",
-        mode,
-        this.mode,
-      )
-    )
+    const keepRelay = this.mode === "relay" && (mode === "relay" || returning);
+    if (!keepRelay && shouldResetRoom(this.phase, mode, this.mode))
       this.resetEngine();
-    if (!this.engine) {
-      this.mode = this.recovered ? this.mode : mode;
-      const strategy = createMode(this.mode, async () => {
-        const game = this.engine;
-        const revision = game?.turnRevision;
-        const current = () =>
-          game &&
-          this.engine === game &&
-          game.currentPhase === "playing" &&
-          game.turnRevision === revision;
-        if (!current()) throw new Error("Turn ended");
-        if (this.aiCallCount >= MAX_AI_CALLS_PER_ROOM)
-          throw new Error("Room AI budget spent");
-        this.aiCallCount++;
-        this.persistence.changed();
-        await this.persistence.flush();
-        if (!current()) throw new Error("Turn ended");
-        const said = await requestAIGuess(
-          this.env.AI_WORKER_URL,
-          this.env.AI_SHARED_SECRET,
-          this.canvas.snapshot(),
-          this.engine?.currentHint(),
-        );
-        if (!current()) throw new Error("Turn ended");
-        if (said.provider === "mock" && !this.saidAiIsBlind) {
-          this.saidAiIsBlind = true;
-          writeEvent(this.env, "ai_blind", this.mode);
-          this.broadcast({
-            type: "system",
-            text: "The AI can’t see the canvas right now, so it’s just naming things.",
-          });
-        }
-        return said;
-      });
-      strategy.useWordMemory?.(this.wordMemory);
-      this.engine = new GameEngine(
-        {
-          broadcast: (message) => this.broadcast(message),
-          canvasOpCount: () => this.canvas.snapshot().length,
-          sendToPlayer: (id, message) => {
-            const target = this.roster.connections.get(id);
-            if (target) this.send(target, message);
-          },
-          clearCanvas: () => {
-            this.canvas.apply({ kind: "clear" });
-            this.broadcast({ type: "draw", op: { kind: "clear" } });
-          },
-          drawOp: (op) => {
-            if (this.canvas.apply(op)) this.broadcast({ type: "draw", op });
-          },
-          getName: (id) =>
-            this.roster.players().find((player) => player.id === id)?.name ??
-            this.virtualPlayers.get(id)?.name ??
-            "Someone",
-          addVirtualPlayer: (player) => {
-            this.virtualPlayers.set(player.id, player);
-            this.presence();
-          },
-          removeVirtualPlayer: (id) => {
-            this.virtualPlayers.delete(id);
-            this.presence();
-          },
+    if (this.engine || keepRelay) return;
+    this.mode = this.recovered || this.phase !== "lobby" ? this.mode : mode;
+    if (this.mode === "relay") return;
+    const strategy = createMode(this.mode, this.vision.guess);
+    strategy.useWordMemory?.(this.wordMemory);
+    this.engine = new GameEngine(
+      {
+        broadcast: (message) => this.broadcast(message),
+        canvasOpCount: () => this.canvas.snapshot().length,
+        sendToPlayer: (id, message) => {
+          const target = this.roster.connections.get(id);
+          if (target) this.send(target, message);
         },
-        strategy,
-      );
-      this.engine.applySettings(this.settings);
-      if (this.recovered) {
-        this.engine.restore(this.recovered);
-        this.recovered = null;
-        this.broadcast({
-          type: "system",
-          text: "Room recovered. The clock resumes from the last checkpoint.",
-        });
-      }
+        clearCanvas: () => {
+          this.canvas.apply({ kind: "clear" });
+          this.broadcast({ type: "draw", op: { kind: "clear" } });
+        },
+        drawOp: (op) => {
+          if (this.canvas.apply(op)) this.broadcast({ type: "draw", op });
+        },
+        getName: (id) =>
+          this.roster.players().find((player) => player.id === id)?.name ??
+          this.virtualPlayers.get(id)?.name ??
+          "Someone",
+        addVirtualPlayer: (player) => {
+          this.virtualPlayers.set(player.id, player);
+          this.presence();
+        },
+        removeVirtualPlayer: (id) => {
+          this.virtualPlayers.delete(id);
+          this.presence();
+        },
+      },
+      strategy,
+    );
+    this.engine.applySettings(this.settings);
+    if (this.recovered) {
+      this.engine.restore(this.recovered);
+      this.recovered = null;
+      this.broadcast({
+        type: "system",
+        text: "Room recovered. The clock resumes from the last checkpoint.",
+      });
     }
-    return this.engine;
   }
   private welcome(connection: Connection) {
     this.send(connection, {
@@ -351,7 +340,16 @@ export class GameRoom {
     }
     for (const connection of this.roster.connections.values())
       if (connection !== except) this.send(connection, message);
-    if (!["chat", "system", "cursor", "react"].includes(message.type))
+    if (
+      ![
+        "chat",
+        "system",
+        "cursor",
+        "react",
+        "relay_progress",
+        "relay_notice",
+      ].includes(message.type)
+    )
       this.persistence.changed();
   }
   private snapshot(): RoomSnapshot {
@@ -364,8 +362,9 @@ export class GameRoom {
       sessions: this.sessions.snapshot(),
       strokes: this.canvas.snapshot(),
       engine: this.engine?.snapshot() ?? this.recovered,
-      aiCallCount: this.aiCallCount,
-      saidAiIsBlind: this.saidAiIsBlind,
+      relay: this.relay.game.snapshot(),
+      aiCallCount: this.vision.count,
+      saidAiIsBlind: this.vision.saidMock,
       reportedEnd: this.reportedEnd,
       recentWords: this.wordMemory.snapshot(),
     };

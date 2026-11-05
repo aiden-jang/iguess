@@ -9,6 +9,7 @@ interface ScoreboardProps {
   game: PublicGameState | null;
   youId: string | null;
   youAreHost: boolean;
+  showScores?: boolean;
   onKick: (playerId: string) => void;
 }
 
@@ -18,11 +19,12 @@ export function Scoreboard({
   youId,
   youAreHost,
   onKick,
+  showScores = true,
 }: ScoreboardProps) {
   return (
     <ul
       className="score-list"
-      aria-label="Player standings"
+      aria-label={showScores ? "Player standings" : "Players in the room"}
       style={styles.scoreList}
     >
       {ranked.map((player, index) => {
@@ -48,7 +50,7 @@ export function Scoreboard({
               ...(drawer ? styles.scoreRowDrawer : null),
             }}
           >
-            <span style={styles.rank}>{index + 1}</span>
+            {showScores && <span style={styles.rank}>{index + 1}</span>}
             <span
               className="player-avatar"
               data-avatar={player.avatar}
@@ -70,12 +72,14 @@ export function Scoreboard({
                   : roles.join(" · ") || "Here for the art"}
               </span>
             </div>
-            <strong
-              aria-label={`${game?.scores[player.id] ?? 0} points`}
-              style={styles.scoreNum}
-            >
-              {game?.scores[player.id] ?? 0}
-            </strong>
+            {showScores && (
+              <strong
+                aria-label={`${game?.scores[player.id] ?? 0} points`}
+                style={styles.scoreNum}
+              >
+                {game?.scores[player.id] ?? 0}
+              </strong>
+            )}
             {youAreHost && !me && !isAI(player.id) && (
               <ConfirmButton
                 style={styles.kickButton}

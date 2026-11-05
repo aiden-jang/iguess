@@ -24,11 +24,14 @@ export function rewriteInviteMeta(
   aiWorkerUrl: string | undefined,
 ): string {
   const title = `join "${room}" on iguess`;
-  const desc = "draw bad, win anyway. race the AI.";
+  const relay = mode === "relay";
+  const desc = relay
+    ? "Join Drawing Relay. Pass drawings and guesses around the room."
+    : "draw bad, win anyway. race the AI.";
   // The card is rendered by the ai-worker (the only one of ours with a rasterizer). Without it
   // configured, the static og.png still applies.
   const image = aiWorkerUrl
-    ? `${aiWorkerUrl.replace(/\/$/, "")}/og?room=${encodeURIComponent(room)}&mode=${encodeURIComponent(mode)}`
+    ? `${aiWorkerUrl.replace(/\/$/, "")}/og?room=${encodeURIComponent(room)}&mode=${encodeURIComponent(relay ? "Drawing Relay" : mode)}`
     : null;
 
   let out = html;

@@ -85,16 +85,9 @@ export function handleRoomAction(
       roster.ready(id, message.ready);
       room.presence();
       break;
-    case "kick": {
-      if (!roster.isHost(id) || message.playerId === id) return;
-      const target = roster.connections.get(message.playerId);
-      if (target) {
-        room.revoke(message.playerId);
-        roster.detach(target, true, true);
-        target.ws.close(4010, "Removed by host.");
-      }
+    case "kick":
+      removePlayer(roster, room.revoke, id, message.playerId);
       break;
-    }
     case "set_settings":
       if (roster.isHost(id) && ["lobby", "ended"].includes(game.currentPhase))
         room.updateSettings(
@@ -102,4 +95,18 @@ export function handleRoomAction(
         );
       break;
   }
+}
+
+export function removePlayer(
+  roster: RoomRoster,
+  revoke: (id: string) => void,
+  host: string,
+  targetId: string,
+) {
+  if (!roster.isHost(host) || targetId === host) return;
+  const target = roster.connections.get(targetId);
+  if (!target) return;
+  revoke(targetId);
+  roster.detach(target, true, true);
+  target.ws.close(4010, "Removed by host.");
 }

@@ -111,13 +111,20 @@ export class RoomRoster {
   clearReady() {
     for (const member of this.members.values()) member.ready = false;
   }
-  seatWatchers() {
+  seatWatchers(connectedOnly = false) {
     const seats = seatSpectators(
-      [...this.members.values()].map((member) => ({
-        id: member.player.id,
-        spectator: member.spectator,
-      })),
+      [...this.members.values()]
+        .filter(
+          (member) => !connectedOnly || this.connections.has(member.player.id),
+        )
+        .map((member) => ({
+          id: member.player.id,
+          spectator: member.spectator,
+        })),
     );
+    for (const member of this.members.values())
+      if (connectedOnly && !this.connections.has(member.player.id))
+        member.spectator = true;
     for (const seat of seats)
       this.members.get(seat.id)!.spectator = seat.spectator;
   }

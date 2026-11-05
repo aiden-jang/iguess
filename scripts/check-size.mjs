@@ -7,11 +7,11 @@ const SLACK = 40;
 
 const CEILINGS = {
   "packages/client/src/App.tsx": 11,
-  "packages/client/src/Room.tsx": 277,
+  "packages/client/src/Room.tsx": 54,
   "packages/client/src/styles.ts": 255,
   "packages/client/src/useWebSocket.ts": 150,
-  "packages/client/src/DrawingCanvas.tsx": 166,
-  "packages/game-server/src/GameRoom.ts": 384,
+  "packages/client/src/DrawingCanvas.tsx": 164,
+  "packages/game-server/src/GameRoom.ts": 383,
   "packages/game-server/src/engine.ts": 349,
   "packages/game-server/src/doodles.ts": 11,
   "packages/game-server/src/ai/aiGuessLoop.ts": 181,

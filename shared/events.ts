@@ -1,6 +1,6 @@
-export type WordTier = "easy" | "medium" | "hard";
-
+import type { RelayClientMessage, RelayServerMessage } from "./relay.ts";
 import type { RoomSettings } from "./settings.ts";
+export type WordTier = "easy" | "medium" | "hard";
 export * from "./settings.ts";
 
 export interface PlayerInfo {
@@ -74,7 +74,7 @@ export type GamePhase =
 // Whoever makes the room picks the mode. Someone joining later gets that mode, not the one
 // they asked for, so show them the mode the server sends back in `welcome`.
 export type GameModeName =
-  "classic" | "ai" | "ai-drawer" | "team-battle" | "duel";
+  "classic" | "ai" | "ai-drawer" | "team-battle" | "duel" | "relay";
 
 // Safe to send to everyone. Never put the secret word in here: only its length. The word
 // itself goes to the drawer alone, in `your_word`.
@@ -94,6 +94,7 @@ export interface PublicGameState {
 }
 
 export type ClientMessage =
+  | RelayClientMessage
   | {
       type: "chat";
       text: string;
@@ -131,13 +132,12 @@ export type ClientMessage =
       emoji: string;
     }
   | {
-      // Never save this to the stroke log. It shows where the pen is right now; someone
-      // joining late must not have old pen positions replayed at them as if they were ink.
       type: "cursor";
       point: Point | null;
     };
 
 export type ServerMessage =
+  | RelayServerMessage
   | {
       type: "welcome";
       you: PlayerInfo;

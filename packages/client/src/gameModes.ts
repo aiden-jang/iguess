@@ -5,43 +5,42 @@ export const TIER_LABEL: Record<WordTier, string> = {
   hard: "1.6x",
 };
 
-// `needsTwo` has to match `minHumans` on the server. Classic is the only mode that needs a
-// second person, so a first-time visitor lands on AI Guesser and can play alone right away.
 export const MODES = [
   {
     value: "classic",
     label: "Classic",
     blurb: "you draw, humans guess",
     icon: "🎨",
-    needsTwo: true,
   },
   {
     value: "ai",
     label: "AI Guesser",
     blurb: "you draw, an AI races to guess it",
     icon: "🔍",
-    needsTwo: false,
   },
   {
     value: "ai-drawer",
     label: "AI Drawer",
     blurb: "the AI draws, you guess",
     icon: "🖌️",
-    needsTwo: false,
+  },
+  {
+    value: "relay",
+    label: "Drawing Relay",
+    blurb: "Pass drawings and guesses around the room",
+    icon: "✎",
   },
   {
     value: "team-battle",
     label: "Team Battle",
     blurb: "humans vs AI, first guess wins",
     icon: "⚔️",
-    needsTwo: false,
   },
   {
     value: "duel",
     label: "You vs AI",
     blurb: "trade turns drawing, most points beats the machine",
     icon: "🤖",
-    needsTwo: false,
   },
 ];
 

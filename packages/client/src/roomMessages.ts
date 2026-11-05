@@ -1,3 +1,4 @@
+import type { RelayServerMessage, RelayState } from "@iguess/shared/relay";
 import {
   DEFAULT_SETTINGS,
   type PlayerInfo,
@@ -22,6 +23,9 @@ export interface RoomState {
   players: PlayerInfo[];
   log: ChatLine[];
   game: PublicGameState | null;
+  relay: RelayState | null;
+  relayChain: Extract<RelayServerMessage, { type: "relay_chain" }> | null;
+  relayNotice: string | null;
   myWord: string | null;
   turnEnd: { word: string; at: number } | null;
   wordChoices: Choices | null;
@@ -35,6 +39,9 @@ export const initialRoomState = (): RoomState => ({
   players: [],
   log: [],
   game: null,
+  relay: null,
+  relayChain: null,
+  relayNotice: null,
   myWord: null,
   turnEnd: null,
   wordChoices: null,
@@ -53,7 +60,9 @@ export function roomMessage(state: RoomState, message: RoomEvent): RoomState {
       return initialRoomState();
     case "welcome":
       return {
-        ...state,
+        ...(state.serverMode && state.serverMode !== message.mode
+          ? initialRoomState()
+          : state),
         you: message.you,
         serverMode: message.mode,
         settings: message.settings,
@@ -90,6 +99,29 @@ export function roomMessage(state: RoomState, message: RoomEvent): RoomState {
           message.state.phase === "choosing" ? state.wordChoices : null,
         peerCursor: null,
       };
+    case "relay_state":
+      return {
+        ...state,
+        relay: message.state,
+        relayNotice: null,
+        relayChain:
+          message.state.phase === "reveal" &&
+          state.relayChain?.id === message.state.id
+            ? state.relayChain
+            : null,
+      };
+    case "relay_progress":
+      return state.relay?.phase === "active" &&
+        state.relay.id === message.id &&
+        state.relay.leg === message.leg
+        ? { ...state, relay: { ...state.relay, passed: message.passed } }
+        : state;
+    case "relay_chain":
+      return state.relay?.phase === "reveal" && state.relay.id === message.id
+        ? { ...state, relayChain: message }
+        : state;
+    case "relay_notice":
+      return { ...state, relayNotice: message.text };
     case "settings":
       return { ...state, settings: message.settings };
     case "cursor":

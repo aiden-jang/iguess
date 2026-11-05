@@ -5,6 +5,7 @@ const MAX_BYTES = 2_000_000;
 export class RoomCanvas {
   private ops: DrawOp[] = [];
   private bytes = 0;
+  constructor(private maxBytes = MAX_BYTES) {}
   snapshot() {
     return this.ops;
   }
@@ -19,7 +20,7 @@ export class RoomCanvas {
       return true;
     }
     const size = JSON.stringify(op).length;
-    if (this.ops.length >= MAX_DRAW_OPS || this.bytes + size > MAX_BYTES)
+    if (this.ops.length >= MAX_DRAW_OPS || this.bytes + size > this.maxBytes)
       return false;
     this.ops.push(op);
     this.bytes += size;

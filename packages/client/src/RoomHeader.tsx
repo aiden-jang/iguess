@@ -11,6 +11,7 @@ import { ConfirmButton } from "./ConfirmButton";
 interface Props {
   room: string;
   points?: number;
+  showScores?: boolean;
   modeLabel: string;
   connected: boolean;
   everConnected: boolean;
@@ -25,6 +26,8 @@ interface Props {
 
 export function RoomHeader(p: Props) {
   const roster = useDismissibleDetails();
+  const scores = p.showScores !== false;
+  const rosterLabel = scores ? "Players & scores" : "Players";
   return (
     <header className="room-header" aria-label="Room controls">
       <div className="room-identity">
@@ -46,14 +49,14 @@ export function RoomHeader(p: Props) {
       <div className="room-actions">
         <details {...roster} className="room-roster">
           <summary>
-            <span className="roster-long">Players & scores</span>
+            <span className="roster-long">{rosterLabel}</span>
             <span className="roster-short">Players</span>
-            <ScoreReadout points={p.points} />
+            {scores && <ScoreReadout points={p.points} />}
             <Icon name="chevron" />
           </summary>
           <div className="roster-popover">
             <div className="roster-heading">
-              <h2>Players & scores</h2>
+              <h2>{rosterLabel}</h2>
             </div>
             {p.children}
             <FeedbackSettings />

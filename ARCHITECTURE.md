@@ -161,3 +161,16 @@ The [quality guide](docs/quality.md) records browser setup, local HTTP policy an
 - Vision and browser rendering share stroke geometry and scanline fill rules; antialiasing can differ between renderers.
 - Raster fill replay at different sizes is visually close rather than bit-identical.
 - Mock-based tests do not establish paid-provider quality or real-device performance.
+
+## Drawing Relay
+
+Relay uses the same room socket, reconnect credentials and roster with a separate
+`RelayGame` phase controller. The initial seat order stays fixed through the reveal.
+All seats choose a word, then work in parallel on alternating draw and guess legs.
+The server checks the relay ID, leg and sender before accepting each action.
+
+`RelayRoom` sends each assignment privately. Shared progress contains counts and deadlines,
+and completed chains can be requested individually only after the relay ends. Late joiners
+wait for the reveal. The room checkpoint includes submitted entries, private ink, and the
+remaining deadline. Ink limits cap both recovery storage and reveal message sizes. The
+existing AI engine and its single public canvas are separate from relay play.

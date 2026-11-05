@@ -15,6 +15,7 @@ interface Props {
   peerCursor?: Point | null;
   opsRef?: React.MutableRefObject<DrawOp[]>;
   socketBacklog?: () => number;
+  label?: string;
   canDraw: boolean;
   onCanvas?: (el: HTMLCanvasElement | null) => void;
 }
@@ -30,6 +31,7 @@ export function DrawingCanvas({
   peerCursor,
   opsRef,
   socketBacklog,
+  label,
   canDraw,
   onCanvas,
 }: Props) {
@@ -37,7 +39,6 @@ export function DrawingCanvas({
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const strokes = useRef(newStrokeStates());
   const dims = useRef({ w: 0, h: 0 });
-  // Resizing a canvas wipes it, so keep every stroke and paint them all again afterwards.
   const opLog = useRef<DrawOp[]>([]);
 
   function render(op: DrawOp | { kind: "reset" }) {
@@ -63,8 +64,6 @@ export function DrawingCanvas({
     render(op);
   }
 
-  // Match the canvas to the screen's pixel density so it looks sharp, then repaint everything,
-  // because changing a canvas's size erases it.
   function resizeCanvas() {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -142,9 +141,10 @@ export function DrawingCanvas({
       <canvas
         role="img"
         aria-label={
-          canDraw
+          label ??
+          (canDraw
             ? "Drawing canvas. Use the drawing tools to sketch."
-            : "Live drawing to guess"
+            : "Live drawing to guess")
         }
         ref={canvasRef}
         {...pointer}
@@ -154,8 +154,6 @@ export function DrawingCanvas({
           height: "100%",
           border: "1px solid #d6d1c2",
           borderRadius: 12,
-          // Only capture touch while it's your turn to draw; otherwise let a guesser scroll the page
-          // past the canvas instead of trapping their finger on a dead surface.
           touchAction: canDraw ? "none" : "auto",
           cursor: canDraw ? brushCursor : "not-allowed",
           background: "white",

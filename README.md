@@ -16,6 +16,7 @@ Draw a secret word, race to guess it, and keep the evidence afterward. No accoun
 | Classic     | Humans take turns drawing; everyone else guesses. Needs another person.     |
 | AI Guesser  | You draw and the AI guesses alongside the room.                             |
 | AI Drawer   | The AI draws and humans guess.                                              |
+| Drawing Relay | 3–8 friends pass drawings and guesses in parallel, then reveal each chain. |
 | Team Battle | Humans and AI alternate drawing; the first correct guess wins for its side. |
 | You vs AI   | Trade drawing turns with the AI and compete on points.                      |
 

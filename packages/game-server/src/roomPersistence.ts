@@ -13,7 +13,7 @@ export class RoomPersistence<T> {
   ) {
     this.store = new CheckpointStore(ctx.storage);
   }
-  changed() {
+  changed(delayMs = 250) {
     if (this.disposed) return;
     this.version++;
     if (this.timer) return;
@@ -23,7 +23,7 @@ export class RoomPersistence<T> {
         this.timer = null;
         this.resolveDelay = null;
         resolve();
-      }, 250);
+      }, delayMs);
     }).then(() => this.flush());
     this.ctx.waitUntil(
       task.catch((error) =>

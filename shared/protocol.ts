@@ -1,5 +1,6 @@
 import type { ClientMessage, DrawOp, Point } from "./events.ts";
 import { isReaction } from "./events.ts";
+import { RELAY_GUESS_LIMIT, RELAY_MAX_PLAYERS } from "./relay.ts";
 
 export const MAX_FRAME_BYTES = 32_768;
 export const MAX_DRAW_OPS = 12_000;
@@ -46,6 +47,69 @@ export function isDrawOp(value: unknown): value is DrawOp {
     (value.erase === undefined || typeof value.erase === "boolean")
   );
 }
+function cleanRelayInk(op: DrawOp): DrawOp {
+  const point = ({ x, y }: Point): Point => ({ x, y });
+  switch (op.kind) {
+    case "start":
+      return {
+        kind: op.kind,
+        strokeId: op.strokeId,
+        color: op.color,
+        width: op.width,
+        erase: op.erase,
+        point: point(op.point),
+      };
+    case "move":
+      return {
+        kind: op.kind,
+        strokeId: op.strokeId,
+        points: op.points.map(point),
+        widths: op.widths,
+      };
+    case "fill":
+      return {
+        kind: op.kind,
+        strokeId: op.strokeId,
+        color: op.color,
+        point: point(op.point),
+      };
+    case "end":
+      return { kind: op.kind, strokeId: op.strokeId };
+    case "undo":
+    case "clear":
+      return { kind: op.kind };
+  }
+}
+function relayMessage(value: Record<string, unknown>): ClientMessage | null {
+  if (
+    !text(value.id, 36) ||
+    !number(value.leg, -1, RELAY_MAX_PLAYERS) ||
+    !Number.isInteger(value.leg)
+  )
+    return null;
+  const base = { type: "relay" as const, id: value.id, leg: value.leg };
+  switch (value.action) {
+    case "choose":
+      return text(value.word, 64)
+        ? { ...base, action: value.action, word: value.word }
+        : null;
+    case "ink":
+      return isDrawOp(value.op)
+        ? { ...base, action: value.action, op: cleanRelayInk(value.op) }
+        : null;
+    case "pass":
+      return value.guess === undefined || text(value.guess, RELAY_GUESS_LIMIT)
+        ? { ...base, action: value.action, guess: value.guess }
+        : null;
+    case "chain":
+      return number(value.index, 0, RELAY_MAX_PLAYERS - 1) &&
+        Number.isInteger(value.index)
+        ? { ...base, action: value.action, index: value.index }
+        : null;
+    default:
+      return null;
+  }
+}
 export function parseClientMessage(frame: unknown): ClientMessage | null {
   if (
     typeof frame !== "string" ||
@@ -61,6 +125,8 @@ export function parseClientMessage(frame: unknown): ClientMessage | null {
   }
   if (!object(value)) return null;
   switch (value.type) {
+    case "relay":
+      return relayMessage(value);
     case "chat":
       return text(value.text, 500)
         ? { type: value.type, text: value.text }

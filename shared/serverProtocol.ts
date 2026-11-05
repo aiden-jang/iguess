@@ -1,5 +1,6 @@
 import type { ServerMessage } from "./events.ts";
 import { isReaction } from "./events.ts";
+import { isRelayMessage } from "./relayProtocol.ts";
 import { isDrawOp, isPoint, MAX_DRAW_OPS } from "./protocol.ts";
 const object = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
@@ -66,13 +67,13 @@ export function parseServerMessage(frame: unknown): ServerMessage | null {
     return null;
   }
   if (!object(value)) return null;
-  let valid = false;
+  let valid = isRelayMessage(value);
   switch (value.type) {
     case "welcome":
       valid =
         player(value.you) &&
         text(value.roomId, 32) &&
-        ["classic", "ai", "ai-drawer", "team-battle", "duel"].includes(
+        ["classic", "ai", "ai-drawer", "team-battle", "duel", "relay"].includes(
           String(value.mode),
         ) &&
         settings(value.settings) &&

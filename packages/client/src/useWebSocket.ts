@@ -9,7 +9,6 @@ import { initialRoomState, roomMessage } from "./roomMessages";
 import { roomTransport } from "./roomTransport";
 export type { ChatLine } from "./roomMessages";
 
-// Pointer traffic bypasses React; the canvas subscribes directly.
 type DrawListener = (op: DrawOp | { kind: "reset" }) => void;
 export function useGameSocket(
   room: string,
@@ -101,6 +100,7 @@ export function useGameSocket(
     ...state,
     connected,
     fatal,
+    send,
     sendDraw,
     subscribeDraw,
     clearBoard,

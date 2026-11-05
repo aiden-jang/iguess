@@ -4,7 +4,7 @@ import type { GameModeName, ServerMessage } from "@iguess/shared";
 import { GameEngine, type EngineDeps } from "./engine.ts";
 import { createMode } from "./roomModes.ts";
 
-function harness(mode: GameModeName) {
+function harness(mode: Exclude<GameModeName, "relay">) {
   const messages: { to?: string; message: ServerMessage }[] = [];
   const deps: EngineDeps = {
     broadcast: (message) => messages.push({ message }),

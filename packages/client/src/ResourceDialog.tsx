@@ -138,6 +138,12 @@ function ResourceContent({ resource }: { resource: Resource }) {
           guesser.
         </p>
         <p>
+          Drawing Relay keeps each handoff private until the reveal. At the
+          reveal, the room can see all starting words, guesses, and drawings.
+          Recovery checkpoints temporarily retain these entries. Drawing Relay
+          runs without a vision provider.
+        </p>
+        <p>
           Anonymous product events count game starts, finishes, and AI
           availability issues, along with mode, AI difficulty, and player or
           turn counts. Cloudflare processes connections and operational logs to
@@ -220,12 +226,18 @@ function ResourceContent({ resource }: { resource: Resource }) {
       <p>
         AI Guesser watches your drawing. AI Drawer reveals a curated doodle.
         Team Battle and You vs AI alternate drawing roles. Classic needs at
-        least two humans; the other modes support solo play.
+        least two humans. AI modes support solo play.
       </p>
       <p>
         During a live AI guessing round, type <kbd>?word</kbd> to bet on what
         the AI will guess. The room reports if vision is unavailable or using
         mock guesses.
+      </p>
+      <h3>Drawing Relay</h3>
+      <p>
+        In a room of 3–8 friends, everyone picks a word and draws it. Pass
+        drawings and guesses around the room until each chain comes back. The
+        reveal shows every step and lets you replay the drawings.
       </p>
       <h3>Room etiquette</h3>
       <p>

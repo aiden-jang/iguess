@@ -7,7 +7,9 @@ import { MODES, randomName } from "./gameModes";
 import type { JoinProps } from "./join.types";
 
 export function JoinForm(p: JoinProps) {
-  const extraMode = !["classic", "ai", "ai-drawer"].includes(p.draftMode);
+  const extraMode = !MODES.slice(0, 4).some(
+    (mode) => mode.value === p.draftMode,
+  );
   const [optionsOpen, setOptionsOpen] = useState(extraMode);
   return (
     <form
@@ -94,7 +96,7 @@ export function JoinForm(p: JoinProps) {
         <fieldset className="mode-picker">
           <legend>Choose your company</legend>
           <div>
-            {MODES.slice(0, 3).map((mode) => (
+            {MODES.slice(0, 4).map((mode) => (
               <button
                 key={mode.value}
                 type="button"
@@ -112,7 +114,9 @@ export function JoinForm(p: JoinProps) {
                     ? "Your friends. Their opinions."
                     : mode.value === "ai"
                       ? "You draw. It overthinks."
-                      : "It draws. You judge."}
+                      : mode.value === "ai-drawer"
+                        ? "It draws. You judge."
+                        : "Draw it. Pass it on."}
                 </small>
               </button>
             ))}
@@ -137,7 +141,9 @@ export function JoinForm(p: JoinProps) {
           ? "The host sets the mode. You bring the opinions."
           : p.draftMode === "classic"
             ? "Needs two humans. Invite a friend once you’re in."
-            : "Solo is fine. Friends are also tolerated."}
+            : p.draftMode === "relay"
+              ? "For 3–8 friends. Everyone plays at once."
+              : "Solo is fine. Friends are also tolerated."}
       </p>
       {!p.invited && (
         <p className="mode-explanation">
@@ -145,10 +151,12 @@ export function JoinForm(p: JoinProps) {
             ? "Curated doodles, drawn stroke by stroke. You guess."
             : p.draftMode === "classic"
               ? "Humans draw and guess. Bring at least one friend."
-              : "The AI guesses from your drawing. Confidence varies."}
+              : p.draftMode === "relay"
+                ? "Draw, guess, and reveal how each word changed."
+                : "The AI guesses from your drawing. Confidence varies."}
         </p>
       )}
-      {!p.invited && (
+      {!p.invited && p.draftMode !== "relay" && (
         <VisionNotice mode={p.draftMode} onMode={p.setDraftMode} />
       )}
       <details
@@ -186,9 +194,9 @@ export function JoinForm(p: JoinProps) {
           </div>
           {!p.invited && (
             <fieldset className="extra-modes">
-              <legend>A little more competitive</legend>
+              <legend>More ways to play</legend>
               <div>
-                {MODES.slice(3).map((mode) => (
+                {MODES.slice(4).map((mode) => (
                   <button
                     key={mode.value}
                     type="button"

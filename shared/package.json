@@ -8,6 +8,7 @@
     "./roomCode": "./roomCode.ts",
     "./words": "./words.ts",
     "./awards": "./awards.ts",
+    "./relay": "./relay.ts",
     "./protocol": "./protocol.ts",
     "./serverProtocol": "./serverProtocol.ts",
     "./reconnectProtocol": "./reconnectProtocol.ts",
