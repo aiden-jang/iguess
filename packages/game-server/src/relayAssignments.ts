@@ -1,8 +1,9 @@
 import type { DrawOp } from "@iguess/shared";
-import type {
-  RelayAssignment,
-  RelayEntry,
-  RelayPlayer,
+import {
+  RELAY_WORD_LIMIT,
+  type RelayAssignment,
+  type RelayEntry,
+  type RelayPlayer,
 } from "@iguess/shared/relay";
 import { WORDS_BY_TIER } from "@iguess/shared/words";
 
@@ -26,7 +27,7 @@ export type RelayRound = Omit<RelaySnapshot, "savedAt" | "canvases">;
 export function pickWords(count: number) {
   const pool = [
     ...new Set([...WORDS_BY_TIER.easy, ...WORDS_BY_TIER.medium]),
-  ].filter((word) => word.length <= 64);
+  ].filter((word) => word.length <= RELAY_WORD_LIMIT);
   return Array.from({ length: count }, () =>
     Array.from(
       { length: 3 + Math.floor((count - 1) / 2) },

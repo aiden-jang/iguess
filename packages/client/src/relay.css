@@ -248,6 +248,15 @@
 .relay-compose input::placeholder {
   color: var(--muted);
 }
+.relay-choices + .relay-compose {
+  grid-template-columns: minmax(0, 1fr) auto;
+  max-width: 34rem;
+  padding: 0;
+  border: 0;
+}
+.relay-choices + .relay-compose label {
+  grid-column: 1 / -1;
+}
 .relay-reveal-head {
   display: flex;
   flex-wrap: wrap;
@@ -385,7 +394,10 @@
   }
 }
 @media (max-width: 410px) {
-  .relay-choices {
+  html:not([data-keyboard="true"]) .relay-choices {
     grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-keyboard="true"] .relay-choices button {
+    padding-inline: 6px;
   }
 }

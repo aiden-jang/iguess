@@ -252,9 +252,9 @@ export class RelayGame {
       return message.op.kind === "clear" ? "sync" : undefined;
     }
     if (
-      message.action === "choose" &&
       view.kind === "choose" &&
-      view.words.includes(message.word)
+      (message.action === "write" ||
+        (message.action === "choose" && view.words.includes(message.word)))
     ) {
       game.seats.find((seat) => seat.id === player)!.word = message.word;
     } else if (message.action === "pass") {

@@ -1,6 +1,11 @@
 import type { ClientMessage, DrawOp, Point } from "./events.ts";
 import { isReaction } from "./events.ts";
-import { RELAY_GUESS_LIMIT, RELAY_MAX_PLAYERS } from "./relay.ts";
+import {
+  normalizeRelayWord,
+  RELAY_GUESS_LIMIT,
+  RELAY_MAX_PLAYERS,
+  RELAY_WORD_LIMIT,
+} from "./relay.ts";
 
 export const MAX_FRAME_BYTES = 32_768;
 export const MAX_DRAW_OPS = 12_000;
@@ -90,9 +95,14 @@ function relayMessage(value: Record<string, unknown>): ClientMessage | null {
   const base = { type: "relay" as const, id: value.id, leg: value.leg };
   switch (value.action) {
     case "choose":
-      return text(value.word, 64)
+      return text(value.word, RELAY_WORD_LIMIT)
         ? { ...base, action: value.action, word: value.word }
         : null;
+    case "write": {
+      const word =
+        typeof value.word === "string" ? normalizeRelayWord(value.word) : null;
+      return word ? { ...base, action: value.action, word } : null;
+    }
     case "ink":
       return isDrawOp(value.op)
         ? { ...base, action: value.action, op: cleanRelayInk(value.op) }

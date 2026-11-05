@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { DrawOp } from "@iguess/shared";
 import {
+  normalizeRelayWord,
   RELAY_DRAW_MS,
   RELAY_GUESS_LIMIT,
   RELAY_GUESS_MS,
   RELAY_PICK_MS,
+  RELAY_WORD_LIMIT,
   type RelayAssignment,
   type RelayClientMessage,
   type RelayState,
@@ -12,6 +14,73 @@ import {
 import type { RoomScreenProps } from "./Room";
 import { Countdown } from "./Countdown";
 import { RelayBoard } from "./RelayBoard";
+
+function RelayTextEntry({
+  name,
+  label,
+  placeholder,
+  limit,
+  button,
+  canSend,
+  onSend,
+  normalize = (value) => value.trim(),
+}: {
+  name: string;
+  label: string;
+  placeholder: string;
+  limit: number;
+  button: string;
+  canSend: boolean;
+  onSend: (value: string) => void;
+  normalize?: (value: string) => string | null;
+}) {
+  const [draft, setDraft] = useState("");
+  const composing = useRef(false);
+  const value = normalize(draft);
+  return (
+    <form
+      className="relay-compose"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (canSend && !composing.current && value) onSend(value);
+      }}
+    >
+      <label htmlFor={`relay-${name}`}>{label}</label>
+      <input
+        id={`relay-${name}`}
+        name={name}
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        autoComplete="off"
+        enterKeyHint="send"
+        maxLength={limit}
+        placeholder={placeholder}
+        onCompositionStart={() => {
+          composing.current = true;
+        }}
+        onCompositionEnd={() => {
+          composing.current = false;
+        }}
+        onKeyDown={(event) => {
+          if (
+            event.key === "Enter" &&
+            (composing.current ||
+              event.nativeEvent.isComposing ||
+              event.keyCode === 229)
+          )
+            event.preventDefault();
+        }}
+      />
+      <button
+        type="submit"
+        className="relay-primary"
+        disabled={!canSend || !value}
+      >
+        {button}
+      </button>
+    </form>
+  );
+}
 
 export function RelayTurn({
   state,
@@ -37,8 +106,6 @@ export function RelayTurn({
     if (canSend && socket.send(message))
       setSending({ assignment, notice: socket.relayNotice });
   };
-  const [guess, setGuess] = useState("");
-  const composing = useRef(false);
   const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     title.current?.focus({ preventScroll: true });
@@ -100,20 +167,34 @@ export function RelayTurn({
         </div>
       </div>
       {assignment.kind === "choose" && (
-        <div className="relay-choices">
-          {assignment.words.map((word) => (
-            <button
-              type="button"
-              key={word}
-              disabled={!canSend}
-              onClick={() =>
-                commit({ type: "relay", id, leg, action: "choose", word })
-              }
-            >
-              {word}
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="relay-choices">
+            {assignment.words.map((word) => (
+              <button
+                type="button"
+                key={word}
+                disabled={!canSend}
+                onClick={() =>
+                  commit({ type: "relay", id, leg, action: "choose", word })
+                }
+              >
+                {word}
+              </button>
+            ))}
+          </div>
+          <RelayTextEntry
+            name="word"
+            label="Write your own"
+            placeholder="A word or short phrase…"
+            limit={RELAY_WORD_LIMIT}
+            button={pending ? "Saving…" : "Use word"}
+            canSend={canSend}
+            normalize={normalizeRelayWord}
+            onSend={(word) =>
+              commit({ type: "relay", id, leg, action: "write", word })
+            }
+          />
+        </>
       )}
       {assignment.kind === "draw" && (
         <RelayBoard
@@ -132,48 +213,15 @@ export function RelayTurn({
       {assignment.kind === "guess" && (
         <div className="relay-workspace">
           <RelayBoard label="Drawing to guess" ops={assignment.ops} />
-          <form
-            className="relay-compose"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const value = guess.trim();
-              if (canSend && !composing.current && value) pass(value);
-            }}
-          >
-            <label htmlFor="relay-guess">Your guess</label>
-            <input
-              id="relay-guess"
-              name="guess"
-              value={guess}
-              onChange={(event) => setGuess(event.target.value)}
-              autoComplete="off"
-              enterKeyHint="send"
-              maxLength={RELAY_GUESS_LIMIT}
-              placeholder="Type what you see…"
-              onCompositionStart={() => {
-                composing.current = true;
-              }}
-              onCompositionEnd={() => {
-                composing.current = false;
-              }}
-              onKeyDown={(event) => {
-                if (
-                  event.key === "Enter" &&
-                  (composing.current ||
-                    event.nativeEvent.isComposing ||
-                    event.keyCode === 229)
-                )
-                  event.preventDefault();
-              }}
-            />
-            <button
-              type="submit"
-              className="relay-primary"
-              disabled={!canSend || !guess.trim()}
-            >
-              {pending ? "Passing…" : "Pass guess"}
-            </button>
-          </form>
+          <RelayTextEntry
+            name="guess"
+            label="Your guess"
+            placeholder="Type what you see…"
+            limit={RELAY_GUESS_LIMIT}
+            button={pending ? "Passing…" : "Pass guess"}
+            canSend={canSend}
+            onSend={pass}
+          />
         </div>
       )}
       <p className="relay-progress" role="status">

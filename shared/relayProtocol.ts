@@ -3,6 +3,7 @@ import {
   RELAY_GUESS_LIMIT,
   RELAY_MAX_PLAYERS,
   RELAY_MIN_PLAYERS,
+  RELAY_WORD_LIMIT,
 } from "./relay.ts";
 
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -24,7 +25,7 @@ function assignment(value: unknown) {
       return (
         Array.isArray(value.words) &&
         value.words.length === 3 &&
-        value.words.every((word) => text(word, 64))
+        value.words.every((word) => text(word, RELAY_WORD_LIMIT))
       );
     case "draw":
       return (
@@ -69,7 +70,8 @@ function state(value: unknown) {
 function entry(value: unknown) {
   if (!object(value)) return false;
   if (value.kind === "guess") return text(value.text, RELAY_GUESS_LIMIT);
-  const restart = value.restart === undefined || text(value.restart, 64);
+  const restart =
+    value.restart === undefined || text(value.restart, RELAY_WORD_LIMIT);
   return (
     restart &&
     (value.kind === "skipped" || (value.kind === "drawing" && ink(value.ops)))
@@ -90,7 +92,7 @@ export function isRelayMessage(value: Record<string, unknown>): boolean {
       return (
         text(value.id, 36) &&
         int(value.index, 0, RELAY_MAX_PLAYERS - 1) &&
-        text(value.word, 64) &&
+        text(value.word, RELAY_WORD_LIMIT) &&
         Array.isArray(value.entries) &&
         int(value.entries.length, RELAY_MIN_PLAYERS, RELAY_MAX_PLAYERS) &&
         value.entries.every(entry)

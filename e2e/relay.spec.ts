@@ -29,6 +29,20 @@ async function sketch(page: Page) {
   await page.mouse.up();
 }
 
+async function keyboard(page: Page, open: boolean) {
+  await page.evaluate((visible) => {
+    if (visible)
+      Object.defineProperty(visualViewport!, "height", {
+        configurable: true,
+        get: () => 400,
+      });
+    else Reflect.deleteProperty(visualViewport!, "height");
+    visualViewport!.dispatchEvent(new Event("resize"));
+  }, open);
+  if (open)
+    await expect(page.locator("html")).toHaveAttribute("data-keyboard", "true");
+}
+
 test("Drawing Relay is selectable from the join screen", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 740 });
   await page.goto("/");
@@ -74,9 +88,7 @@ async function watchWire(page: Page) {
         const message = received
           .filter((value) => value.type === "relay_state")
           .at(-1);
-        return message?.type === "relay_state" &&
-          message.state.phase === "active" &&
-          message.state.leg === leg
+        return message?.state.phase === "active" && message.state.leg === leg
           ? message.state
           : null;
       };
@@ -103,13 +115,8 @@ test("six friends pass private assignments and reveal all six chains", async ({
   const guests: Page[] = [];
   try {
     const peers = [];
-    for (const [index, name] of [
-      "Jo",
-      "Mina",
-      "Jules",
-      "Alex",
-      "Rae",
-    ].entries()) {
+    const names = ["Jo", "Mina", "Jules", "Alex", "Rae"];
+    for (const [index, name] of names.entries()) {
       const guest = await browser.newPage({
         viewport: { width: index === 0 ? 320 : 390, height: 740 },
         colorScheme: index % 2 ? "light" : "dark",
@@ -134,11 +141,30 @@ test("six friends pass private assignments and reveal all six chains", async ({
       action: "chain",
       index: 0,
     });
+    const customWord = "Moon raccoon 🦝";
+    const customInput = phone.getByRole("textbox", { name: "Write your own" });
+    const useWord = phone.getByRole("button", { name: "Use word" });
+    await expect(phone.locator(".relay-choices button")).toHaveCount(3);
+    await expect(useWord).toBeDisabled();
+    await customInput.fill(`  ${customWord}  `);
+    await keyboard(phone, true);
+    const buttonBox = (await useWord.boundingBox())!;
+    expect(buttonBox.y + buttonBox.height).toBeLessThanOrEqual(401);
+    await capture(phone, "relay-custom-word-phone");
+    await customInput.press("Enter");
+    await expect(
+      phone.getByRole("heading", { name: "Word picked." }),
+    ).toBeVisible();
+    await keyboard(phone, false);
     await Promise.all(
-      [page, ...guests.slice(0, 5)].map((player) =>
+      [page, ...guests.slice(1, 5)].map((player) =>
         player.locator(".relay-choices button").first().click(),
       ),
     );
+    await expect(
+      phone.getByRole("heading", { name: `Draw “${customWord}”` }),
+    ).toBeVisible();
+    expect(JSON.stringify(wire.received)).not.toContain(customWord);
 
     for (let leg = 0; leg < 6; leg++) {
       const drawing = leg % 2 === 0;
@@ -227,23 +253,10 @@ test("six friends pass private assignments and reveal all six chains", async ({
           await guess.fill(`Pass ${leg + 1} from player ${index + 1}`);
           if (leg === 1 && index === 1) {
             await capture(player, "relay-phone-guess");
-            await player.evaluate(() => {
-              Object.defineProperty(visualViewport!, "height", {
-                configurable: true,
-                get: () => 400,
-              });
-              visualViewport!.dispatchEvent(new Event("resize"));
-            });
-            await expect(player.locator("html")).toHaveAttribute(
-              "data-keyboard",
-              "true",
-            );
+            await keyboard(player, true);
             const box = (await guess.boundingBox())!;
             expect(box.y + box.height).toBeLessThanOrEqual(401);
-            await player.evaluate(() => {
-              Reflect.deleteProperty(visualViewport!, "height");
-              visualViewport!.dispatchEvent(new Event("resize"));
-            });
+            await keyboard(player, false);
           }
           await guess.press("Enter");
         }
@@ -270,6 +283,7 @@ test("six friends pass private assignments and reveal all six chains", async ({
       page.getByRole("img", { name: "Animated replay of the drawing" }),
     ).toBeVisible();
     await page.getByLabel("Chain", { exact: true }).selectOption("1");
+    await expect(page.getByText(customWord, { exact: true })).toBeVisible();
     await expect(
       page.getByText("Pass 6 from player 1", { exact: true }).last(),
     ).toBeVisible();
@@ -278,6 +292,7 @@ test("six friends pass private assignments and reveal all six chains", async ({
       page.getByRole("heading", { name: "Pick your starting word." }),
     ).toBeVisible();
     await expect(page.getByLabel("Chain", { exact: true })).toHaveCount(0);
+    await capture(page, "relay-custom-word-desktop");
   } finally {
     await Promise.all(guests.map((guest) => guest.close()));
   }

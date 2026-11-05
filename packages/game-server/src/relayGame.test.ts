@@ -125,6 +125,58 @@ test("six chains rotate private clues and reject early reveals and stale actions
   }
 });
 
+test("a private written prompt is accepted once and survives through the reveal", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
+  const game = new RelayGame(() => {});
+  try {
+    game.start(people.slice(0, 3));
+    const { id, leg } = active(game, "sam");
+    const { assignment } = active(game, "sam");
+    assert.equal(assignment.kind, "choose");
+    const prompt = "Moon raccoon 🦝";
+    const write = (word: string) => ({
+      type: "relay",
+      action: "write",
+      id,
+      leg,
+      word,
+    });
+    for (const invalid of ["   ", "\u200b", "two\nlines", "x".repeat(65)])
+      assert.equal(parseClientMessage(JSON.stringify(write(invalid))), null);
+    const message = parseClientMessage(JSON.stringify(write(`  ${prompt}  `)));
+    assert.deepEqual(message, write(prompt));
+    assert.ok(message?.type === "relay" && message.action === "write");
+    game.action("viewer", message);
+    act(game, "sam", { action: "choose", word: prompt });
+    assert.equal(active(game, "sam").passed, 0);
+    game.action("sam", message);
+    game.action("sam", { ...message, word: "too late" });
+    assert.equal(active(game, "jo").passed, 1);
+    assert.equal(JSON.stringify(game.view("jo")).includes(prompt), false);
+    assert.equal(JSON.stringify(game.view("viewer")).includes(prompt), false);
+    assert.equal(game.reveal(id, 3, 0), null);
+
+    const checkpoint = JSON.parse(JSON.stringify(game.snapshot()));
+    game.restore(checkpoint);
+    t.mock.timers.tick(active(game, "sam").endsAt - Date.now());
+    assert.deepEqual(active(game, "sam").assignment, {
+      kind: "draw",
+      prompt,
+      restart: false,
+      ops: [],
+    });
+    const jo = active(game, "jo").assignment;
+    assert.equal(jo.kind, "draw");
+    assert.equal(jo.prompt, checkpoint.seats[1].words[0]);
+    assert.equal(JSON.stringify(jo).includes(prompt), false);
+    t.mock.timers.tick(RELAY_DRAW_MS);
+    t.mock.timers.tick(RELAY_DRAW_MS);
+    assert.equal(game.reveal(id, 3, 0)?.word, prompt);
+  } finally {
+    game.reset();
+  }
+});
+
 test("deadlines keep partial ink, skip missing links and show a fresh restart in the reveal", (t) => {
   t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
   const game = new RelayGame(() => {});

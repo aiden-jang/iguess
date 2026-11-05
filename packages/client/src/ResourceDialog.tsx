@@ -235,9 +235,10 @@ function ResourceContent({ resource }: { resource: Resource }) {
       </p>
       <h3>Drawing Relay</h3>
       <p>
-        In a room of 3–8 friends, everyone picks a word and draws it. Pass
-        drawings and guesses around the room until each chain comes back. The
-        reveal shows every step and lets you replay the drawings.
+        In a room of 3–8 friends, pick one of three suggested words or write
+        your own short phrase, then draw it. Pass drawings and guesses around
+        the room until each chain comes back. The reveal shows every step and
+        lets you replay the drawings.
       </p>
       <h3>Room etiquette</h3>
       <p>

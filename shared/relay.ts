@@ -5,6 +5,7 @@ export const RELAY_MAX_PLAYERS = 8;
 export const RELAY_PICK_MS = 20_000;
 export const RELAY_DRAW_MS = 60_000;
 export const RELAY_GUESS_MS = 30_000;
+export const RELAY_WORD_LIMIT = 64;
 export const RELAY_GUESS_LIMIT = 80;
 // 32 retained drawings at the room limit fit inside the room checkpoint.
 export const RELAY_INK_BYTES = 120_000;
@@ -36,6 +37,7 @@ export type RelayState =
   | { phase: "reveal"; id: string; players: RelayPlayer[] };
 export type RelayClientMessage = { type: "relay"; id: string; leg: number } & (
   | { action: "choose"; word: string }
+  | { action: "write"; word: string }
   | { action: "ink"; op: DrawOp }
   | { action: "pass"; guess?: string }
   | { action: "chain"; index: number }
@@ -51,6 +53,15 @@ export type RelayServerMessage =
       entries: RelayEntry[];
     }
   | { type: "relay_notice"; text: string };
+
+export function normalizeRelayWord(word: string): string | null {
+  const value = word.trim();
+  return word.length <= RELAY_WORD_LIMIT &&
+    !/[\p{Cc}\p{Zl}\p{Zp}]/u.test(word) &&
+    /[^\s\p{Cf}]/u.test(value)
+    ? value
+    : null;
+}
 
 export function hasRelayInk(ops: readonly DrawOp[]) {
   const pens = new Set<string>();
