@@ -1,13 +1,6 @@
 import type React from "react";
 
 export const styles = {
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: 700,
-    letterSpacing: "0.06em",
-    textTransform: "uppercase",
-    color: "var(--muted)",
-  },
   scoreList: {
     listStyle: "none",
     padding: 0,
@@ -37,28 +30,6 @@ export const styles = {
   },
   scoreNum: { fontVariantNumeric: "tabular-nums", fontSize: 15 },
   emptyRoster: { color: "var(--muted)", fontSize: 13, padding: 8 },
-  turnPill: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: "var(--accent-2)",
-    background: "var(--tint-accent-soft)",
-    padding: "4px 10px",
-    borderRadius: 999,
-  },
-  wordZone: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    margin: "0 auto",
-  },
-  wordVerb: {
-    fontSize: 11,
-    fontWeight: 700,
-    textTransform: "uppercase",
-    letterSpacing: "0.06em",
-    color: "var(--muted)",
-  },
-  tiles: { display: "flex", gap: 5 },
   readyOn: {
     borderColor: "var(--good)",
     color: "var(--on-good)",

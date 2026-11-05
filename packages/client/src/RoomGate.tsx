@@ -40,7 +40,6 @@ export function RoomGate(props: Props) {
           <main className="room-error">
             <section role="status" aria-live="polite">
               <ClubFace />
-              <p className="eyebrow">Setting the table</p>
               <h1>Opening your room…</h1>
               <p>The artistic pressure arrives separately.</p>
               <button onClick={props.onLeave}>Back to join</button>

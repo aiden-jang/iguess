@@ -12,7 +12,8 @@ export function JoinScreen(props: JoinProps) {
       <AppUpdate />
       <header className="join-header">
         <a href="/" className="wordmark" aria-label="iguess home">
-          iguess<span aria-hidden>✳</span>
+          iguess
+          <ClubFace />
         </a>
         <span className="join-header-note">A drawing game. Technically.</span>
         <a className="join-jump" href="#join-form">
@@ -21,9 +22,6 @@ export function JoinScreen(props: JoinProps) {
       </header>
       <main className="join-layout">
         <section className="join-intro" aria-labelledby="join-title">
-          <p className="eyebrow">
-            <span className="club-dot" /> Very casual. Mildly competitive.
-          </p>
           <h1 id="join-title">
             Draw badly.
             <br />

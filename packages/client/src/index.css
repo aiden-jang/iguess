@@ -102,6 +102,14 @@ select {
   outline-offset: 2px;
   border-radius: 8px;
 }
+::selection {
+  color: var(--ink);
+  background: var(--sticker);
+}
+input,
+textarea {
+  caret-color: var(--accent-2);
+}
 input:focus-visible {
   outline-offset: 0;
 }
@@ -317,9 +325,9 @@ button:not(:disabled):active {
 }
 .room-error section {
   width: min(100%, 480px);
-  padding: 32px;
+  padding: clamp(20px, 5vw, 32px);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 12px;
   background: var(--panel);
 }
 .room-error .club-face {
@@ -328,11 +336,12 @@ button:not(:disabled):active {
 }
 .room-error h1 {
   font-size: clamp(28px, 5vw, 40px);
-  letter-spacing: -0.05em;
-  font-weight: 500;
+  letter-spacing: -0.035em;
+  font-weight: 540;
   line-height: 1.1;
+  text-wrap: balance;
 }
-.room-error p:not(.eyebrow) {
+.room-error p {
   color: var(--muted);
   font-size: 15px;
   line-height: 1.7;

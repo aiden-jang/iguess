@@ -33,7 +33,7 @@ export function RoomHeader(p: Props) {
           <ClubFace />
         </span>
         <div className="room-context">
-          <span title={p.room} className="room-code">
+          <span title={p.room} className="room-code" translate="no">
             #{p.room}
           </span>
           <span className="room-mode">{p.modeLabel}</span>
@@ -53,8 +53,7 @@ export function RoomHeader(p: Props) {
           </summary>
           <div className="roster-popover">
             <div className="roster-heading">
-              <span className="eyebrow">The jury</span>
-              <span>Everybody has an opinion.</span>
+              <h2>Players & scores</h2>
             </div>
             {p.children}
             <FeedbackSettings />

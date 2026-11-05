@@ -19,17 +19,17 @@ export function JoinForm(p: JoinProps) {
         p.doJoin();
       }}
     >
-      <div className="join-card-top">
-        <span className="eyebrow">Your very unofficial debut</span>
+      <div className="join-card-heading">
+        <h2 id="join-form-title">
+          {p.invited ? "You’re on the list." : "Get a room."}
+        </h2>
         <ClubFace />
       </div>
-      <h2 id="join-form-title">
-        {p.invited ? "You’re on the list." : "Make yourself known."}
-      </h2>
       <p className="join-form-aside">
         {p.invited ? (
           <>
-            Room <strong>{p.draftRoom}</strong>. Your people are in there.
+            Room <strong translate="no">{p.draftRoom}</strong>. Your people are
+            in there.
           </>
         ) : (
           "A name. That’s the paperwork."
@@ -58,13 +58,14 @@ export function JoinForm(p: JoinProps) {
       <div className="join-input-row">
         <input
           id="player-name"
+          name="name"
           autoComplete="nickname"
           maxLength={24}
           pattern=".*\S.*"
           title="Enter a name with at least one non-space character."
           value={p.draftName}
           onChange={(e) => p.setDraftName(e.target.value)}
-          placeholder="A name you can defend"
+          placeholder="A name you can defend…"
           enterKeyHint="go"
           aria-describedby="entry-feedback"
           aria-invalid={!!p.entryError}
@@ -166,10 +167,12 @@ export function JoinForm(p: JoinProps) {
           <div className="join-input-row">
             <input
               id="room-code"
+              name="room"
               value={p.draftRoom}
               maxLength={32}
               onChange={(e) => p.setDraftRoom(e.target.value)}
-              placeholder="A room code"
+              placeholder="A room code…"
+              autoComplete="off"
               autoCapitalize="none"
               spellCheck={false}
             />

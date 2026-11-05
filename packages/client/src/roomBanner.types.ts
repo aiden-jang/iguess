@@ -14,7 +14,6 @@ export type RoomBannerProps = Pick<
   | "youAreHost"
   | "youAreReady"
   | "isDrawer"
-  | "inGame"
 > &
   Pick<
     Socket,

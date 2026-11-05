@@ -73,9 +73,9 @@ test("refreshing and rejoining retains the drawer identity and current word", as
     "data-phase",
     "playing",
   );
-  const word = await page
-    .locator(".word-zone [role=img]")
-    .getAttribute("aria-label");
+  const title = page.getByRole("heading", { name: /^Your word is / });
+  await expect(title).not.toHaveText("Your word is …");
+  const word = await title.innerText();
   await page.reload();
   await page.getByRole("button", { name: /Enter room|Join the room/i }).click();
   await expect(page.getByText("Connected", { exact: true })).toBeVisible();
@@ -85,10 +85,7 @@ test("refreshing and rejoining retains the drawer identity and current word", as
       room,
     ),
   ).toBe(credential);
-  await expect(page.locator(".word-zone [role=img]")).toHaveAttribute(
-    "aria-label",
-    word!,
-  );
+  await expect(title).toHaveText(word);
   await expect(page.getByTitle("undo the last stroke")).toBeEnabled();
 });
 

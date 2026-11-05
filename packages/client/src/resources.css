@@ -12,19 +12,18 @@
   text-underline-offset: 4px;
 }
 .resource-dialog {
-  width: min(560px, calc(100% - 32px));
+  width: min(38rem, calc(100% - 32px));
   max-height: calc(100dvh - 48px);
-  padding: 28px;
+  padding: clamp(18px, 4vw, 32px);
   background: var(--panel);
   color: var(--text);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  box-shadow: 0 24px 100px #0004;
+  border-radius: 12px;
+  overscroll-behavior: contain;
   overflow-y: auto;
 }
 .resource-dialog::backdrop {
   background: #1119;
-  backdrop-filter: blur(4px);
 }
 .resource-heading {
   display: flex;
@@ -43,21 +42,26 @@
   background: transparent;
   color: var(--text);
 }
+.resource-heading button .ui-icon {
+  width: 18px;
+  vertical-align: middle;
+}
 .resource-dialog h2 {
   font-family: "Inter Variable", sans-serif;
-  font-size: 32px;
+  font-size: clamp(1.5rem, 5vw, 2.25rem);
   font-weight: 500;
   line-height: 1.1;
   margin: 12px 0 24px;
   letter-spacing: -0.035em;
+  text-wrap: balance;
 }
 .resource-copy {
-  font-size: 14px;
+  font-size: 0.9375rem;
   line-height: 1.75;
   color: var(--muted);
 }
 .resource-copy h3 {
-  font-size: 14px;
+  font-size: 0.9375rem;
   color: var(--text);
   margin: 24px 0 6px;
 }
@@ -98,7 +102,8 @@ kbd {
 }
 .resource-navigation {
   display: flex;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 0 20px;
   border-top: 1px solid var(--line);
 }
 .resource-navigation button {
@@ -106,7 +111,7 @@ kbd {
   min-height: 44px;
   border: 0;
   border-radius: 0;
-  font-size: 11px;
+  font-size: 0.8125rem;
   color: var(--muted);
   background: transparent;
   text-decoration: underline;

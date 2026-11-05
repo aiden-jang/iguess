@@ -1,8 +1,7 @@
 # iguess: draw badly, guess wildly
 
-The current direction is an expressive drawing studio: oversized ink typography, acid-green
-accents, rough little drawings, and dry commentary. Keep the controls calm and the game quick.
-The previous rounded drawing-club panels are historical, not the layout target.
+Open studio uses ink typography, acid-green accents, rough little drawings, and dry commentary.
+Keep the controls calm and the game quick.
 
 ## Visual language
 
@@ -22,13 +21,18 @@ Enter: a name, a mode, and one primary action. Put room codes and extra modes be
 expansion. Invitations identify their room and defer the live mode to its host. Avatar selection
 is available without becoming a required step. Public help, privacy and terms remain reachable.
 
-Play: use a compact room header and a canvas/chat split instead of a permanent tall sidebar.
-Players, scores and personal feedback preferences expand when needed. The word/hint, time and pen controls have priority.
-Keep drawing tools contextual, chat reachable, and mobile controls clear at narrow widths.
+Set up: show the host’s rules and start controls in the lobby. A wide room also shows who is
+present and ready above room chat. Players, scores and personal feedback preferences are in
+the header disclosure at every width.
 
-Finish: lead with the actual result, then the exhibition. Number real drawings and identify their
-artists. Share and replay the work, with awards grounded in game events. Handle empty, tied and
-zero-score games honestly.
+Play: name the drawer or show the drawer’s word in the turn heading. Keep round details, the hint
+and the timer near the canvas. Place the composer below the canvas on a phone and beside it at
+larger sizes. The conversation stays visible beneath the composer, and drawing tools appear
+when the player can use them.
+
+Finish: place Play again and result sharing next to the outcome when space allows. Show numbered
+prints in two columns where they fit and one on small phones. Identify the artists, keep replay and
+export available, and ground awards in game events. Handle empty, tied and zero-score games honestly.
 
 ## Voice
 

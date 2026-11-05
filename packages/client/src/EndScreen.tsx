@@ -59,11 +59,11 @@ export function EndScreen({
     <section className="results-gallery" aria-label="Finished drawings">
       <div className="gallery-heading">
         <div>
-          <p className="eyebrow">
-            {gallery.length} {gallery.length === 1 ? "work" : "works"} of
-            questionable cultural importance
-          </p>
           <h2>The exhibition.</h2>
+          <p>
+            {gallery.length} {gallery.length === 1 ? "drawing" : "drawings"}{" "}
+            from this game
+          </p>
         </div>
         <div className="gallery-actions">
           <button

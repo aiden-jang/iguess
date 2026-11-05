@@ -4,6 +4,7 @@ import { styles } from "./styles";
 import { Countdown } from "./Countdown";
 import { TIER_LABEL } from "./gameModes";
 import { StudioSketch } from "./StudioSketch";
+import { isAI } from "./roomView";
 
 export function RoomBanner(props: RoomBannerProps) {
   const {
@@ -22,25 +23,25 @@ export function RoomBanner(props: RoomBannerProps) {
     chooseWord,
     skipWord,
     players,
-    inGame,
     wordLetters,
   } = props;
+  const drawer = game?.drawerId
+    ? playerName(players, game.drawerId)
+    : "Someone";
+  const round =
+    (game?.totalRounds ?? 1) > 1
+      ? `Round ${game?.round ?? 1} of ${game?.totalRounds}`
+      : null;
   const highScore = Math.max(0, ...Object.values(game?.scores ?? {}));
   const leaders = players.filter(
     (player) => !player.spectator && game?.scores[player.id] === highScore,
   );
   return (
-    <div
-      key={phase}
-      className="glass play-banner"
-      data-phase={phase}
-      data-long-word={inGame && wordLetters.length > 10}
-    >
+    <div key={phase} className="play-banner" data-phase={phase}>
       {phase === "lobby" && <LobbyControls {...props} />}
       {phase === "ended" && (
         <>
           <div className="results-title">
-            <span className="eyebrow">Final verdict / very official</span>
             <h1>
               {highScore === 0
                 ? "No points. Incredible commitment."
@@ -50,9 +51,8 @@ export function RoomBanner(props: RoomBannerProps) {
             </h1>
             <p>
               {highScore > 0
-                ? `${highScore} points at the top.`
-                : "Let’s call that experimental."}{" "}
-              Another round?
+                ? `${highScore} ${highScore === 1 ? "point" : "points"} at the top.`
+                : "Let’s call that experimental."}
             </p>
           </div>
           <div className="result-actions">
@@ -78,17 +78,13 @@ export function RoomBanner(props: RoomBannerProps) {
       )}
       {phase === "choosing" && (
         <>
-          <span style={styles.turnPill}>
-            {(game?.totalRounds ?? 1) > 1
-              ? `Round ${game?.round ?? 1}/${game?.totalRounds ?? 1}`
-              : "Choosing"}
-          </span>
           {isDrawer && wordChoices ? (
-            <span className="word-zone" style={styles.wordZone}>
-              <span style={styles.wordVerb}>
-                Pick a word. Believe in yourself, briefly.
-              </span>
-              <span className="word-tiles" style={styles.tiles}>
+            <div className="word-zone">
+              <div className="choice-heading">
+                <h1>Pick a word.</h1>
+                {round && <span className="turn-meta">{round}</span>}
+              </div>
+              <span className="word-tiles">
                 {wordChoices.options.map((c) => (
                   <button
                     key={c.word}
@@ -117,24 +113,33 @@ export function RoomBanner(props: RoomBannerProps) {
                   </button>
                 )}
               </span>
-            </span>
+            </div>
           ) : (
-            <span className="word-zone" style={styles.wordZone}>
+            <div className="word-zone">
               <StudioSketch kind="waiting" />
-              <span style={styles.wordVerb}>
-                {game?.drawerId
-                  ? playerName(players, game.drawerId)
-                  : "someone"}{" "}
-                is picking a word…
-              </span>
-            </span>
+              <div>
+                <h1>
+                  {isDrawer
+                    ? "Loading your words…"
+                    : `${drawer} is picking a word…`}
+                </h1>
+                {round && <p className="turn-meta">{round}</p>}
+              </div>
+            </div>
           )}
         </>
       )}
       {phase === "intermission" && (
         <div className="turn-recap" role="status">
-          <span className="eyebrow">The word was</span>
-          <strong>{turnEnd?.word ?? "Revealing…"}</strong>
+          <h1>
+            {turnEnd ? (
+              <>
+                The word was <strong>{turnEnd.word}</strong>
+              </>
+            ) : (
+              "Revealing the word…"
+            )}
+          </h1>
           <p>
             {game?.guessedIds.length
               ? "Recognizable, apparently. Next turn coming up."
@@ -142,38 +147,43 @@ export function RoomBanner(props: RoomBannerProps) {
           </p>
         </div>
       )}
-      {inGame && phase !== "intermission" && (
+      {phase === "playing" && (
         <>
-          <span style={styles.turnPill}>
-            {(game?.totalRounds ?? 1) > 1
-              ? `Round ${game?.round ?? 1}/${game?.totalRounds ?? 1} · Turn ${(game?.turnIndex ?? 0) + 1}/${game?.totalTurns ?? 0}`
-              : `Turn ${(game?.turnIndex ?? 0) + 1}/${game?.totalTurns ?? 0}`}
-          </span>
-          <span className="word-zone" style={styles.wordZone}>
-            <span style={styles.wordVerb}>
-              {isDrawer ? "Draw this" : "Guess the word"}
-            </span>
-            <span
-              className="word-tiles"
-              style={styles.tiles}
-              role="img"
-              aria-label={
-                isDrawer
-                  ? `Word to draw: ${wordLetters.join("")}`
-                  : `${wordLetters.length} letters. Hint: ${wordLetters.map((letter) => letter || "blank").join(" ")}`
-              }
-            >
-              {wordLetters.map((ch, i) => (
-                <span key={i} style={styles.tile}>
-                  {ch}
-                </span>
-              ))}
-            </span>
-          </span>
+          <div className="turn-heading">
+            <h1>
+              {isDrawer ? (
+                <>
+                  Your word is <strong>{wordLetters.join("") || "…"}</strong>
+                </>
+              ) : (
+                `${isAI(game?.drawerId) ? "The AI" : drawer} is drawing`
+              )}
+            </h1>
+            <p className="turn-meta">
+              {round ? `${round} · ` : ""}
+              Turn {(game?.turnIndex ?? 0) + 1} of {game?.totalTurns ?? 0}
+              {!isDrawer &&
+                wordLetters.length > 0 &&
+                ` · ${wordLetters.length} letters`}
+            </p>
+          </div>
           <Countdown
             endsAt={game?.turnEndsAt ?? null}
             durationMs={settings.turnSeconds * 1000}
           />
+          {!isDrawer && wordLetters.length > 0 && (
+            <div
+              className="word-tiles"
+              role="img"
+              aria-label={`Hint: ${wordLetters.map((letter) => letter || "blank").join(" ")}`}
+            >
+              {wordLetters.map((letter, index) => (
+                <span key={index} style={styles.tile}>
+                  {letter}
+                </span>
+              ))}
+            </div>
+          )}
         </>
       )}
     </div>

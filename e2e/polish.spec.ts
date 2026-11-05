@@ -207,6 +207,18 @@ test("word choices, drawing and viewer controls stay usable at both widths", asy
     await page.emulateMedia({ colorScheme: "dark" });
     await capture(page, "drawing-desktop-dark");
     await page.emulateMedia({ colorScheme: "light" });
+    const guess = guest.getByRole("textbox", {
+      name: "Your guess",
+      exact: true,
+    });
+    await expect(guess).toBeInViewport({ ratio: 1 });
+    const composer = (await guess.boundingBox())!;
+    const guestCanvas = (await guest.locator("canvas").boundingBox())!;
+    const history = (await guest.getByRole("log").boundingBox())!;
+    expect(composer.y).toBeGreaterThanOrEqual(
+      guestCanvas.y + guestCanvas.height,
+    );
+    expect(composer.y + composer.height).toBeLessThanOrEqual(history.y);
     await capture(guest, "guessing-mobile");
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(

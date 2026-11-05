@@ -50,12 +50,12 @@ test("a correct guess acknowledges completion and preserves reactions", async ({
     await enter(third, room, "Still thinking");
     await page.getByRole("button", { name: "Start game", exact: true }).click();
     await page.locator(".word-choice").first().click();
-    const label = await page
-      .locator('.word-zone [role="img"]')
-      .getAttribute("aria-label");
+    const title = page.getByRole("heading", { name: /^Your word is / });
+    await expect(title).not.toHaveText("Your word is …");
+    const word = (await title.innerText()).replace("Your word is ", "");
     await guest
       .getByRole("textbox", { name: "Your guess", exact: true })
-      .fill(label!.replace("Word to draw: ", ""));
+      .fill(word);
     await guest.getByRole("button", { name: "Send", exact: true }).click();
     await expect(guest.locator(".guess-complete")).toContainText(
       "Correct. Nicely observed.",

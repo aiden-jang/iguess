@@ -12,6 +12,7 @@ import type { DrawOp } from "@iguess/shared";
 import { awardsFor } from "@iguess/shared/awards";
 import { RoomHeader } from "./RoomHeader";
 import { Scoreboard } from "./Scoreboard";
+import { LobbyRoster } from "./LobbyRoster";
 import { ChatPanel } from "./ChatPanel";
 import { useToast } from "./useToast";
 import { useMuted } from "./useMuted";
@@ -117,7 +118,6 @@ export function Room({
     muted,
     showToast,
   });
-  const awards = phase === "ended" ? awardsFor(gallery, players) : [];
   useWakeLock(inGame || phase === "choosing");
   useAppBadge(canDraw || (phase === "choosing" && isDrawer) ? 1 : 0);
   const hint = boardHint({
@@ -204,7 +204,6 @@ export function Room({
             chooseWord,
             skipWord,
             players,
-            inGame,
             wordLetters,
           }}
         />
@@ -232,7 +231,7 @@ export function Room({
           canDraw={canUseCanvas}
           opsRef={roundOps}
           onCanvas={(el) => (canvasElRef.current = el)}
-          hint={!connected ? "Connecting to the room…" : hint}
+          hint={connected ? (youAreWatching && hint) || null : "Connecting…"}
           waiting={inGame || !connected}
           aiTake={aiTake}
           phase={phase}
@@ -243,7 +242,7 @@ export function Room({
             gallery={gallery}
             blankRounds={blankRounds}
             players={players}
-            awards={awards}
+            awards={awardsFor(gallery, players)}
             onSave={sharing.saveEvidence}
             onShare={sharing.shareEvidence}
             canShare={sharing.canShareEvidence}
@@ -259,6 +258,7 @@ export function Room({
         onDismissNotice={hideToast}
         reconnecting={everConnected && !connected}
         room={room}
+        lobbyRoster={phase === "lobby" && <LobbyRoster players={players} />}
         connected={connected}
         log={log}
         drawingNow={drawingNow}

@@ -2,7 +2,7 @@ import { ReactionSticker } from "./ReactionSticker";
 import { useOnline } from "./useOnline";
 import { useRoomViewport } from "./useRoomViewport";
 import { ClubFace } from "./ClubFace";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "./Icon";
 import { RoomNotice } from "./RoomNotice";
 import { useChatDraft } from "./useChatDraft";
@@ -15,6 +15,7 @@ import { styles } from "./styles";
 
 interface ChatPanelProps {
   ended?: boolean;
+  lobbyRoster?: ReactNode;
   guessed?: boolean;
   notice?: string | null;
   onDismissNotice?: () => void;
@@ -32,6 +33,7 @@ interface ChatPanelProps {
 
 export function ChatPanel({
   ended = false,
+  lobbyRoster,
   guessed = false,
   notice,
   onDismissNotice,
@@ -58,24 +60,96 @@ export function ChatPanel({
 
   const content = (
     <div className="chat-content">
+      <RoomNotice
+        message={notice}
+        onDismiss={onDismissNotice}
+        reconnecting={reconnecting}
+        offline={!online}
+      />
+      {lobbyRoster}
       <div className="chat-heading">
-        {(!ended || expanded) && (
-          <RoomNotice
-            message={notice}
-            onDismiss={onDismissNotice}
-            reconnecting={reconnecting}
-            offline={!online}
-          />
-        )}
-        <span style={styles.sectionLabel}>Chat & guesses</span>
-        <span className="chat-hint">
+        <h2>{inGame ? "Chat & guesses" : "Room chat"}</h2>
+        <p>
           {drawingNow
             ? "Your pen has the floor."
             : inGame
-              ? "Say what you see."
+              ? "Guess before the clock runs out."
               : "Constructive criticism, loosely."}
-        </span>
+        </p>
       </div>
+      <span className="sr-only" id="chat-instruction">
+        {drawingNow
+          ? "The drawer cannot send chat during their turn."
+          : "Type and press Enter to send. Correct guesses score automatically."}
+      </span>
+      {guessed && inGame ? (
+        <div className="guess-complete" role="status">
+          <ClubFace mood="happy" />
+          <div>
+            <strong>Correct. Nicely observed.</strong>
+            <p>
+              You’re done for this turn. React or watch while the room catches
+              up.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <form
+          className="chat-compose"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (composing.current) return;
+            const t = text.trim();
+            if (!t) return;
+            // An emptied box is how you know you sent it.
+            if (online && onSend(t)) setText("");
+            else onSendFailed();
+          }}
+        >
+          <input
+            style={{ ...styles.input, flex: 1, margin: 0 }}
+            aria-describedby="chat-instruction"
+            aria-label={inGame ? "Your guess" : "Chat message"}
+            name="message"
+            maxLength={500}
+            autoComplete="off"
+            spellCheck={!inGame}
+            autoCorrect={inGame ? "off" : "on"}
+            autoCapitalize={inGame ? "none" : "sentences"}
+            enterKeyHint="send"
+            placeholder={
+              !connected
+                ? "Reconnecting. Your draft stays here."
+                : !online
+                  ? "Offline. Your draft stays here."
+                  : chatPlaceholder(drawingNow, inGame)
+            }
+            disabled={drawingNow}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onCompositionStart={() => (composing.current = true)}
+            onCompositionEnd={() => (composing.current = false)}
+            onKeyDown={(e) => {
+              // Safari can end composition before its confirming Enter arrives.
+              if (
+                e.key === "Enter" &&
+                (composing.current ||
+                  e.nativeEvent.isComposing ||
+                  e.keyCode === 229)
+              )
+                e.preventDefault();
+            }}
+          />
+          <button
+            className="lift"
+            style={styles.button}
+            type="submit"
+            disabled={drawingNow || !connected || !online || !text.trim()}
+          >
+            Send
+          </button>
+        </form>
+      )}
       <div style={styles.chatWrap}>
         <div
           ref={chatLogRef}
@@ -138,78 +212,6 @@ export function ChatPanel({
           </button>
         ))}
       </div>
-      <span className="sr-only" id="chat-instruction">
-        {drawingNow
-          ? "The drawer cannot send chat during their turn."
-          : "Type and press Enter to send. Correct guesses score automatically."}
-      </span>
-      {guessed && inGame ? (
-        <div className="guess-complete" role="status">
-          <ClubFace mood="happy" />
-          <div>
-            <strong>Correct. Nicely observed.</strong>
-            <p>
-              You’re done for this turn. React or watch while the room catches
-              up.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <form
-          className="chat-compose"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (composing.current) return;
-            const t = text.trim();
-            if (!t) return;
-            // An emptied box is how you know you sent it.
-            if (online && onSend(t)) setText("");
-            else onSendFailed();
-          }}
-        >
-          <input
-            style={{ ...styles.input, flex: 1, margin: 0 }}
-            aria-describedby="chat-instruction"
-            aria-label={inGame ? "Your guess" : "Chat message"}
-            maxLength={500}
-            autoComplete="off"
-            spellCheck={!inGame}
-            autoCorrect={inGame ? "off" : "on"}
-            autoCapitalize={inGame ? "none" : "sentences"}
-            enterKeyHint="send"
-            placeholder={
-              !connected
-                ? "Reconnecting. Your draft stays here."
-                : !online
-                  ? "Offline. Your draft stays here."
-                  : chatPlaceholder(drawingNow, inGame)
-            }
-            disabled={drawingNow}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onCompositionStart={() => (composing.current = true)}
-            onCompositionEnd={() => (composing.current = false)}
-            onKeyDown={(e) => {
-              // Safari can end composition before its confirming Enter arrives.
-              if (
-                e.key === "Enter" &&
-                (composing.current ||
-                  e.nativeEvent.isComposing ||
-                  e.keyCode === 229)
-              )
-                e.preventDefault();
-            }}
-          />
-          <button
-            className="lift"
-            style={styles.button}
-            type="submit"
-            disabled={drawingNow || !connected || !online || !text.trim()}
-          >
-            Send
-          </button>
-        </form>
-      )}
     </div>
   );
   return (

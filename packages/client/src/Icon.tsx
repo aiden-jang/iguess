@@ -14,6 +14,7 @@ const paths = {
   muted: "m3 9 5 0 5-5v16l-5-5H3V9Zm14-1 6 8m0-8-6 8",
   check: "m4 12 5 5L21 5",
   more: "M5 12h.1M12 12h.1M19 12h.1",
+  timer: "M9 2h6m-3 7v4m5-6 2-2m1 8a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z",
 };
 export function Icon({ name }: { name: keyof typeof paths }) {
   return (

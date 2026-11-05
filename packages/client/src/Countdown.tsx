@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { buzz } from "./feedback";
 import { styles } from "./styles";
+import { Icon } from "./Icon";
 
 export function Countdown({
   endsAt,
@@ -48,8 +49,11 @@ export function Countdown({
           }}
         />
       </span>
-      <span style={{ ...styles.timer, ...(low ? styles.timerLow : null) }}>
-        ⏱ {secs}s
+      <span
+        className="timer-value"
+        style={{ ...styles.timer, ...(low ? styles.timerLow : null) }}
+      >
+        <Icon name="timer" /> {secs}s
       </span>
     </span>
   );

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ClubFace } from "./ClubFace";
+import { Icon } from "./Icon";
 import { modifierKey } from "./keyboardLabel";
 import "./resources.css";
 
@@ -75,12 +76,9 @@ export function ResourceLinks() {
                 aria-label="Close information"
                 onClick={() => dialog.current?.close()}
               >
-                ✕
+                <Icon name="close" />
               </button>
             </div>
-            <p className="eyebrow">
-              iguess / {active === "help" ? "field notes" : active}
-            </p>
             <h2 id="resource-title">{TITLES[active]}</h2>
             <ResourceContent resource={active} />
             <p className="resource-contact">

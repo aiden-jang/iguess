@@ -64,7 +64,7 @@ test("skipping swaps every word and then goes away", async ({ page }) => {
   await expect(page.getByRole("button", { name: /skip/i })).toHaveCount(0);
 });
 
-test("picking a word starts the round and hides the word from the board", async ({
+test("picking a word starts the clock and shows the drawer their word", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -73,13 +73,14 @@ test("picking a word starts the round and hides the word from the board", async 
   const tiles = page
     .locator(".word-tiles button")
     .filter({ hasNotText: "skip" });
-  await tiles.first().click();
+  const choice = tiles.first();
+  const word = await choice.locator("strong").innerText();
+  await choice.click();
 
-  await expect(page.getByText(/⏱/)).toBeVisible();
-  await expect(page.locator(".word-zone")).toHaveCSS(
-    "flex-direction",
-    "column",
-  );
+  await expect(page.getByRole("timer")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: `Your word is ${word}`, exact: true }),
+  ).toBeVisible();
   // The drawer's own tools are live now.
   await expect(
     page.getByTitle("fill an area with the current colour"),

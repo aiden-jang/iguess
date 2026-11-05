@@ -11,7 +11,6 @@ export function LobbyControls(p: RoomBannerProps) {
     <>
       <div className="lobby-welcome">
         <StudioSketch kind="lobby" />
-        <span className="eyebrow">The warm-up</span>
         <h1>
           Warm up. <em>Or don’t.</em>
         </h1>
@@ -37,7 +36,7 @@ export function LobbyControls(p: RoomBannerProps) {
         </p>
         <p className="lobby-guidance">
           {p.youAreHost
-            ? "You’re hosting. Ready is a signal; you decide when to start."
+            ? "You’re hosting. Ready tells the room who’s here. Start when you’re ready."
             : "Ready tells the host you’re here. The host starts the game."}
         </p>
         {p.isAIMode && (
