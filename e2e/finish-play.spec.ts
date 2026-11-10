@@ -99,10 +99,13 @@ test("Classic keeps chat and guess drafts separate across turns and refresh", as
   page,
   browser,
 }) => {
+  test.setTimeout(90_000);
   const guest = await browser.newPage();
+  const next = await browser.newPage();
   try {
     const room = code();
     await enter(page, room);
+    await enter(next, room, "Next drawer");
     await enter(guest, room, "Reader");
     const chat = guest.getByRole("textbox", { name: "Chat message" });
     const guess = guest.getByRole("textbox", { name: "Your guess" });
@@ -122,15 +125,24 @@ test("Classic keeps chat and guess drafts separate across turns and refresh", as
       .getByRole("button", { name: "Join the room", exact: true })
       .click();
     await expect(guess).toHaveValue("My unfinished guess");
-    await guess.fill(word);
-    await guess.press("Enter");
+    await page.getByRole("button", { name: "← Leave", exact: true }).click();
+    await page.getByRole("button", { name: "Leave room", exact: true }).click();
     await expect(guest.locator(".turn-recap")).toContainText(word);
-    await guest.locator(".word-choice").first().waitFor();
+    const nextChoice = next.locator(".word-choice").first();
+    await nextChoice.waitFor();
     await expect(chat).toHaveValue(lobbyDraft);
     await chat.press("Enter");
     await expect(chat).toHaveValue("");
-    await expect(page.getByRole("log")).toContainText(lobbyDraft);
+    await expect(next.getByRole("log")).toContainText(lobbyDraft);
+    await nextChoice.click();
+    await expect(guess).toHaveValue("");
+    await guest.reload();
+    await guest
+      .getByRole("button", { name: "Join the room", exact: true })
+      .click();
+    await expect(guess).toHaveValue("");
   } finally {
     await guest.close();
+    await next.close();
   }
 });

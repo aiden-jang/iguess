@@ -48,6 +48,7 @@ function game(value: unknown) {
       String(value.phase),
     ) &&
     (value.drawerId === null || text(value.drawerId, 64)) &&
+    (value.turnId === undefined || text(value.turnId, 64)) &&
     ["turnIndex", "totalTurns", "round", "totalRounds", "wordLength"].every(
       (key) => number(value[key]),
     ) &&

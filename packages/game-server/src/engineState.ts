@@ -3,6 +3,7 @@ import type { PlayerRef } from "./modes/GameMode.ts";
 import type { ModeSnapshot } from "./modes/modeState.ts";
 export interface EngineSnapshot {
   phase: GamePhase;
+  turnId?: string;
   turnIndex: number;
   totalTurns: number;
   turnsPerRound: number;

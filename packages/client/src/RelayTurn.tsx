@@ -39,6 +39,7 @@ function RelayTextEntry({
   normalize?: (value: string) => string | null;
 }) {
   const [draft, setDraft] = useChatDraft(draftKey, "relay");
+  const input = useRef<HTMLInputElement>(null);
   const composing = useRef(false);
   const value = normalize(draft);
   const invalid = Boolean(draft && !value);
@@ -52,6 +53,7 @@ function RelayTextEntry({
     >
       <label htmlFor={`relay-${name}`}>{label}</label>
       <input
+        ref={input}
         id={`relay-${name}`}
         name={name}
         value={draft}
@@ -82,6 +84,15 @@ function RelayTextEntry({
         type="submit"
         className="relay-primary"
         disabled={!canSend || !value}
+        onMouseDown={(event) => {
+          // Safari blurs on mousedown, moving the button before the click.
+          if (
+            event.button === 0 &&
+            document.documentElement.dataset.keyboard === "true" &&
+            document.activeElement === input.current
+          )
+            event.preventDefault();
+        }}
       >
         {button}
       </button>

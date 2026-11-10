@@ -5,7 +5,7 @@ import { ClubFace } from "./ClubFace";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "./Icon";
 import { RoomNotice } from "./RoomNotice";
-import { useChatDraft } from "./useChatDraft";
+import { useAcknowledgedDraft } from "./useAcknowledgedDraft";
 import { REACTION_OPTIONS } from "@iguess/shared";
 import type { ChatLine } from "./useWebSocket";
 import { isAI } from "./roomView";
@@ -26,6 +26,7 @@ interface ChatPanelProps {
   drawingNow: boolean;
   inGame: boolean;
   canGuess: boolean;
+  guessTurn: string;
   onReact: (emoji: string) => void;
   /** Returns whether it actually went out. */
   onSend: (text: string, id: string) => boolean;
@@ -46,6 +47,7 @@ export function ChatPanel({
   drawingNow,
   inGame,
   canGuess,
+  guessTurn,
   onReact,
   onSend,
   chatAck,
@@ -57,25 +59,9 @@ export function ChatPanel({
   }, [ended]);
   useRoomViewport();
   const online = useOnline();
-  const [chatText, setChatText] = useChatDraft(room);
-  const [guessText, setGuessText] = useChatDraft(room, "guess");
-  const kind = canGuess ? "guess" : "chat";
-  const text = canGuess ? guessText : chatText;
-  const setText = canGuess ? setGuessText : setChatText;
-  const submissions = useRef<
-    Partial<Record<typeof kind, { id: string; text: string }>>
-  >({});
-  useEffect(() => {
-    for (const [kind, value, update] of [
-      ["chat", chatText, setChatText],
-      ["guess", guessText, setGuessText],
-    ] as const) {
-      const pending = submissions.current[kind];
-      if (!pending || pending.id !== chatAck) continue;
-      if (value.trim() === pending.text) update("");
-      delete submissions.current[kind];
-    }
-  }, [chatAck, chatText, guessText, setChatText, setGuessText]);
+  const chat = useAcknowledgedDraft(room, "chat", chatAck);
+  const guess = useAcknowledgedDraft(room, "guess", chatAck, guessTurn);
+  const { text, setText, send } = canGuess ? guess : chat;
   const confirmation = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (guessed && inGame) confirmation.current?.focus({ preventScroll: true });
@@ -134,11 +120,7 @@ export function ChatPanel({
             if (composing.current) return;
             const t = text.trim();
             if (!t) return;
-            const previous = submissions.current[kind];
-            const id = previous?.text === t ? previous.id : crypto.randomUUID();
-            if (online && onSend(t, id))
-              submissions.current[kind] = { id, text: t };
-            else onSendFailed();
+            if (!online || !send(t, onSend)) onSendFailed();
           }}
         >
           <input

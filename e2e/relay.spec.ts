@@ -2,7 +2,7 @@ import type { Page, WebSocketRoute } from "@playwright/test";
 import type { ServerMessage } from "../shared/events";
 import { test, expect } from "./fixtures";
 import { capture } from "./visualProbe";
-import { keyboard, verifyGuessKeyboard } from "./relayKeyboard";
+import { keyboard, tapGuessWithKeyboard } from "./relayKeyboard";
 
 async function join(page: Page, room: string, name: string, mode = "relay") {
   await page.goto(`/r/${room}?mode=${mode}`);
@@ -106,6 +106,7 @@ test("six friends pass private assignments and reveal all six chains", async ({
     for (const [index, name] of names.entries()) {
       const guest = await browser.newPage({
         viewport: { width: index === 0 ? 320 : 390, height: 740 },
+        hasTouch: index === 0,
         colorScheme: index % 2 ? "light" : "dark",
         extraHTTPHeaders: { "CF-Connecting-IP": `192.0.245.${index + 1}` },
       });
@@ -195,7 +196,8 @@ test("six friends pass private assignments and reveal all six chains", async ({
         });
       }
 
-      for (const [index, player] of [page, phone].entries()) {
+      for (const index of leg === 1 ? [1, 0] : [0, 1]) {
+        const player = index === 0 ? page : phone;
         await expect(
           player.getByText(`Leg ${leg + 1} of 6`, { exact: true }),
         ).toBeVisible();
@@ -240,9 +242,11 @@ test("six friends pass private assignments and reveal all six chains", async ({
           await guess.fill(`Pass ${leg + 1} from player ${index + 1}`);
           if (leg === 1 && index === 1) {
             await capture(player, "relay-phone-guess");
-            await verifyGuessKeyboard(player, guess);
-          }
-          await guess.press("Enter");
+            await tapGuessWithKeyboard(player, guess);
+            await expect(
+              player.getByRole("heading", { name: "Guess passed." }),
+            ).toBeVisible();
+          } else await guess.press("Enter");
         }
       }
     }

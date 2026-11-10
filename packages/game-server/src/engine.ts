@@ -191,7 +191,7 @@ export class GameEngine extends EngineState {
     this.phase = "playing";
     this.drawerId = drawerId;
     this.word = word;
-    this.turnEndsAt = Date.now() + this.turnMs;
+    this.startTurnTiming();
     this.guessed.clear();
     this.scheduleHints(word);
 

@@ -1,29 +1,38 @@
 import { useCallback, useState } from "react";
 const drafts = new Map<string, string>();
-function read(key: string) {
-  if (drafts.has(key)) return drafts.get(key)!;
+function read(key: string, prefix: string) {
   try {
-    return sessionStorage.getItem(key) ?? "";
+    const stored = drafts.get(key) ?? sessionStorage.getItem(key) ?? "";
+    return stored.startsWith(prefix) ? stored.slice(prefix.length) : "";
   } catch {
     return "";
   }
 }
-export function useChatDraft(room: string, purpose = "chat") {
+export function useChatDraft(room: string, purpose = "chat", scope?: string) {
   const key = `iguess_${purpose}_${room}`;
-  const [draft, setDraft] = useState(() => ({ key, text: read(key) }));
-  const text = draft.key === key ? draft.text : read(key);
+  const prefix = scope === undefined ? "" : `${scope}\n`;
+  const [draft, setDraft] = useState(() => ({
+    key,
+    prefix,
+    text: read(key, prefix),
+  }));
+  const text =
+    draft.key === key && draft.prefix === prefix
+      ? draft.text
+      : read(key, prefix);
   const update = useCallback(
     (next: string) => {
-      drafts.set(key, next);
-      setDraft({ key, text: next });
+      const stored = next ? prefix + next : "";
+      drafts.set(key, stored);
+      setDraft({ key, prefix, text: next });
       try {
-        if (next) sessionStorage.setItem(key, next);
+        if (next) sessionStorage.setItem(key, stored);
         else sessionStorage.removeItem(key);
       } catch {
         /* Keep the live draft when browser storage is blocked. */
       }
     },
-    [key],
+    [key, prefix],
   );
   return [text, update] as const;
 }

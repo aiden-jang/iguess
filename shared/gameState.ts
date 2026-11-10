@@ -12,6 +12,7 @@ export interface TeamScore {
 export interface PublicGameState {
   phase: GamePhase;
   drawerId: string | null;
+  turnId?: string;
   turnIndex: number;
   totalTurns: number;
   round: number;

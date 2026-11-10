@@ -283,6 +283,7 @@ export function ClassicRoom({
         drawingNow={drawingNow}
         inGame={phase === "playing"}
         canGuess={phase === "playing" && !youAreWatching && !isDrawer}
+        guessTurn={game?.turnId ?? String(game?.turnEndsAt ?? "")}
         onReact={react}
         onSend={sendChat}
         chatAck={socket.chatAck}

@@ -14,6 +14,7 @@ import type { GameMode, PlayerRef } from "./modes/GameMode.ts";
 /** Serializable game data and clock ownership, independent of room sockets. */
 export abstract class EngineState {
   protected phase: GamePhase = "lobby";
+  protected turnId?: string;
   protected turnIndex = 0;
   protected totalTurns = 0;
   protected turnsPerRound = 1;
@@ -32,6 +33,10 @@ export abstract class EngineState {
 
   constructor(protected mode: GameMode) {}
   protected abstract onClock(key: string): void;
+  protected startTurnTiming() {
+    this.turnId = crypto.randomUUID();
+    this.turnEndsAt = Date.now() + this.turnMs;
+  }
   protected contextState() {
     return {
       roster: this.roster,
@@ -63,6 +68,7 @@ export abstract class EngineState {
     return {
       phase: this.phase,
       drawerId: this.drawerId,
+      turnId: this.phase === "playing" ? this.turnId : undefined,
       turnIndex: this.turnIndex,
       totalTurns: this.totalTurns,
       round,
@@ -118,6 +124,7 @@ export abstract class EngineState {
   snapshot(): EngineSnapshot {
     return {
       phase: this.phase,
+      turnId: this.turnId,
       turnIndex: this.turnIndex,
       totalTurns: this.totalTurns,
       turnsPerRound: this.turnsPerRound,
@@ -138,6 +145,11 @@ export abstract class EngineState {
   }
   protected loadSnapshot(saved: EngineSnapshot) {
     this.phase = saved.phase;
+    this.turnId =
+      saved.turnId ??
+      (saved.phase === "playing"
+        ? `legacy-${saved.deadlines.turn ?? saved.savedAt}`
+        : undefined);
     this.turnIndex = saved.turnIndex;
     this.totalTurns = saved.totalTurns;
     this.turnsPerRound = saved.turnsPerRound;

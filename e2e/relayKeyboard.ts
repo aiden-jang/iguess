@@ -14,12 +14,12 @@ export async function keyboard(page: Page, height: number | null) {
     await expect(page.locator("html")).toHaveAttribute("data-keyboard", "true");
 }
 
-export async function verifyGuessKeyboard(page: Page, guess: Locator) {
+export async function tapGuessWithKeyboard(page: Page, guess: Locator) {
   const original = page.viewportSize()!;
   const workspace = page.locator(".relay-workspace");
   for (const [width, height, available] of [
-    [320, 568, 230],
     [568, 320, 168],
+    [320, 568, 230],
   ] as const) {
     await page.setViewportSize({ width, height });
     await guess.focus({ timeout: 1500 });
@@ -55,6 +55,8 @@ export async function verifyGuessKeyboard(page: Page, guess: Locator) {
         },
       )
       .toEqual({ focused: true, enabled: true, fits: true });
+    if (width === 320)
+      await page.getByRole("button", { name: "Pass guess", exact: true }).tap();
     await keyboard(page, null);
   }
   await page.setViewportSize(original);

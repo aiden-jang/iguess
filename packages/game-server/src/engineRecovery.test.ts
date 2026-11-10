@@ -66,6 +66,8 @@ for (const mode of [
       assert.deepEqual(restored.mode, saved.mode);
       assert.equal(restored.word, saved.word);
       assert.equal(restored.drawerId, saved.drawerId);
+      assert.ok(saved.turnId);
+      assert.equal(restored.turnId, saved.turnId);
       next.engine.sendStateTo("c");
       assert.ok(
         !next.messages.some(
@@ -78,6 +80,7 @@ for (const mode of [
         ({ message }) => message.type === "game_state",
       )!.message;
       assert.ok(state.type === "game_state");
+      assert.equal(state.state.turnId, saved.turnId);
       assert.equal(state.state.scores.b, 120);
       assert.ok(state.state.turnEndsAt! > Date.now());
     } finally {
@@ -85,6 +88,34 @@ for (const mode of [
     }
   });
 }
+test("legacy turns get a stable identity distinct from a rematch", () => {
+  const first = harness("classic");
+  first.engine.startGame(["a", "b"]);
+  first.engine.handleChooseWord(
+    "a",
+    first.engine.snapshot().pendingChoices![0]!,
+  );
+  const legacy = first.engine.snapshot();
+  delete legacy.turnId;
+  first.engine.dispose();
+  const next = harness("classic");
+  try {
+    next.engine.restore(legacy);
+    const turnId = next.engine.snapshot().turnId;
+    assert.ok(turnId);
+    next.engine.restore(legacy);
+    assert.equal(next.engine.snapshot().turnId, turnId);
+    next.engine.onPlayerLeave("b");
+    assert.ok(next.engine.startGame(["a", "b"]));
+    next.engine.handleChooseWord(
+      "a",
+      next.engine.snapshot().pendingChoices![0]!,
+    );
+    assert.notEqual(next.engine.snapshot().turnId, turnId);
+  } finally {
+    next.engine.dispose();
+  }
+});
 test("choosing recovery retains the offered words and spent skip", () => {
   const first = harness("classic");
   first.engine.startGame(["a", "b"]);
