@@ -574,7 +574,7 @@
   border-radius: 2px !important;
 }
 .app-layout[data-phase="playing"] .canvas-wrap {
-  --board-min-height: 106px;
+  --board-min-height: max(81px, 3.25em);
   min-height: calc(var(--board-min-height) + 2px) !important;
 }
 .canvas-hint {
@@ -1815,6 +1815,9 @@
     padding-block: 6px;
     gap: 6px;
   }
+  html[data-keyboard="true"] .app-layout[data-phase="playing"] .canvas-wrap {
+    --board-min-height: max(42px, 2em);
+  }
   html[data-keyboard="true"] :is(.draw-toolbar, .turn-meta) {
     display: none;
   }
@@ -2369,6 +2372,9 @@ html[data-motion="false"] .confetti-piece {
   }
   .app-layout .draw-toolbar {
     padding-block-start: 4px;
+  }
+  .app-layout[data-phase="playing"] .canvas-wrap {
+    --board-min-height: max(100px, 3.25em);
   }
 }
 
