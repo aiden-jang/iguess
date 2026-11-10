@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://iguess.aidenjang.com/sitemap.xml

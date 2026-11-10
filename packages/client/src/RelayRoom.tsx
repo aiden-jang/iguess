@@ -95,7 +95,10 @@ export function RelayRoom({ room, socket, onLeave }: RoomScreenProps) {
         onInvite={invite.handleInvite}
         muted={muted}
         onToggleMute={toggleMuted}
-        onLeave={onLeave}
+        onLeave={() => {
+          socket.leave();
+          onLeave();
+        }}
       >
         <Scoreboard
           ranked={players}
@@ -109,7 +112,9 @@ export function RelayRoom({ room, socket, onLeave }: RoomScreenProps) {
       <main id="room-main" tabIndex={-1} className="relay-main">
         {!connected && (
           <p className="relay-notice" role="status">
-            Connection lost. Rejoining the relay…
+            {relay?.phase === "active" && relay.assignment.kind !== "watch"
+              ? "Connection lost. Rejoining… Your seat is held through this handoff."
+              : "Connection lost. Rejoining the relay…"}
           </p>
         )}
         {socket.relayNotice && (

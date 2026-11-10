@@ -104,12 +104,15 @@ export function RoomBanner(props: RoomBannerProps) {
             <button className="result-text-action" onClick={copyResults}>
               {resultsCopied ? "Copied ✓" : "Copy results"}
             </button>
-            <button
+            <a
               className="result-text-action"
-              onClick={() => shareToX(resultSummary())}
+              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(resultSummary())}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-describedby="external-link-hint"
             >
               Post to X ↗
-            </button>
+            </a>
           </div>
         </>
       )}
@@ -242,11 +245,4 @@ export function RoomBanner(props: RoomBannerProps) {
 }
 function playerName(players: { id: string; name: string }[], id: string) {
   return players.find((p) => p.id === id)?.name ?? "Someone";
-}
-function shareToX(text: string) {
-  window.open(
-    `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,
-    "_blank",
-    "noopener,noreferrer",
-  );
 }

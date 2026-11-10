@@ -8,6 +8,7 @@ import { styles } from "./styles";
 
 /** A finished turn: the still for sharing, plus the strokes so it can be replayed. */
 export interface GalleryShot extends EvidenceItem {
+  index: string;
   drawerId: string | null;
   ops: DrawOp[];
   aspectRatio?: number;
@@ -43,8 +44,8 @@ export function EndScreen({
   status,
 }: EndScreenProps) {
   const [shareMessage, setShareMessage] = useState("");
-  const [replayIdx, setReplayIdx] = useState<number | null>(null);
-  if (status === "loading")
+  const [replay, setReplay] = useState<GalleryShot | null>(null);
+  if (status === "loading" && gallery.length === 0)
     return (
       <p className="blank-round-note" role="status">
         Loading finished drawings…
@@ -79,7 +80,7 @@ export function EndScreen({
           <button
             className="lift"
             style={styles.ghostButton}
-            disabled={saving}
+            disabled={saving || status === "loading"}
             onClick={async () => {
               setShareMessage("");
               try {
@@ -93,7 +94,7 @@ export function EndScreen({
             title={
               gallery.length > 8
                 ? "The share image includes the first eight drawings. All drawings stay in this room."
-                : "One image of every drawing and the AI verdicts"
+                : "Save the finished drawings in one image"
             }
           >
             {saving ? "Preparing image…" : "Save the evidence"}
@@ -118,6 +119,11 @@ export function EndScreen({
           </p>
         </div>
       </div>
+      {status === "loading" && (
+        <p className="blank-round-note" role="status">
+          Loading more drawings…
+        </p>
+      )}
       {status === "incomplete" && (
         <p className="blank-round-note" role="status">
           Some drawings couldn’t be recovered.
@@ -143,7 +149,7 @@ export function EndScreen({
           </ul>
         )}
         {gallery.map((g, i) => (
-          <figure key={i} className="drawing-card">
+          <figure key={g.index} className="drawing-card">
             <div className="exhibit-label">
               <span>EXHIBIT {String(i + 1).padStart(2, "0")}</span>
               <span>
@@ -158,22 +164,22 @@ export function EndScreen({
                       : "NO AI VERDICT"}
               </span>
             </div>
-            {replayIdx === i ? (
+            {replay === g ? (
               <Replay ops={g.ops} size={200} aspectRatio={g.aspectRatio} />
             ) : (
               <DrawingThumbnail src={g.png} word={g.word} />
             )}
             <button
-              aria-pressed={replayIdx === i}
-              aria-label={`${replayIdx === i ? "Show still" : "Replay"}: ${g.word}`}
-              onClick={() => setReplayIdx(replayIdx === i ? null : i)}
+              aria-pressed={replay === g}
+              aria-label={`${replay === g ? "Show still" : "Replay"}: ${g.word}`}
+              onClick={() => setReplay(replay === g ? null : g)}
               title={
-                replayIdx === i
+                replay === g
                   ? "show the finished drawing"
                   : "watch it being drawn"
               }
             >
-              {replayIdx === i ? "◼ still" : "▶ replay"}
+              {replay === g ? "◼ still" : "▶ replay"}
             </button>
             <figcaption>
               <strong className="exhibit-word">{g.word}</strong>

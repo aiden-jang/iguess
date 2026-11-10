@@ -11,6 +11,13 @@ const TITLES: Record<Resource, string> = {
   terms: "The house rules.",
 };
 
+function resourceUrl(resource: Resource | null) {
+  const url = new URL(location.href);
+  if (resource) url.searchParams.set("info", resource);
+  else url.searchParams.delete("info");
+  return url.pathname + url.search + url.hash;
+}
+
 export function ResourceLinks() {
   const [active, setActive] = useState<Resource | null>(() => {
     const value = new URLSearchParams(location.search).get("info");
@@ -21,6 +28,10 @@ export function ResourceLinks() {
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLAnchorElement | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
+  const open = (resource: Resource) => {
+    history.replaceState(history.state, "", resourceUrl(resource));
+    setActive(resource);
+  };
   useEffect(() => {
     if (!active) return;
     if (!dialog.current?.open) dialog.current?.showModal();
@@ -40,7 +51,7 @@ export function ResourceLinks() {
                   ? "Privacy"
                   : "Terms"
             }
-            href={`?info=${item}`}
+            href={resourceUrl(item)}
             onClick={(event) => {
               if (
                 event.metaKey ||
@@ -52,7 +63,7 @@ export function ResourceLinks() {
                 return;
               event.preventDefault();
               opener.current = event.currentTarget;
-              setActive(item);
+              open(item);
             }}
           >
             {item === "help"
@@ -69,13 +80,7 @@ export function ResourceLinks() {
         aria-labelledby="resource-title"
         onClose={() => {
           setActive(null);
-          const url = new URL(window.location.href);
-          url.searchParams.delete("info");
-          window.history.replaceState(
-            null,
-            "",
-            url.pathname + url.search + url.hash,
-          );
+          history.replaceState(history.state, "", resourceUrl(null));
           opener.current?.focus();
         }}
       >
@@ -105,7 +110,7 @@ export function ResourceLinks() {
                   key={item}
                   aria-pressed={active === item}
                   onClick={() => {
-                    setActive(item);
+                    open(item);
                   }}
                 >
                   {item === "help"
@@ -157,11 +162,12 @@ function ResourceContent({ resource }: { resource: Resource }) {
           runs without a vision provider.
         </p>
         <p>
-          Anonymous product events count game starts, finishes, and AI
-          availability issues, along with mode, AI difficulty, and player or
-          turn counts. Cloudflare processes connections and operational logs to
-          run and protect the service. Drawings you download or share become
-          files outside the room.
+          Anonymous product events count page views by category, game starts,
+          finishes, and AI availability issues. Gameplay events can include
+          mode, AI difficulty, and player or turn counts. Page views include no
+          room codes, names, or full URLs. Cloudflare processes connections and
+          operational logs to run and protect the service. Drawings you download
+          or share become files outside the room.
         </p>
         <p>
           Avoid sharing personal or sensitive information in a public room.

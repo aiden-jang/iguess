@@ -47,7 +47,6 @@ export function useRoomSharing({
   }, [resultsCopied]);
   const evidence = useEvidenceSharing(room, gallery, players, standings);
 
-  // Read at click time, not on render: getStreak hits storage and the score can still move.
   const resultSummary = (): string =>
     resultsText(standings, {
       modeLabel: modeLabel,

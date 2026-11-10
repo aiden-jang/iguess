@@ -76,7 +76,7 @@ export default {
       );
     }
 
-    // Everything else is the client SPA (real files + index.html fallback for client routes).
+    // Assets serve public files and a real 404. The invite route owns its app shell above.
     const asset = secure(await env.ASSETS.fetch(request));
     // Vite's hashed bundles cannot change under a given name, so a year and `immutable`. Workers
     // Assets serves them `max-age=0, must-revalidate`, which spends a round trip per chunk on

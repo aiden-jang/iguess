@@ -19,11 +19,13 @@ function LiveVisionNotice({ onMode }: { onMode?: (mode: string) => void }) {
       <p>
         {vision === "checking"
           ? "Checking live AI guessing…"
-          : vision === "unknown"
-            ? "Couldn’t check live AI guessing."
-            : "Live AI guessing is unavailable. Drawing still works."}
+          : vision === "offline"
+            ? "You’re offline. Reconnect to check live AI guessing."
+            : vision === "unknown"
+              ? "Couldn’t check live AI guessing."
+              : "Live AI guessing is unavailable. Drawing still works."}
       </p>
-      {vision !== "checking" && (
+      {vision !== "checking" && vision !== "offline" && (
         <div>
           {onMode ? (
             <button type="button" onClick={() => onMode("ai-drawer")}>

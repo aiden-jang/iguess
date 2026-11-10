@@ -25,6 +25,7 @@ export class RoomRoster {
   constructor(
     private onLeave: (member: Member, removed?: boolean) => void,
     private graceMs = 8_000,
+    private holdUntil: (id: string) => number = () => 0,
   ) {}
   restore(snapshot: RosterSnapshot) {
     this.hostId = snapshot.hostId;
@@ -93,11 +94,14 @@ export class RoomRoster {
     if (previous) clearTimeout(previous);
     this.pending.set(
       id,
-      setTimeout(() => {
-        this.pending.delete(id);
-        if (this.connections.has(id)) return;
-        this.remove(id);
-      }, this.graceMs),
+      setTimeout(
+        () => {
+          this.pending.delete(id);
+          if (this.connections.has(id)) return;
+          this.remove(id);
+        },
+        Math.max(this.graceMs, this.holdUntil(id) - Date.now()),
+      ),
     );
   }
   isHost(id: string) {

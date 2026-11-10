@@ -52,7 +52,16 @@ test("the installed public shell rejects stale AI availability and opens offline
   await expect(
     page.getByRole("textbox", { name: "Your name", exact: true }),
   ).toBeVisible();
+  await page
+    .getByRole("textbox", { name: "Your name", exact: true })
+    .fill("Guest");
+  const enter = page.getByRole("button", { name: "Enter room", exact: true });
+  await expect(enter).toBeDisabled();
+  await expect(
+    page.getByText("You’re offline. Reconnect to enter a room."),
+  ).toBeVisible();
   await context.setOffline(false);
+  await expect(enter).toBeEnabled();
   await page.evaluate(async () => {
     for (const registration of await navigator.serviceWorker.getRegistrations())
       await registration.unregister();

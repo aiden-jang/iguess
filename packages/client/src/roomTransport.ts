@@ -1,5 +1,8 @@
 import type { ClientMessage, ServerMessage } from "@iguess/shared";
-import { connectionProtocols } from "@iguess/shared/reconnectProtocol";
+import {
+  CLOSE_LEFT_ROOM,
+  connectionProtocols,
+} from "@iguess/shared/reconnectProtocol";
 import { parseServerMessage } from "@iguess/shared/serverProtocol";
 import { writeStored } from "./storage";
 import {
@@ -30,13 +33,14 @@ export function roomTransport(options: TransportOptions) {
   let alive = true;
   let attempt = 0;
   let welcomed = false;
+  let relayDeadline = 0;
   let socket: WebSocket | null = null;
   let retry: ReturnType<typeof setTimeout> | null = null;
   const schedule = () => {
     if (!alive) return;
     options.connected(false);
     if (retry) clearTimeout(retry);
-    if (attempt >= 5) {
+    if (attempt >= 5 && Date.now() >= relayDeadline) {
       alive = false;
       options.fatal(
         "We couldn’t reach the room. Check your connection and try joining again.",
@@ -89,6 +93,13 @@ export function roomTransport(options: TransportOptions) {
       if (!alive || socket !== ws || typeof event.data !== "string") return;
       const message = parseServerMessage(event.data);
       if (!message) return;
+      if (message.type === "relay_state") {
+        const state = message.state;
+        relayDeadline =
+          state.phase === "active" && state.assignment.kind !== "watch"
+            ? Date.now() + (state.endsAt - (state.serverNow ?? Date.now()))
+            : 0;
+      }
       if (message.type === "welcome") {
         welcomed = true;
         attempt = 0;
@@ -130,6 +141,7 @@ export function roomTransport(options: TransportOptions) {
       }
     },
     backlog: () => socket?.bufferedAmount ?? 0,
+    leave: () => socket?.close(CLOSE_LEFT_ROOM),
     dispose() {
       alive = false;
       if (retry) clearTimeout(retry);

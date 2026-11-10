@@ -260,7 +260,7 @@ export function ClassicRoom({
             gallery={gallery}
             blankRounds={blankRounds}
             players={resultPlayers}
-            awards={awardsFor(gallery, resultPlayers)}
+            awards={galleryReady ? awardsFor(gallery, resultPlayers) : []}
             status={galleryReady ? socket.galleryStatus : "loading"}
             onSave={sharing.saveEvidence}
             onShare={sharing.shareEvidence}

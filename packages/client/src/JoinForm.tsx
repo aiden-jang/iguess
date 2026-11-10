@@ -4,8 +4,14 @@ import { VisionNotice } from "./VisionNotice";
 import { ClubFace } from "./ClubFace";
 import { MODES, randomName } from "./gameModes";
 import type { JoinProps } from "./join.types";
+import { useOnline } from "./useOnline";
+import { preloadRoom } from "./RoomGate";
 
 export function JoinForm(p: JoinProps) {
+  const online = useOnline();
+  const preload = () => {
+    if (online) preloadRoom(p.draftMode);
+  };
   const extraMode = !MODES.slice(0, 4).some(
     (mode) => mode.value === p.draftMode,
   );
@@ -25,6 +31,8 @@ export function JoinForm(p: JoinProps) {
       aria-labelledby="join-form-title"
       onSubmit={(event) => {
         event.preventDefault();
+        if (!online) return;
+        preload();
         p.doJoin();
       }}
     >
@@ -138,11 +146,19 @@ export function JoinForm(p: JoinProps) {
       <button
         className="join-submit"
         type="submit"
-        disabled={!p.draftName.trim()}
+        disabled={!online || !p.draftName.trim()}
+        aria-describedby={online ? undefined : "join-offline"}
+        onFocus={preload}
+        onPointerEnter={preload}
       >
         {p.invited ? "Join the room" : "Enter room"}
         <span aria-hidden>↗</span>
       </button>
+      {!online && (
+        <p className="join-mode-note" id="join-offline" role="status">
+          You’re offline. Reconnect to enter a room.
+        </p>
+      )}
       <p className="join-mode-note">
         {p.invited
           ? "The host sets the mode. You bring the opinions."
@@ -167,7 +183,7 @@ export function JoinForm(p: JoinProps) {
                     : "The AI guesses from your drawing. Confidence varies."}
         </p>
       )}
-      {!p.invited && p.draftMode !== "relay" && (
+      {online && !p.invited && p.draftMode !== "relay" && (
         <VisionNotice mode={p.draftMode} onMode={p.setDraftMode} />
       )}
       <details

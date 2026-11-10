@@ -45,6 +45,14 @@ export class RelayGame {
     );
   }
 
+  reconnectDeadline(id: string) {
+    return this.hasParticipant(id) ? (this.game?.endsAt ?? 0) : 0;
+  }
+
+  wasRetired(id: string) {
+    return this.game?.seats.some((seat) => seat.id === id && seat.retired);
+  }
+
   snapshot(): RelaySnapshot | undefined {
     if (!this.game) return;
     return {

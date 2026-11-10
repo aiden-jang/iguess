@@ -8,10 +8,17 @@ import {
 import type { Room as LiveRoom } from "./Room";
 import { RoomError } from "./RoomError";
 import { ClubFace } from "./ClubFace";
+import { loadClassicRoom, loadRelayRoom } from "./roomModules";
 
-const LazyRoom = lazy(() =>
-  import("./Room").then((module) => ({ default: module.Room })),
-);
+const loadRoom = () => import("./Room");
+const LazyRoom = lazy(() => loadRoom().then(({ Room }) => ({ default: Room })));
+
+export function preloadRoom(mode: string) {
+  void loadRoom().catch(() => {});
+  const loadMode = mode === "relay" ? loadRelayRoom : loadClassicRoom;
+  void loadMode().catch(() => {});
+}
+
 type Props = ComponentProps<typeof LiveRoom>;
 class RoomBoundary extends Component<
   { children: ReactNode; onLeave: () => void },

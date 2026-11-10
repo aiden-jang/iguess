@@ -75,6 +75,11 @@ export class RelayRoom {
       state:
         state.phase === "active" ? { ...state, serverNow: Date.now() } : state,
     });
+    if (state.phase === "active" && this.game.wasRetired(connection.player.id))
+      this.io.send(connection, {
+        type: "relay_notice",
+        text: "Your reconnect window ended. Watch the reveal and join the next relay.",
+      });
   }
 
   handle(connection: Connection, message: ClientMessage) {

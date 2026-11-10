@@ -45,6 +45,19 @@ test("rejoining a finished Classic game preserves the results for everyone", asy
   try {
     const room = `finished-${Date.now().toString(36)}`;
     await join(page, room, "Host", "classic");
+    let finishGallery: (() => void) | undefined;
+    await guest.routeWebSocket("**/rooms/**/ws?**", (client) => {
+      const server = client.connectToServer();
+      server.onMessage((message) => {
+        if (
+          typeof message === "string" &&
+          JSON.parse(message).type === "gallery_done" &&
+          !finishGallery
+        )
+          finishGallery = () => client.send(message);
+        else client.send(message);
+      });
+    });
     await join(guest, room, "Guest", "classic");
     await page.getByText("Game settings", { exact: true }).click();
     await page
@@ -54,9 +67,16 @@ test("rejoining a finished Classic game preserves the results for everyone", asy
     await page.getByRole("button", { name: /Start game/ }).click();
     const word = await drawAndGuess(page, guest);
     await drawAndGuess(guest, page);
+    await expect(guest.locator(".gallery-strip figure").first()).toBeVisible();
+    await expect(
+      guest.getByRole("button", { name: "Save the evidence" }),
+    ).toBeDisabled();
+    await expect.poll(() => !!finishGallery).toBe(true);
+    finishGallery?.();
     await expect(page.locator(".gallery-strip figure")).toHaveCount(2);
     const heading = await page.locator(".results-title h1").innerText();
     await guest.reload();
+    await guest.emulateMedia({ reducedMotion: "reduce" });
     await guest
       .getByRole("button", { name: "Join the room", exact: true })
       .click();
@@ -70,6 +90,12 @@ test("rejoining a finished Classic game preserves the results for everyone", asy
     await expect(
       guest.getByRole("img", { name: "Animated replay of the drawing" }),
     ).toBeVisible();
+    await expect(
+      guest.getByRole("slider", { name: "Replay position" }),
+    ).toHaveAttribute("aria-valuetext", "100% complete");
+    await expect(
+      guest.getByRole("link", { name: /Post to X/ }),
+    ).toHaveAttribute("target", "_blank");
     const download = guest.waitForEvent("download");
     await guest.getByRole("button", { name: "Save the evidence" }).click();
     expect((await download).suggestedFilename()).toMatch(/\.png$/);

@@ -139,5 +139,6 @@ export function useGameSocket(
       send({ type: "start_game" });
     }, [send]),
     socketBacklog: useCallback(() => transport.current?.backlog() ?? 0, []),
+    leave: useCallback(() => transport.current?.leave(), []),
   };
 }

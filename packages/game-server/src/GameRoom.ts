@@ -6,6 +6,7 @@ import {
   type GameModeName,
 } from "@iguess/shared";
 import { parseClientMessage } from "@iguess/shared/protocol";
+import { CLOSE_LEFT_ROOM } from "@iguess/shared/reconnectProtocol";
 import { GameEngine } from "./engine.ts";
 import type { Env } from "./env.ts";
 import { WordMemory } from "./wordMemory.ts";
@@ -29,17 +30,21 @@ export class GameRoom {
   private virtualPlayers = new Map<string, PlayerInfo>();
   private canvas = new RoomCanvas();
   private sessions = new ReconnectSessions();
-  private roster = new RoomRoster((member, removed) => {
-    this.engine?.onPlayerLeave(member.player.id);
-    this.relay.game.leave(member.player.id);
-    this.broadcast({
-      type: "system",
-      text: `${member.player.name} ${removed ? "was removed by the host" : "left"}`,
-    });
-    if (this.roster.empty && this.phase !== "ended") this.resetEngine();
-    this.presence();
-    this.persistence.changed();
-  });
+  private roster: RoomRoster = new RoomRoster(
+    (member, removed) => {
+      this.engine?.onPlayerLeave(member.player.id);
+      this.relay.game.leave(member.player.id);
+      this.broadcast({
+        type: "system",
+        text: `${member.player.name} ${removed ? "was removed by the host" : "left"}`,
+      });
+      if (this.roster.empty && this.phase !== "ended") this.resetEngine();
+      this.presence();
+      this.persistence.changed();
+    },
+    undefined,
+    (id) => this.relay.game.reconnectDeadline(id),
+  );
   private relay = new RelayRoom({
     roster: this.roster,
     send: (target, message) => this.send(target, message),
@@ -96,11 +101,11 @@ export class GameRoom {
       this.settings = settingsForMode(saved.settings, saved.mode);
       this.sessions = new ReconnectSessions(saved.sessions);
       this.canvas.restore(saved.strokes, saved.strokeOwners);
-      this.roster.restore(saved.roster);
       this.recovered = saved.engine;
       this.gallery.restore(saved.gallery);
       if (saved.relay && saved.mode === "relay")
         this.relay.game.restore(saved.relay);
+      this.roster.restore(saved.roster);
       this.vision.count = saved.aiCallCount;
       this.vision.saidMock = saved.saidAiIsBlind;
       this.reportedEnd = saved.reportedEnd;
@@ -124,13 +129,14 @@ export class GameRoom {
     if (seat instanceof Response) return seat;
     const { pair, connection, id, returning, mayChoose } = seat;
     let welcomed = false;
-    const close = () => {
-      this.roster.detach(connection, !welcomed);
+    const close = (event?: CloseEvent) => {
+      const left = event?.code === CLOSE_LEFT_ROOM;
+      this.roster.detach(connection, !welcomed || left);
       if (welcomed) this.presence();
       this.persistence.changed();
     };
     pair[1].addEventListener("close", close);
-    pair[1].addEventListener("error", close);
+    pair[1].addEventListener("error", () => close());
     this.gameFor(mayChoose ? url.searchParams.get("mode") : null);
     this.persistence.changed();
     try {
@@ -321,13 +327,8 @@ export class GameRoom {
     if (this.gallery.observe(message)) this.persistence.changed();
     if (finished) {
       this.reportedEnd = true;
-      writeEvent(
-        this.env,
-        "game_ended",
-        this.mode,
-        "",
-        message.state.turnIndex,
-      );
+      const turns = message.state.turnIndex;
+      writeEvent(this.env, "game_ended", this.mode, "", turns);
     }
     for (const connection of this.roster.connections.values())
       if (connection !== except) this.send(connection, message);

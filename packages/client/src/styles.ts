@@ -93,7 +93,6 @@ export const styles = {
     marginLeft: 6,
     fontSize: 10,
     fontWeight: 800,
-    opacity: 0.7,
   },
   tile: {
     minWidth: 22,

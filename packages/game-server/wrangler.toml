@@ -36,7 +36,7 @@ simple = { limit = 30, period = 60 }
 [assets]
 directory = "../client/dist"
 binding = "ASSETS"
-not_found_handling = "single-page-application"
+not_found_handling = "404-page"
 run_worker_first = true
 
 # Custom domain provisioned on deployment; ignored by local development.

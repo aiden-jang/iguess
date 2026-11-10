@@ -28,6 +28,7 @@ test("information dialogs support deep links, Escape and returning focus", async
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await expect(page).toHaveURL("/");
   await page.getByRole("link", { name: "How to play", exact: true }).click();
+  await expect(page).toHaveURL("/?info=help");
   await expect(page.getByRole("dialog")).toContainText("Ready is a signal");
   await page.getByRole("button", { name: "Close information" }).click();
   await expect(

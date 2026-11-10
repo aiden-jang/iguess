@@ -1,4 +1,5 @@
 export const ROOM_PROTOCOL = "iguess";
+export const CLOSE_LEFT_ROOM = 4000;
 export const isReconnectToken = (token: unknown): token is string =>
   typeof token === "string" && /^[a-f\d]{64}$/.test(token);
 export const connectionProtocols = (token: string) =>

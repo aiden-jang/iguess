@@ -84,3 +84,31 @@ test("a returning seat outside the active match becomes a watcher", () => {
     roster.dispose();
   }
 });
+
+test("a handoff deadline holds a disconnected seat past the ordinary grace window", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
+  const departed: string[] = [];
+  const roster = new RoomRoster(
+    (member) => departed.push(member.player.id),
+    8_000,
+    (id) => (id === "relay" ? 30_000 : 0),
+  );
+  const relay = connection("relay");
+  const classic = connection("classic");
+  roster.attach(relay, false);
+  roster.attach(classic, false);
+  roster.detach(relay);
+  roster.detach(classic);
+  t.mock.timers.tick(9_000);
+  assert.deepEqual(departed, ["classic"]);
+  assert.equal(roster.has("relay"), true);
+  roster.attach(relay, false);
+  t.mock.timers.tick(10_000);
+  assert.equal(roster.connections.get("relay"), relay);
+  roster.detach(relay);
+  t.mock.timers.tick(9_999);
+  assert.equal(roster.has("relay"), true);
+  t.mock.timers.tick(1);
+  assert.deepEqual(departed, ["classic", "relay"]);
+  roster.dispose();
+});

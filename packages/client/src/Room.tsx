@@ -2,12 +2,12 @@ import { lazy } from "react";
 import "./game.css";
 import { RoomError } from "./RoomError";
 import { useGameSocket } from "./useWebSocket";
-
+import { loadClassicRoom, loadRelayRoom } from "./roomModules";
 const ClassicRoom = lazy(() =>
-  import("./ClassicRoom").then(({ ClassicRoom }) => ({ default: ClassicRoom })),
+  loadClassicRoom().then(({ ClassicRoom }) => ({ default: ClassicRoom })),
 );
 const RelayRoom = lazy(() =>
-  import("./RelayRoom").then((module) => ({ default: module.RelayRoom })),
+  loadRelayRoom().then(({ RelayRoom }) => ({ default: RelayRoom })),
 );
 
 export interface RoomScreenProps {

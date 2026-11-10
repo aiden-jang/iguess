@@ -3,6 +3,7 @@ import type { DrawOp } from "@iguess/shared";
 import { BOARD_WIDTH, BOARD_HEIGHT } from "@iguess/shared/strokePath";
 import { paintOp, newStrokeStates } from "./paint";
 import { Icon } from "./Icon";
+import { MOTION_KEY, usePreference } from "./usePreference";
 
 export function Replay({
   ops,
@@ -15,7 +16,8 @@ export function Replay({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pauseRef = useRef<HTMLButtonElement>(null);
   const frame = useRef({ index: 0, states: newStrokeStates() });
-  const [playing, setPlaying] = useState(true);
+  const [motion] = usePreference(MOTION_KEY, true);
+  const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [speed, setSpeed] = useState(ops.length > 1000 ? 4 : 1);
   const [error, setError] = useState(false);
@@ -48,9 +50,11 @@ export function Replay({
     ctx.clearRect(0, 0, width, BOARD_HEIGHT);
     frame.current = { index: 0, states: newStrokeStates() };
     setProgress(0);
-    setPlaying(ops.length > 0);
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!motion || reduced) seek(ops.length);
+    setPlaying(motion && !reduced && ops.length > 0);
     pauseRef.current?.focus({ preventScroll: true });
-  }, [ops, width]);
+  }, [ops, width, motion]);
 
   useEffect(() => {
     if (!playing) return;
