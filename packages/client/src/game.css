@@ -2266,11 +2266,13 @@ html[data-motion="false"] .confetti-piece {
     flex-basis: 39%;
   }
   .app-layout[data-phase="playing"] .viewer-note {
-    visibility: hidden;
+    display: none;
   }
-  .app-layout[data-phase="playing"] .draw-toolbar[data-editable="false"] {
-    max-height: 38px;
-    overflow: hidden;
+  .app-layout[data-phase="playing"]
+    .draw-toolbar[data-editable="false"]
+    .tool-feedback {
+    grid-column: 1;
+    grid-row: 1;
   }
 }
 @media (max-width: 880px) and (max-height: 540px) and (orientation: landscape) {

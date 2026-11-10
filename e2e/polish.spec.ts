@@ -176,7 +176,7 @@ test("word choices, drawing and viewer controls stay usable at both widths", asy
   await page.setViewportSize({ width: 1440, height: 1000 });
   await enter(page, room, "Art department");
   const guest = await browser.newPage({
-    viewport: { width: 390, height: 844 },
+    viewport: { width: 1440, height: 1000 },
   });
   try {
     await enter(guest, room, "Quality control");
@@ -192,6 +192,11 @@ test("word choices, drawing and viewer controls stay usable at both widths", asy
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.locator(".word-choice").first().click();
     await expect(guest.locator(".viewer-note")).toBeVisible();
+    const save = guest.getByRole("button", { name: "Save", exact: true });
+    await expect(save).toBeInViewport({ ratio: 1 });
+    await guest.setViewportSize({ width: 390, height: 844 });
+    await expect(guest.locator(".viewer-note")).toBeHidden();
+    await expect(save).toBeInViewport({ ratio: 1 });
     await expect(
       guest.getByTitle("fill an area with the current colour"),
     ).toHaveCount(0);
@@ -203,6 +208,10 @@ test("word choices, drawing and viewer controls stay usable at both widths", asy
       steps: 12,
     });
     await page.mouse.up();
+    const download = guest.waitForEvent("download");
+    await save.click();
+    expect((await download).suggestedFilename()).toMatch(/\.png$/);
+    await expect(guest.locator(".tool-feedback")).toBeInViewport({ ratio: 1 });
     await capture(page, "drawing-desktop");
     await page.emulateMedia({ colorScheme: "dark" });
     await capture(page, "drawing-desktop-dark");
