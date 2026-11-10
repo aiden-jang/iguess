@@ -23,7 +23,8 @@ function RelayPrint({
   return (
     <li className={entry.kind === "drawing" ? "relay-print" : "relay-caption"}>
       <p className="relay-credit">
-        Leg {leg + 1} · {actor} {entry.kind === "skipped" ? "skipped" : action}
+        Leg {leg + 1} ·{" "}
+        {entry.kind === "skipped" ? "Pass missed" : `${actor} ${action}`}
       </p>
       {"restart" in entry && entry.restart && (
         <p className="relay-credit">Restarted with “{entry.restart}”</p>
@@ -39,6 +40,7 @@ function RelayPrint({
             type="button"
             className="relay-replay"
             aria-pressed={replaying}
+            aria-label={`${replaying ? "Show still" : "Replay drawing"} by ${actor}, leg ${leg + 1}`}
             onClick={() => setReplaying(!replaying)}
           >
             {replaying ? "Show still" : "Replay drawing"}
@@ -78,7 +80,9 @@ export function RelayReveal({
     relayChain?.id === id && relayChain.index === index ? relayChain : null;
   const last = chain?.entries.at(-1);
   const actor = (leg: number) => players[(index + leg) % players.length]!.name;
-  const available = socket.players.length;
+  const available = socket.players.filter(
+    (player) => player.connected !== false,
+  ).length;
   return (
     <>
       <div className="relay-reveal-head">
@@ -87,12 +91,15 @@ export function RelayReveal({
             Here’s where it went.
           </h1>
           <p className="relay-lead">
-            {players.length} chains made it around the room.
+            See how each of the {players.length} chains changed.
           </p>
         </div>
         <div className="relay-reveal-actions">
           <div className="relay-select">
             <label htmlFor="relay-chain">Chain</label>
+            <span className="relay-chain-count" aria-live="polite">
+              {index + 1} of {players.length}
+            </span>
             <select
               id="relay-chain"
               value={index}
@@ -107,10 +114,32 @@ export function RelayReveal({
               ))}
             </select>
           </div>
+          <div
+            className="relay-chain-controls"
+            aria-label="Browse chains"
+            role="group"
+          >
+            <button
+              type="button"
+              disabled={index === 0}
+              onClick={() => setIndex(index - 1)}
+              aria-label="Previous chain"
+            >
+              ←
+            </button>
+            <button
+              type="button"
+              disabled={index === players.length - 1}
+              onClick={() => setIndex(index + 1)}
+              aria-label="Next chain"
+            >
+              →
+            </button>
+          </div>
           {host && (
             <button
               type="button"
-              className="relay-primary"
+              className="relay-rematch"
               disabled={!connected || available < RELAY_MIN_PLAYERS}
               onClick={socket.startGame}
             >

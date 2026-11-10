@@ -139,7 +139,9 @@ test("reading the drawing before any letter appears pays extra", () => {
 });
 
 test("calling the machine's guess pays when it lands, and is never read as a guess", () => {
-  const mode = new ClassicMode();
+  const mode = new (class extends ClassicMode {
+    override readonly id = "ai";
+  })();
   const { ctx, scores } = makeCtx(1, "guitar");
   mode.onTurnStart({ turnIndex: 0, drawerId: "drawer", word: "guitar" }, ctx);
 

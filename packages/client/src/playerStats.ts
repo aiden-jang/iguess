@@ -47,12 +47,18 @@ export function didWin(
   ranked: { id: string }[],
   scores: Record<string, number>,
   playerId: string | null,
+  allowTies = true,
 ): boolean {
   if (!playerId || !ranked.some((player) => player.id === playerId))
     return false;
   const score = scores[playerId] ?? 0;
   return (
     score > 0 &&
-    score === Math.max(0, ...ranked.map((player) => scores[player.id] ?? 0))
+    ranked.every((player) => {
+      const other = scores[player.id] ?? 0;
+      return (
+        player.id === playerId || (allowTies ? other <= score : other < score)
+      );
+    })
   );
 }

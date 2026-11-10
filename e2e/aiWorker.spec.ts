@@ -57,12 +57,12 @@ test("a hint with no blanks is refused as a hint, since it would be the answer",
   request,
 }) => {
   const res = await request.post(`${AI}/guess`, {
-    data: { ops: STROKES, hint: "elephant" },
+    data: { ops: STROKES, hint: "notawordinanypack" },
   });
   expect(res.status()).toBe(200);
   const body = await res.json();
   // The word itself was ignored, so the answer is not shaped by it.
-  expect(body.guess).not.toBe("elephant");
+  expect(body.guess).not.toBe("notawordinanypack");
 });
 
 test("an invite preview renders its room with the bundled font", async ({
@@ -80,5 +80,25 @@ test("an invite preview renders its room with the bundled font", async ({
   if (process.env.CAPTURE_UI === "1") {
     const { writeFile } = await import("node:fs/promises");
     await writeFile(test.info().outputPath("room-invite.png"), png);
+  }
+});
+
+test("invite previews distinguish room names in Japanese and Korean", async ({
+  request,
+}) => {
+  for (const names of [
+    ["東京", "大阪"],
+    ["서울", "부산"],
+  ]) {
+    const images = await Promise.all(
+      names.map(async (name) => {
+        const response = await request.get(
+          `${AI}/og?room=${encodeURIComponent(name)}&mode=Classic`,
+        );
+        expect(response.ok()).toBeTruthy();
+        return response.body();
+      }),
+    );
+    expect(images[0]!.equals(images[1]!)).toBe(false);
   }
 });

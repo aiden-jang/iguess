@@ -170,7 +170,13 @@ test("someone alone in the room can still re-pick the mode", async () => {
   const first = await join(room, "Alex", "classic");
   assert.equal(first.welcomeMode, "classic");
   first.socket.close();
-  const again = await join(room, "Alex", "ai", "Alex2");
+  const again = await join(
+    room,
+    "Alex",
+    "ai",
+    undefined,
+    first.welcome!.reconnectToken,
+  );
   assert.equal(
     again.welcomeMode,
     "ai",
@@ -278,6 +284,105 @@ test("malformed socket input cannot crash a room or mutate its canvas", async ()
   );
 });
 
+test("finished scores and gallery survive an empty room and a Worker restart", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1000 });
+  const storage = testStorage();
+  const room = newRoom(storage);
+  const host = await join(room, "Host", "classic");
+  const guest = await join(room, "Guest", "classic");
+  const send = (joined: Joined, message: object) =>
+    joined.socket.fire("message", { data: JSON.stringify(message) });
+  send(host, { type: "set_settings", settings: { scoreTarget: 1 } });
+  send(host, { type: "start_game" });
+  const choices = host.socket.sent.find(
+    (message) => message.type === "word_choices",
+  );
+  assert.equal(choices?.type, "word_choices");
+  const word = choices.words[0]!;
+  send(host, { type: "choose_word", word });
+  const op = {
+    kind: "fill",
+    strokeId: "art",
+    color: "#202522",
+    point: { x: 0, y: 0 },
+  };
+  send(host, { type: "draw", op });
+  send(guest, { type: "chat", text: word });
+  assert.equal(
+    guest.socket.sent.some((message) => message.type === "gallery_turn"),
+    false,
+  );
+  t.mock.timers.tick(5000);
+  t.mock.timers.tick(250);
+  await storage.settle();
+  host.socket.close();
+  guest.socket.close();
+  t.mock.timers.tick(8000);
+  t.mock.timers.tick(250);
+  await storage.settle();
+  await dispose(room);
+
+  const restored = newRoom(storage);
+  const returning = await join(
+    restored,
+    "Guest",
+    "classic",
+    "ignored",
+    guest.welcome!.reconnectToken,
+  );
+  t.mock.timers.tick(250);
+  await storage.settle();
+  const result = returning.socket.sent.find(
+    (message) => message.type === "game_state",
+  );
+  assert.equal(result?.type, "game_state");
+  assert.equal(result.state.phase, "ended");
+  assert.ok(result.state.scores[guest.welcome!.you.id]! > 0);
+  assert.deepEqual(
+    result.state.resultPlayers?.map((player) => player.name),
+    ["Host", "Guest"],
+  );
+  const exhibit = returning.socket.sent.find(
+    (message) => message.type === "gallery_turn",
+  );
+  assert.equal(exhibit?.type, "gallery_turn");
+  assert.equal(exhibit.turn.word, word);
+  assert.equal(exhibit.turn.artist, "Host");
+  assert.deepEqual(exhibit.turn.ops, [op]);
+});
+
+test("Team Battle reaches its target using wins from different players", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1000 });
+  const room = newRoom();
+  const host = await join(room, "Host", "team-battle");
+  const first = await join(room, "First guesser", "team-battle");
+  const second = await join(room, "Second guesser", "team-battle");
+  const send = (joined: Joined, message: object) =>
+    joined.socket.fire("message", { data: JSON.stringify(message) });
+  send(host, { type: "set_settings", settings: { scoreTarget: 200 } });
+  send(host, { type: "start_game" });
+  const choices = host.socket.sent.find(
+    (message) => message.type === "word_choices",
+  );
+  assert.equal(choices?.type, "word_choices");
+  send(host, { type: "choose_word", word: choices.words[0] });
+  send(first, { type: "chat", text: choices.words[0] });
+  t.mock.timers.tick(5000);
+  const engine = (
+    room as unknown as { engine: { snapshot(): { word: string } } }
+  ).engine;
+  send(second, { type: "chat", text: engine.snapshot().word });
+  t.mock.timers.tick(5000);
+  const result = host.socket.sent
+    .filter((message) => message.type === "game_state")
+    .at(-1);
+  assert.equal(result?.type, "game_state");
+  assert.equal(result.state.phase, "ended");
+  assert.deepEqual(result.state.teamScore, { human: 2, ai: 0 });
+  assert.equal(result.state.scores[first.welcome!.you.id], 100);
+  assert.equal(result.state.scores[second.welcome!.you.id], 100);
+});
+
 test("a connection closed before its checkpoint completes cannot leave a ghost host", async () => {
   const storage = testStorage();
   const transaction = storage.storage.transaction;
@@ -324,4 +429,79 @@ test("concurrent joins cannot overbook the room while credentials are being issu
   ).roster.players();
   assert.equal(roster.filter((player) => !player.spectator).length, 8);
   assert.equal(roster.filter((player) => player.spectator).length, 12);
+});
+
+test("a failed first save releases the seat, and the same room can reopen after expiry", async () => {
+  const storage = testStorage();
+  const original = storage.storage.transaction;
+  storage.storage.transaction = async () => {
+    throw new Error("Save unavailable");
+  };
+  const room = newRoom(storage);
+  const failed = await join(room, "First", "classic");
+  assert.equal(failed.welcome, undefined);
+  assert.equal(failed.socket.code, 1011);
+
+  storage.storage.transaction = original;
+  const host = await join(room, "Host", "classic");
+  assert.equal(host.welcome?.you.isHost, true);
+  host.socket.fire("message", {
+    data: JSON.stringify({
+      type: "set_settings",
+      settings: { turnSeconds: 120 },
+    }),
+  });
+  await storage.settle();
+  assert.ok(await storage.storage.get("checkpoint"));
+  await room.alarm();
+  assert.equal(host.socket.code, 4012);
+  assert.equal(await storage.storage.get("checkpoint"), undefined);
+  const fresh = await join(room, "New host", "classic");
+  assert.equal(fresh.welcome?.settings.turnSeconds, 60);
+  assert.ok(await storage.storage.get("checkpoint"));
+});
+
+test("a new connection cannot reserve a generated code twice or replace a reserved host’s mode", async () => {
+  const room = newRoom();
+  const host = await join(room, "Host", "classic");
+  await room.fetch(
+    upgradeRequest({ room: "r", name: "Other group", mode: "ai", create: "1" }),
+  );
+  assert.equal(lastServerSocket?.code, 4013);
+  host.socket.close();
+  const guest = await join(room, "Friend", "ai");
+  assert.equal(guest.welcomeMode, "classic");
+  assert.equal(guest.welcome?.you.isHost, false);
+});
+
+test("warm-up drawing operations echo to their owner and Undo respects ownership", async () => {
+  const room = newRoom();
+  const [first, second] = [
+    await join(room, "First", "classic"),
+    await join(room, "Second", "classic"),
+  ];
+  const draw = (socket: FakeSocket, op: object) =>
+    socket.fire("message", { data: JSON.stringify({ type: "draw", op }) });
+  draw(first.socket, {
+    kind: "fill",
+    strokeId: "first",
+    point: { x: 0.2, y: 0.2 },
+    color: "#ff0000",
+  });
+  draw(second.socket, {
+    kind: "fill",
+    strokeId: "second",
+    point: { x: 0.2, y: 0.2 },
+    color: "#0000ff",
+  });
+  draw(first.socket, { kind: "undo" });
+  for (const { socket } of [first, second]) {
+    const ops = socket.sent.flatMap((message) =>
+      message.type === "draw" ? [message.op] : [],
+    );
+    assert.deepEqual(
+      ops.map((op) => "strokeId" in op && op.strokeId),
+      ["first", "second", "first"],
+    );
+  }
 });

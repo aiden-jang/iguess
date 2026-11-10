@@ -5,6 +5,7 @@ import { Countdown } from "./Countdown";
 import { TIER_LABEL } from "./gameModes";
 import { StudioSketch } from "./StudioSketch";
 import { isAI } from "./roomView";
+import { teamOutcome, teamScoreLine } from "./teamBattle";
 
 export function RoomBanner(props: RoomBannerProps) {
   const {
@@ -16,6 +17,7 @@ export function RoomBanner(props: RoomBannerProps) {
     startGame,
     copyResults,
     resultsCopied,
+    resultsFallback,
     resultSummary,
     game,
     isDrawer,
@@ -24,6 +26,7 @@ export function RoomBanner(props: RoomBannerProps) {
     skipWord,
     players,
     wordLetters,
+    effectiveMode,
   } = props;
   const drawer = game?.drawerId
     ? playerName(players, game.drawerId)
@@ -33,8 +36,21 @@ export function RoomBanner(props: RoomBannerProps) {
       ? `Round ${game?.round ?? 1} of ${game?.totalRounds}`
       : null;
   const highScore = Math.max(0, ...Object.values(game?.scores ?? {}));
-  const leaders = players.filter(
+  const teamScore = game?.teamScore;
+  const leaders = (game?.resultPlayers ?? players).filter(
     (player) => !player.spectator && game?.scores[player.id] === highScore,
+  );
+  const minHumans = effectiveMode === "classic" ? 2 : 1;
+  const canRematch =
+    players.filter((player) => !isAI(player.id) && player.connected !== false)
+      .length >= minHumans;
+  const letterCount = wordLetters.filter((letter) => letter !== " ").length;
+  const choosingTimer = (
+    <Countdown
+      endsAt={game?.turnEndsAt ?? null}
+      serverNow={game?.serverNow}
+      durationMs={15_000}
+    />
   );
   return (
     <div key={phase} className="play-banner" data-phase={phase}>
@@ -42,28 +58,49 @@ export function RoomBanner(props: RoomBannerProps) {
       {phase === "ended" && (
         <>
           <div className="results-title">
-            <h1>
-              {highScore === 0
-                ? "No points. Incredible commitment."
-                : leaders.length > 1
-                  ? "Joint custody of first place."
-                  : `${leaders[0]?.name ?? "Someone"} takes it.`}
+            <h1 tabIndex={-1}>
+              {teamScore
+                ? teamOutcome(teamScore)
+                : highScore === 0
+                  ? "No points. Incredible commitment."
+                  : leaders.length > 1
+                    ? "Joint custody of first place."
+                    : `${leaders[0]?.name ?? "Someone"} takes it.`}
             </h1>
-            <p>
-              {highScore > 0
-                ? `${highScore} ${highScore === 1 ? "point" : "points"} at the top.`
-                : "Let’s call that experimental."}
-            </p>
+            {teamScore ? (
+              <p className="team-score" role="status" aria-label="Team score">
+                {teamScoreLine(teamScore)}
+              </p>
+            ) : (
+              <p>
+                {highScore > 0
+                  ? `${highScore} ${highScore === 1 ? "point" : "points"} at the top.`
+                  : "Let’s call that experimental."}
+              </p>
+            )}
           </div>
           <div className="result-actions">
             <button
               className="lift pulse-cta"
               style={styles.button}
               onClick={startGame}
-              disabled={!youAreHost || !connected}
+              disabled={!youAreHost || !connected || !canRematch}
             >
               {youAreHost ? "Play again" : "Waiting for the host"}
             </button>
+            {youAreHost && !canRematch && (
+              <small>Invite another player to play again.</small>
+            )}
+            {resultsFallback && (
+              <label className="results-fallback">
+                Copy the result summary
+                <textarea
+                  readOnly
+                  value={resultsFallback}
+                  onFocus={(event) => event.target.select()}
+                />
+              </label>
+            )}
             <button className="result-text-action" onClick={copyResults}>
               {resultsCopied ? "Copied ✓" : "Copy results"}
             </button>
@@ -81,8 +118,9 @@ export function RoomBanner(props: RoomBannerProps) {
           {isDrawer && wordChoices ? (
             <div className="word-zone">
               <div className="choice-heading">
-                <h1>Pick a word.</h1>
+                <h1 tabIndex={-1}>Pick a word.</h1>
                 {round && <span className="turn-meta">{round}</span>}
+                {choosingTimer}
               </div>
               <span className="word-tiles">
                 {wordChoices.options.map((c) => (
@@ -92,13 +130,15 @@ export function RoomBanner(props: RoomBannerProps) {
                     style={styles.button}
                     disabled={!connected}
                     onClick={() => chooseWord(c.word)}
-                    title={`${c.tier} — worth ${TIER_LABEL[c.tier]}`}
+                    title={`${c.tier} difficulty`}
                   >
                     <small className="word-difficulty">{c.tier}</small>
                     <strong>{c.word}</strong>
-                    <span style={styles.tierBadge}>
-                      {TIER_LABEL[c.tier]} points
-                    </span>
+                    {effectiveMode !== "team-battle" && (
+                      <span style={styles.tierBadge}>
+                        {TIER_LABEL[c.tier]} points
+                      </span>
+                    )}
                   </button>
                 ))}
                 {wordChoices.canSkip && (
@@ -118,20 +158,21 @@ export function RoomBanner(props: RoomBannerProps) {
             <div className="word-zone">
               <StudioSketch kind="waiting" />
               <div>
-                <h1>
+                <h1 tabIndex={-1}>
                   {isDrawer
                     ? "Loading your words…"
                     : `${drawer} is picking a word…`}
                 </h1>
                 {round && <p className="turn-meta">{round}</p>}
               </div>
+              {choosingTimer}
             </div>
           )}
         </>
       )}
       {phase === "intermission" && (
         <div className="turn-recap" role="status">
-          <h1>
+          <h1 tabIndex={-1}>
             {turnEnd ? (
               <>
                 The word was <strong>{turnEnd.word}</strong>
@@ -150,7 +191,7 @@ export function RoomBanner(props: RoomBannerProps) {
       {phase === "playing" && (
         <>
           <div className="turn-heading">
-            <h1>
+            <h1 tabIndex={-1}>
               {isDrawer ? (
                 <>
                   Your word is <strong>{wordLetters.join("") || "…"}</strong>
@@ -164,27 +205,37 @@ export function RoomBanner(props: RoomBannerProps) {
               Turn {(game?.turnIndex ?? 0) + 1} of {game?.totalTurns ?? 0}
               {!isDrawer &&
                 wordLetters.length > 0 &&
-                ` · ${wordLetters.length} letters`}
+                ` · ${letterCount} ${letterCount === 1 ? "letter" : "letters"}`}
             </p>
           </div>
           <Countdown
             endsAt={game?.turnEndsAt ?? null}
             durationMs={settings.turnSeconds * 1000}
+            serverNow={game?.serverNow}
           />
           {!isDrawer && wordLetters.length > 0 && (
             <div
               className="word-tiles"
               role="img"
-              aria-label={`Hint: ${wordLetters.map((letter) => letter || "blank").join(" ")}`}
+              aria-label={`Hint: ${wordLetters.map((letter) => (letter === " " ? "word break" : letter || "blank")).join(" ")}`}
             >
               {wordLetters.map((letter, index) => (
-                <span key={index} style={styles.tile}>
+                <span
+                  key={index}
+                  className={letter === " " ? "word-gap" : undefined}
+                  style={letter === " " ? undefined : styles.tile}
+                >
                   {letter}
                 </span>
               ))}
             </div>
           )}
         </>
+      )}
+      {phase !== "ended" && teamScore && (
+        <p className="team-score" role="status" aria-label="Team score">
+          {teamScoreLine(teamScore)}
+        </p>
       )}
     </div>
   );

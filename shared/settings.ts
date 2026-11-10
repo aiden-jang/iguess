@@ -11,6 +11,10 @@ export interface RoomSettings {
 
 export type AiSkill = "easy" | "normal" | "brutal";
 
+export const TEAM_TURN_POINTS = 100;
+export const teamWinTarget = (scoreTarget: number) =>
+  Math.ceil(scoreTarget / TEAM_TURN_POINTS);
+
 export const SETTINGS_LIMITS = {
   turnSeconds: { min: 20, max: 180, default: 60 },
   rounds: { min: 1, max: 8, default: 3 },
@@ -24,7 +28,8 @@ export function cleanCustomWord(raw: string): string | null {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z ]/g, "")
+    .replace(/[’']/g, "")
+    .replace(/[^a-z ]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   if (w.length < 2 || w.length > SETTINGS_LIMITS.customWords.maxLength)

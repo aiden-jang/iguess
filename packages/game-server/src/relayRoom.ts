@@ -69,9 +69,11 @@ export class RelayRoom {
   constructor(private io: RelayRoomIO) {}
 
   sync(connection: Connection) {
+    const state = this.game.view(connection.player.id);
     this.io.send(connection, {
       type: "relay_state",
-      state: this.game.view(connection.player.id),
+      state:
+        state.phase === "active" ? { ...state, serverNow: Date.now() } : state,
     });
   }
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { DrawOp } from "@iguess/shared";
 import {
+  normalizeRelayGuess,
   normalizeRelayWord,
   RELAY_DRAW_MS,
   RELAY_GUESS_LIMIT,
@@ -14,8 +15,10 @@ import {
 import type { RoomScreenProps } from "./Room";
 import { Countdown } from "./Countdown";
 import { RelayBoard } from "./RelayBoard";
+import { useChatDraft } from "./useChatDraft";
 
 function RelayTextEntry({
+  draftKey,
   name,
   label,
   placeholder,
@@ -25,6 +28,7 @@ function RelayTextEntry({
   onSend,
   normalize = (value) => value.trim(),
 }: {
+  draftKey: string;
   name: string;
   label: string;
   placeholder: string;
@@ -34,9 +38,10 @@ function RelayTextEntry({
   onSend: (value: string) => void;
   normalize?: (value: string) => string | null;
 }) {
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useChatDraft(draftKey, "relay");
   const composing = useRef(false);
   const value = normalize(draft);
+  const invalid = Boolean(draft && !value);
   return (
     <form
       className="relay-compose"
@@ -55,6 +60,8 @@ function RelayTextEntry({
         enterKeyHint="send"
         maxLength={limit}
         placeholder={placeholder}
+        aria-invalid={invalid}
+        aria-describedby={invalid ? `relay-${name}-error` : undefined}
         onCompositionStart={() => {
           composing.current = true;
         }}
@@ -78,6 +85,15 @@ function RelayTextEntry({
       >
         {button}
       </button>
+      {invalid && (
+        <p
+          id={`relay-${name}-error`}
+          className="relay-entry-error"
+          role="status"
+        >
+          Enter visible text on one line.
+        </p>
+      )}
     </form>
   );
 }
@@ -163,7 +179,11 @@ export function RelayTurn({
               Leg {leg + 1} of {total}
             </strong>
           )}
-          <Countdown endsAt={endsAt} durationMs={duration} />
+          <Countdown
+            endsAt={endsAt}
+            serverNow={state.serverNow}
+            durationMs={duration}
+          />
         </div>
       </div>
       {assignment.kind === "choose" && (
@@ -183,6 +203,7 @@ export function RelayTurn({
             ))}
           </div>
           <RelayTextEntry
+            draftKey={`${room}:${id}:${leg}`}
             name="word"
             label="Write your own"
             placeholder="A word or short phrase…"
@@ -214,12 +235,14 @@ export function RelayTurn({
         <div className="relay-workspace">
           <RelayBoard label="Drawing to guess" ops={assignment.ops} />
           <RelayTextEntry
+            draftKey={`${room}:${id}:${leg}`}
             name="guess"
             label="Your guess"
             placeholder="Type what you see…"
             limit={RELAY_GUESS_LIMIT}
             button={pending ? "Passing…" : "Pass guess"}
             canSend={canSend}
+            normalize={normalizeRelayGuess}
             onSend={pass}
           />
         </div>

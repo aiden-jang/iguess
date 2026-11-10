@@ -1,58 +1,97 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AVATARS, isAvatar } from "@iguess/shared";
-import { newRoomCode } from "@iguess/shared/roomCode";
+import { newRoomCode, visiblePlayerName } from "@iguess/shared/roomCode";
 import { readStored, writeStored } from "./storage";
 import { AVATAR_KEY, lifetimeStats } from "./playerStats";
 import { readInvite } from "./roomLinks";
 import { MODES } from "./gameModes";
 
-type Entry = { name: string; room: string; mode: string };
+type Entry = { name: string; room: string; mode: string; create?: boolean };
+const inviteMode = (mode?: string) =>
+  MODES.some((entry) => entry.value === mode) ? mode! : "";
+
 export function useJoinDraft(enter: (entry: Entry) => void) {
   const [invite] = useState(() => readInvite());
   const [invited, setInvited] = useState(!!invite.room);
-  const [lastRoom, setLastRoom] = useState(readStored("iguess_room"));
-  const [draftName, setDraftName] = useState(
-    invite.name ?? readStored("iguess_name") ?? "",
+  const [create, setCreate] = useState(!invite.room);
+  const [lastRoom, setLastRoom] = useState(() => readStored("iguess_room"));
+  const [draftName, setDraftName] = useState(() =>
+    visiblePlayerName(invite.name ?? readStored("iguess_name") ?? ""),
   );
-  const [draftRoom, setDraftRoom] = useState(invite.room ?? newRoomCode());
+  const [draftRoom, setRoom] = useState(() => invite.room ?? newRoomCode());
   const [draftMode, setDraftMode] = useState(
-    MODES.some((mode) => mode.value === invite.mode) ? invite.mode! : "ai",
+    () => inviteMode(invite.mode) || (invite.room ? "" : "ai"),
   );
-  const [avatar, setAvatar] = useState(
-    () =>
-      (isAvatar(readStored(AVATAR_KEY)) ? readStored(AVATAR_KEY)! : null) ??
-      AVATARS[Math.floor(Math.random() * AVATARS.length)]!,
-  );
+  const [avatar, setAvatar] = useState(() => {
+    const stored = readStored(AVATAR_KEY);
+    return isAvatar(stored)
+      ? stored
+      : AVATARS[Math.floor(Math.random() * AVATARS.length)]!;
+  });
   const [entryError, setEntryError] = useState("");
+  const [roomError, setRoomError] = useState("");
+  useEffect(() => {
+    const sync = () => {
+      const next = readInvite();
+      setInvited(!!next.room);
+      setCreate(!next.room);
+      setRoom(next.room ?? newRoomCode());
+      setDraftMode(inviteMode(next.mode) || (next.room ? "" : "ai"));
+      if (next.name) setDraftName(visiblePlayerName(next.name));
+      setLastRoom(readStored("iguess_room"));
+      setEntryError("");
+      setRoomError("");
+    };
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
   const selectRoom = (room?: string) => {
     setInvited(!!room);
-    setDraftRoom(room ?? newRoomCode());
+    setRoom(room ?? newRoomCode());
+    setCreate(!room);
+    setDraftMode(
+      room ? inviteMode(readStored("iguess_room_mode") ?? undefined) : "ai",
+    );
     setEntryError("");
+    setRoomError("");
   };
   const doJoin = () => {
-    const name = draftName.trim();
+    const name = visiblePlayerName(draftName);
+    const code = draftRoom.trim();
     if (!name) {
-      setEntryError("Enter a name to join the room.");
+      setEntryError("Enter a visible name to join the room.");
       return;
     }
-    if (draftRoom.trim().length > 32) {
-      setEntryError("Room codes can contain up to 32 characters.");
+    if (code.length > 32 || code === "." || code === "..") {
+      setRoomError(
+        "Enter a room code up to 32 characters. A dot on its own won’t work.",
+      );
       return;
     }
-    const room = draftRoom.trim() || newRoomCode();
+    const room = code || newRoomCode();
     writeStored("iguess_name", name);
-    writeStored("iguess_room", room);
     writeStored(AVATAR_KEY, avatar);
-    setLastRoom(room);
     setEntryError("");
-    enter({ name, room, mode: draftMode });
-    selectRoom();
+    setRoomError("");
+    enter({ name, room, mode: draftMode, create: create || !code });
   };
   return {
     draftName,
-    setDraftName,
+    setDraftName: (name: string) => {
+      setEntryError("");
+      setDraftName(name);
+    },
     draftRoom,
-    setDraftRoom,
+    setDraftRoom: (room: string) => {
+      setRoom(room);
+      setCreate(false);
+      setRoomError("");
+    },
+    regenerateRoom: () => {
+      setRoom(newRoomCode());
+      setCreate(true);
+      setRoomError("");
+    },
     draftMode,
     setDraftMode,
     avatar,
@@ -61,6 +100,7 @@ export function useJoinDraft(enter: (entry: Entry) => void) {
     lastRoom,
     selectRoom,
     entryError,
+    roomError,
     stats: lifetimeStats(),
     doJoin,
   };

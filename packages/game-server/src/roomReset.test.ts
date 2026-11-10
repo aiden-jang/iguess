@@ -2,9 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { shouldResetRoom } from "./roomReset.ts";
 
-test("a finished game resets on (re)join, regardless of mode", () => {
-  assert.equal(shouldResetRoom("ended", "classic", "classic"), true);
-  assert.equal(shouldResetRoom("ended", "ai", "classic"), true);
+test("a finished game stays available when anyone joins", () => {
+  assert.equal(shouldResetRoom("ended", "classic", "classic"), false);
+  assert.equal(shouldResetRoom("ended", "ai", "classic"), false);
 });
 
 test("a lobby resets only when the joiner picked a different mode", () => {

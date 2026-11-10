@@ -389,3 +389,14 @@ input::selection,
 textarea::selection {
   -webkit-text-fill-color: var(--ink);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .reaction-float {
+    animation: none !important;
+    opacity: 1;
+  }
+}
+html[data-motion="false"] .reaction-float {
+  animation: none !important;
+  opacity: 1;
+}

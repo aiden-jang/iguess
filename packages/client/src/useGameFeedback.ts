@@ -22,6 +22,7 @@ type Props = {
   canDraw: boolean;
   game: ReturnType<typeof useGameSocket>["game"];
   phase: string;
+  mode: string;
   ranked: PlayerInfo[];
   you: ReturnType<typeof useGameSocket>["you"];
   muted: boolean;
@@ -31,6 +32,7 @@ export function useGameFeedback({
   canDraw,
   game,
   phase,
+  mode,
   ranked,
   you,
   muted,
@@ -106,11 +108,15 @@ export function useGameFeedback({
     const scores = ranked
       .map((player) => game?.scores[player.id] ?? 0)
       .sort((a, b) => b - a);
-    const close =
-      scores.length > 1 &&
-      scores[0]! > scores[1]! &&
-      scores[0]! - scores[1]! <= 50;
-    const won = didWin(ranked, game?.scores ?? {}, you?.id ?? null);
+    const teamScore = game?.teamScore;
+    const close = teamScore
+      ? Math.abs(teamScore.human - teamScore.ai) === 1
+      : scores.length > 1 &&
+        scores[0]! > scores[1]! &&
+        scores[0]! - scores[1]! <= 50;
+    const won = teamScore
+      ? teamScore.human > teamScore.ai
+      : didWin(ranked, game?.scores ?? {}, you?.id ?? null, mode !== "duel");
     const streak = bumpStreak(won);
     if (won) {
       setWinConfetti(Math.min(12 + streak * 2, 24));

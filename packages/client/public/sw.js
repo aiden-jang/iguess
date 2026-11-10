@@ -3,12 +3,34 @@
 // goes to the network and is never cached.
 
 // Bump this when the shell or cache rules change; activation removes only older iguess caches.
-const CACHE = "iguess-v10";
+const CACHE = "iguess-v11";
 const SHELL = "/";
 
+async function cacheShell(response) {
+  if (
+    !response.ok ||
+    !response.headers.get("content-type")?.includes("text/html")
+  )
+    throw new Error("The app shell is unavailable");
+  const html = await response.clone().text();
+  const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map(
+    ([, url]) => url,
+  );
+  const cache = await caches.open(CACHE);
+  await Promise.all(
+    assets.map(async (url) => {
+      if (!(await cache.match(url))) await cache.add(url);
+    }),
+  );
+  await cache.put(SHELL, response);
+}
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.add(SHELL)));
-  self.skipWaiting();
+  event.waitUntil(
+    fetch(SHELL, { cache: "reload" })
+      .then(cacheShell)
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener("activate", (event) => {
@@ -52,7 +74,7 @@ self.addEventListener("fetch", (event) => {
             res.headers.get("content-type")?.includes("text/html")
           ) {
             const copy = res.clone();
-            event.waitUntil(caches.open(CACHE).then((c) => c.put(SHELL, copy)));
+            event.waitUntil(cacheShell(copy).catch(() => {}));
           }
           return res;
         })
@@ -67,7 +89,11 @@ self.addEventListener("fetch", (event) => {
       (hit) =>
         hit ||
         fetch(request).then((res) => {
-          if (res.ok && res.type === "basic") {
+          if (
+            res.ok &&
+            res.type === "basic" &&
+            !res.headers.get("content-type")?.includes("text/html")
+          ) {
             const copy = res.clone();
             event.waitUntil(
               caches.open(CACHE).then((c) => c.put(request, copy)),

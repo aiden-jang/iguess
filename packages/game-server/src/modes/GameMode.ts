@@ -1,5 +1,10 @@
 import type { ModeSnapshot } from "./modeState.ts";
-import type { ServerMessage, DrawOp, RoomSettings } from "@iguess/shared";
+import type {
+  ServerMessage,
+  DrawOp,
+  RoomSettings,
+  TeamScore,
+} from "@iguess/shared";
 import type { WordMemory } from "../wordMemory.ts";
 
 export interface PlayerRef {
@@ -69,6 +74,7 @@ export interface GameMode {
   onTurnResume?(turn: TurnContext, ctx: EngineContext): void;
 
   readonly id: string;
+  teamScore?(): TeamScore;
 
   // Classic needs 2, because somebody has to guess. AI modes need only 1: the AI is the
   // other player.

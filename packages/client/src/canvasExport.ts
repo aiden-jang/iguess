@@ -31,15 +31,23 @@ export function thumbnailOf(canvas: HTMLCanvasElement): string {
   c.fillRect(0, 0, out.width, out.height);
   c.drawImage(canvas, 0, 0, out.width, out.height);
   // Skip a turn nobody drew on. A blank card reads as a broken image, not as a joke.
-  if (isBlank(c, out.width, out.height)) return "";
+  if (!hasVisibleInk(c, out.width, out.height)) return "";
   return out.toDataURL("image/png");
 }
 
 // A dense sample preserves thin strokes when detecting blank thumbnails.
-function isBlank(ctx: CanvasRenderingContext2D, w: number, h: number): boolean {
+export function hasVisibleInk(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+): boolean {
   const { data } = ctx.getImageData(0, 0, w, h);
   for (let i = 0; i < data.length; i += 4 * 3) {
-    if (data[i] < 250 || data[i + 1] < 250 || data[i + 2] < 250) return false;
+    if (
+      data[i + 3] > 5 &&
+      (data[i] < 250 || data[i + 1] < 250 || data[i + 2] < 250)
+    )
+      return true;
   }
-  return true;
+  return false;
 }

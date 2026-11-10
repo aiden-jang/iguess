@@ -37,6 +37,7 @@ export function useCanvasPointer(options: PointerOptions) {
   const points = useRef<Point[]>([]);
   const widths = useRef<number[]>([]);
   const sample = useRef<Point | null>(null);
+  const moved = useRef(false);
   const frame = useRef<number | null>(null);
   const emit = (op: DrawOp) => {
     current.current.apply(op);
@@ -53,6 +54,7 @@ export function useCanvasPointer(options: PointerOptions) {
     points.current = [];
     widths.current = [];
     sample.current = null;
+    moved.current = false;
   };
   useEffect(() => {
     if (!options.canDraw) reset();
@@ -80,7 +82,7 @@ export function useCanvasPointer(options: PointerOptions) {
       const batch = points.current.splice(0, 256),
         sizes = widths.current.splice(0, 256);
       emit(
-        sizes.some((size) => size !== sizes[0])
+        sizes.length
           ? { kind: "move", strokeId: id, points: batch, widths: sizes }
           : { kind: "move", strokeId: id, points: batch },
       );
@@ -96,6 +98,12 @@ export function useCanvasPointer(options: PointerOptions) {
     if (!stroke.current) return;
     cancel();
     flush(true);
+    if (!moved.current && sample.current)
+      emit({
+        kind: "move",
+        strokeId: stroke.current,
+        points: [sample.current],
+      });
     emit({ kind: "end", strokeId: stroke.current });
     reset();
   };
@@ -142,6 +150,7 @@ export function useCanvasPointer(options: PointerOptions) {
       const scale = pressure
         ? 0.45 + event.pressure * 1.1
         : 1.15 - Math.min(0.6, speed * 12);
+      moved.current = true;
       points.current.push(point);
       widths.current.push(
         Math.round(Math.max(1, current.current.brush.width * scale) * 10) / 10,

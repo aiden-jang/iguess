@@ -30,8 +30,10 @@ export type RoomBannerProps = Pick<
     | "players"
   > & {
     isAIMode: boolean;
+    effectiveMode: string;
     copyResults: () => Promise<void>;
     resultsCopied: boolean;
+    resultsFallback: string;
     resultSummary: () => string;
     wordLetters: string[];
   };

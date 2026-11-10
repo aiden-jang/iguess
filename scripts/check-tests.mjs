@@ -7,8 +7,8 @@ const ROOT = new URL("..", import.meta.url).pathname;
 
 const FLOORS = {
   "@iguess/ai-worker": 40,
-  "@iguess/client": 75,
-  "@iguess/game-server": 203,
+  "@iguess/client": 76,
+  "@iguess/game-server": 208,
 };
 
 const problems = [];

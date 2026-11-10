@@ -80,12 +80,15 @@ workflow artifact and publishes it without rebuilding the client; local deployme
 file sharing also offer **Share image**. That click opens sharing with the finished file;
 cancelling does not trigger another download. If an invitation cannot be shared or copied,
 a selectable room link remains available, including in an installed app without an address bar.
+Rejoining a finished room brings back its results and gallery until the host starts another
+game or the room expires.
 
 ## Data and support
 
 Your name is visible to your room. Preferences and lifetime stats are saved in
 this browser. Temporary room checkpoints preserve recovery state for up to a day
-after inactivity; chat is not stored in those checkpoints. Room-local reconnect credentials
+after inactivity. Finished gallery entries can include the last AI guess for a drawing.
+Player chat is kept out of checkpoints. Room-local reconnect credentials
 prove seat ownership, and only their digests are retained on the server. In AI guessing modes, drawings
 and masked hints may be sent to the configured vision provider; the secret word
 is not supplied to the AI guesser. Anonymous product events count game starts

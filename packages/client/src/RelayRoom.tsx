@@ -73,13 +73,17 @@ export function RelayRoom({ room, socket, onLeave }: RoomScreenProps) {
     if (connected) setEverConnected(true);
   }, [connected]);
   useRoomViewport();
-  useWakeLock(relay?.phase === "active" && relay.assignment.kind !== "watch");
+  useWakeLock(
+    connected && relay?.phase === "active" && relay.assignment.kind !== "watch",
+  );
   const { muted, toggleMuted } = useMuted();
   const invite = useRoomInvite(room, "relay", "Drawing Relay");
   const host = you?.isHost ?? false;
-  const count = players.filter((player) => !player.spectator).length;
+  const count = players.filter(
+    (player) => !player.spectator && player.connected !== false,
+  ).length;
   return (
-    <div className="relay-room">
+    <div className="relay-room" data-phase={relay?.phase}>
       <RoomHeader
         room={room}
         modeLabel="Drawing Relay"
@@ -102,7 +106,7 @@ export function RelayRoom({ room, socket, onLeave }: RoomScreenProps) {
           onKick={socket.kick}
         />
       </RoomHeader>
-      <main className="relay-main">
+      <main id="room-main" tabIndex={-1} className="relay-main">
         {!connected && (
           <p className="relay-notice" role="status">
             Connection lost. Rejoining the relay…
@@ -122,22 +126,6 @@ export function RelayRoom({ room, socket, onLeave }: RoomScreenProps) {
                 Everyone starts a chain. Draw the word you pick, guess someone
                 else’s drawing, then see where each idea ends up.
               </p>
-              <div className="relay-example">
-                <p>A sample handoff</p>
-                <ol>
-                  <li>
-                    <strong>Snail</strong>
-                    <span>Starting word</span>
-                  </li>
-                  <li>
-                    <RelayBoard ops={snail} label="A quick snail drawing" />
-                  </li>
-                  <li>
-                    <strong>“A cinnamon roll”</strong>
-                    <span>Next guess</span>
-                  </li>
-                </ol>
-              </div>
               <p className="relay-lead">60s to draw · 30s to guess</p>
               <p className="relay-progress" role="status">
                 {count < RELAY_MIN_PLAYERS
@@ -167,6 +155,22 @@ export function RelayRoom({ room, socket, onLeave }: RoomScreenProps) {
                 ) : (
                   <p>Waiting for the host to start.</p>
                 )}
+              </div>
+              <div className="relay-example">
+                <p>A sample handoff</p>
+                <ol>
+                  <li>
+                    <strong>Snail</strong>
+                    <span>Starting word</span>
+                  </li>
+                  <li>
+                    <RelayBoard ops={snail} label="A quick snail drawing" />
+                  </li>
+                  <li>
+                    <strong>“A cinnamon roll”</strong>
+                    <span>Next guess</span>
+                  </li>
+                </ol>
               </div>
             </section>
             <LobbyRoster players={players} />

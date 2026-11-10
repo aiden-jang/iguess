@@ -30,6 +30,9 @@ export function RoomHeader(p: Props) {
   const rosterLabel = scores ? "Players & scores" : "Players";
   return (
     <header className="room-header" aria-label="Room controls">
+      <a className="room-skip" href="#room-main">
+        Skip to the game
+      </a>
       <div className="room-identity">
         <span className="room-wordmark">
           iguess

@@ -276,7 +276,7 @@ test("six friends pass private assignments and reveal all six chains", async ({
     ).toBeVisible();
     await capture(page, "relay-reveal");
     await page
-      .getByRole("button", { name: "Replay drawing", exact: true })
+      .getByRole("button", { name: /^Replay drawing by / })
       .first()
       .click();
     await expect(

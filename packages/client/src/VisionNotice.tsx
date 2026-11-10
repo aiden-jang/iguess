@@ -1,4 +1,5 @@
 import { usePlayStatus } from "./usePlayStatus";
+import { usesVision } from "./gameModes";
 
 export function VisionNotice({
   mode,
@@ -7,9 +8,12 @@ export function VisionNotice({
   mode: string;
   onMode?: (mode: string) => void;
 }) {
+  return usesVision(mode) ? <LiveVisionNotice onMode={onMode} /> : null;
+}
+
+function LiveVisionNotice({ onMode }: { onMode?: (mode: string) => void }) {
   const { vision, retry } = usePlayStatus();
-  if (["classic", "ai-drawer"].includes(mode) || vision === "ready")
-    return null;
+  if (vision === "ready") return null;
   return (
     <aside className="vision-notice" aria-label="AI availability">
       <p>

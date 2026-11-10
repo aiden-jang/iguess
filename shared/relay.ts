@@ -31,6 +31,7 @@ export type RelayState =
       leg: number;
       total: number;
       endsAt: number;
+      serverNow?: number;
       passed: number;
       assignment: RelayAssignment;
     }
@@ -54,14 +55,19 @@ export type RelayServerMessage =
     }
   | { type: "relay_notice"; text: string };
 
-export function normalizeRelayWord(word: string): string | null {
+export function normalizeRelayText(word: string, limit: number): string | null {
   const value = word.trim();
-  return word.length <= RELAY_WORD_LIMIT &&
+  return word.length <= limit &&
     !/[\p{Cc}\p{Zl}\p{Zp}]/u.test(word) &&
     /[^\s\p{Cf}]/u.test(value)
     ? value
     : null;
 }
+
+export const normalizeRelayWord = (word: string) =>
+  normalizeRelayText(word, RELAY_WORD_LIMIT);
+export const normalizeRelayGuess = (guess: string) =>
+  normalizeRelayText(guess, RELAY_GUESS_LIMIT);
 
 export function hasRelayInk(ops: readonly DrawOp[]) {
   const pens = new Set<string>();

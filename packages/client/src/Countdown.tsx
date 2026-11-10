@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { buzz } from "./feedback";
 import { styles } from "./styles";
 import { Icon } from "./Icon";
@@ -6,26 +6,35 @@ import { Icon } from "./Icon";
 export function Countdown({
   endsAt,
   durationMs,
+  serverNow,
 }: {
   endsAt: number | null;
   durationMs: number;
+  serverNow?: number;
 }) {
-  const [now, setNow] = useState(Date.now());
+  const deadline = useMemo(
+    () =>
+      endsAt
+        ? performance.now() + Math.max(0, endsAt - (serverNow ?? Date.now()))
+        : null,
+    [endsAt, serverNow],
+  );
+  const [now, setNow] = useState(() => performance.now());
   const buzzedAt = useRef<number | null>(null);
   useEffect(() => {
     if (!endsAt) return;
-    const id = setInterval(() => setNow(Date.now()), 120);
+    const id = setInterval(() => setNow(performance.now()), 120);
     return () => clearInterval(id);
   }, [endsAt]);
   useEffect(() => {
     if (!endsAt || buzzedAt.current === endsAt) return;
-    if (endsAt - now <= 5_000) {
+    if (deadline !== null && deadline - now <= 5_000) {
       buzzedAt.current = endsAt;
       buzz([40, 80, 40]);
     }
-  }, [endsAt, now]);
-  if (!endsAt) return null;
-  const msLeft = Math.max(0, endsAt - now);
+  }, [deadline, endsAt, now]);
+  if (deadline === null) return null;
+  const msLeft = Math.max(0, deadline - now);
   const secs = Math.ceil(msLeft / 1000);
   const frac = timerFraction(msLeft, durationMs);
   const low = secs <= 10;

@@ -1,4 +1,5 @@
 import type { DrawOp } from "@iguess/shared";
+import { hasRelayInk } from "@iguess/shared/relay";
 import type { Env } from "./env.ts";
 import type { GameEngine } from "./engine.ts";
 import { requestAIGuess } from "./services/aiWorkerClient.ts";
@@ -9,6 +10,7 @@ interface VisionRoom {
   env: () => Env;
   engine: () => GameEngine | null;
   drawing: () => DrawOp[];
+  drawingRevision?: () => number;
   checkpoint: () => Promise<void>;
   usedMock: () => void;
 }
@@ -16,6 +18,7 @@ interface VisionRoom {
 export class RoomVision {
   count = 0;
   saidMock = false;
+  private lastInput: string | null = null;
 
   constructor(private room: VisionRoom) {}
 
@@ -28,23 +31,29 @@ export class RoomVision {
       game.currentPhase === "playing" &&
       game.turnRevision === revision;
     if (!current()) throw new Error("Turn ended");
+    const ops = this.room.drawing();
+    const hint = game?.currentHint();
+    const key = `${revision}:${this.room.drawingRevision?.() ?? JSON.stringify(ops)}:${hint}`;
+    if (this.lastInput === key || !hasRelayInk(ops))
+      return { guess: "", alternatives: [] };
+    const env = this.room.env();
+    if (!env.AI_WORKER_URL) throw new Error("Live AI is unavailable");
     if (this.count >= MAX_AI_CALLS_PER_ROOM)
       throw new Error("Room AI budget spent");
+    const drawing = ops.slice();
     this.count++;
     await this.room.checkpoint();
     if (!current()) throw new Error("Turn ended");
-    const env = this.room.env();
     const said = await requestAIGuess(
       env.AI_WORKER_URL,
       env.AI_SHARED_SECRET,
-      this.room.drawing(),
-      game?.currentHint(),
+      drawing,
+      hint,
     );
     if (!current()) throw new Error("Turn ended");
-    if (said.provider === "mock" && !this.saidMock) {
-      this.saidMock = true;
-      this.room.usedMock();
-    }
+    this.lastInput = key;
+    if (said.provider === "mock" && !this.saidMock) this.room.usedMock();
+    this.saidMock = said.provider === "mock";
     return said;
   };
 }

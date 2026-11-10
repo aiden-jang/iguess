@@ -1,8 +1,8 @@
 import type { ClientMessage, DrawOp, Point } from "./events.ts";
 import { isReaction } from "./events.ts";
 import {
+  normalizeRelayGuess,
   normalizeRelayWord,
-  RELAY_GUESS_LIMIT,
   RELAY_MAX_PLAYERS,
   RELAY_WORD_LIMIT,
 } from "./relay.ts";
@@ -52,7 +52,7 @@ export function isDrawOp(value: unknown): value is DrawOp {
     (value.erase === undefined || typeof value.erase === "boolean")
   );
 }
-function cleanRelayInk(op: DrawOp): DrawOp {
+function cleanDrawOp(op: DrawOp): DrawOp {
   const point = ({ x, y }: Point): Point => ({ x, y });
   switch (op.kind) {
     case "start":
@@ -105,12 +105,16 @@ function relayMessage(value: Record<string, unknown>): ClientMessage | null {
     }
     case "ink":
       return isDrawOp(value.op)
-        ? { ...base, action: value.action, op: cleanRelayInk(value.op) }
+        ? { ...base, action: value.action, op: cleanDrawOp(value.op) }
         : null;
-    case "pass":
-      return value.guess === undefined || text(value.guess, RELAY_GUESS_LIMIT)
-        ? { ...base, action: value.action, guess: value.guess }
-        : null;
+    case "pass": {
+      if (value.guess === undefined) return { ...base, action: value.action };
+      const guess =
+        typeof value.guess === "string"
+          ? normalizeRelayGuess(value.guess)
+          : null;
+      return guess ? { ...base, action: value.action, guess } : null;
+    }
     case "chain":
       return number(value.index, 0, RELAY_MAX_PLAYERS - 1) &&
         Number.isInteger(value.index)
@@ -138,11 +142,18 @@ export function parseClientMessage(frame: unknown): ClientMessage | null {
     case "relay":
       return relayMessage(value);
     case "chat":
-      return text(value.text, 500)
-        ? { type: value.type, text: value.text }
+      return text(value.text, 500) &&
+        (value.id === undefined || text(value.id, 36))
+        ? {
+            type: value.type,
+            text: value.text,
+            ...(value.id ? { id: value.id as string } : {}),
+          }
         : null;
     case "draw":
-      return isDrawOp(value.op) ? { type: value.type, op: value.op } : null;
+      return isDrawOp(value.op)
+        ? { type: value.type, op: cleanDrawOp(value.op) }
+        : null;
     case "start_game":
     case "skip_word":
       return { type: value.type };

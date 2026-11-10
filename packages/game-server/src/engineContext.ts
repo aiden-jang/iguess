@@ -1,5 +1,9 @@
 import type { ServerMessage, DrawOp } from "@iguess/shared";
-import type { EngineContext, PlayerRef } from "./modes/GameMode.ts";
+import type {
+  EngineContext,
+  PlayerRef,
+  TurnContext,
+} from "./modes/GameMode.ts";
 // Room I/O is injected so game rules stay independent of WebSockets.
 export interface EngineDeps {
   broadcast: (msg: ServerMessage) => void;
@@ -10,6 +14,7 @@ export interface EngineDeps {
   canvasOpCount: () => number;
   addVirtualPlayer: (p: PlayerRef) => void;
   removeVirtualPlayer: (id: string) => void;
+  recordTurn?: (turn: TurnContext, artist: string, right: boolean) => void;
 }
 
 export interface ContextState {

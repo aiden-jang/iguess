@@ -16,11 +16,13 @@ export function LobbyRoster({ players }: { players: PlayerInfo[] }) {
             <strong>
               {isAI(player.id)
                 ? "AI"
-                : player.spectator
-                  ? "Watching"
-                  : player.ready
-                    ? "Ready"
-                    : "Here"}
+                : player.connected === false
+                  ? "Reconnecting"
+                  : player.spectator
+                    ? "Watching"
+                    : player.ready
+                      ? "Ready"
+                      : "Here"}
             </strong>
           </li>
         ))}

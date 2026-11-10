@@ -1,6 +1,7 @@
 import type { ClientMessage, ServerMessage } from "@iguess/shared";
 import { connectionProtocols } from "@iguess/shared/reconnectProtocol";
 import { parseServerMessage } from "@iguess/shared/serverProtocol";
+import { writeStored } from "./storage";
 import {
   reconnectCredential,
   saveReconnectCredential,
@@ -11,6 +12,7 @@ interface TransportOptions {
   name: string;
   mode: string;
   avatar: string;
+  create?: boolean;
   connected: (value: boolean) => void;
   fatal: (message: string) => void;
   message: (message: ServerMessage) => void;
@@ -18,6 +20,8 @@ interface TransportOptions {
 const FINAL_CLOSES: Record<number, string> = {
   4009: "This room is full. Try another room name.",
   4010: "The host removed you from this room.",
+  4012: "This room expired after a day without activity.",
+  4013: "That code already belongs to another room. Go back and generate a new code.",
   4011: "This room was reopened in another tab. Return to join to play here again.",
 };
 
@@ -25,12 +29,20 @@ const FINAL_CLOSES: Record<number, string> = {
 export function roomTransport(options: TransportOptions) {
   let alive = true;
   let attempt = 0;
+  let welcomed = false;
   let socket: WebSocket | null = null;
   let retry: ReturnType<typeof setTimeout> | null = null;
   const schedule = () => {
     if (!alive) return;
     options.connected(false);
     if (retry) clearTimeout(retry);
+    if (attempt >= 5) {
+      alive = false;
+      options.fatal(
+        "We couldn’t reach the room. Check your connection and try joining again.",
+      );
+      return;
+    }
     retry = setTimeout(
       () => {
         retry = null;
@@ -46,11 +58,13 @@ export function roomTransport(options: TransportOptions) {
       mode: options.mode,
       avatar: options.avatar,
     });
+    const creating = options.create && !welcomed;
+    if (creating) query.set("create", "1");
     let ws: WebSocket;
     try {
       ws = new WebSocket(
         `${protocol}://${location.host}/rooms/${encodeURIComponent(options.room)}/ws?${query}`,
-        connectionProtocols(reconnectCredential(options.room)),
+        connectionProtocols(creating ? "" : reconnectCredential(options.room)),
       );
     } catch {
       schedule();
@@ -59,7 +73,6 @@ export function roomTransport(options: TransportOptions) {
     socket = ws;
     ws.onopen = () => {
       if (!alive || socket !== ws) return;
-      attempt = 0;
       options.connected(true);
     };
     ws.onclose = (event) => {
@@ -76,8 +89,13 @@ export function roomTransport(options: TransportOptions) {
       if (!alive || socket !== ws || typeof event.data !== "string") return;
       const message = parseServerMessage(event.data);
       if (!message) return;
-      if (message.type === "welcome")
+      if (message.type === "welcome") {
+        welcomed = true;
+        attempt = 0;
         saveReconnectCredential(options.room, message.reconnectToken);
+        writeStored("iguess_room", message.roomId);
+        writeStored("iguess_room_mode", message.mode);
+      }
       options.message(message);
     };
   };

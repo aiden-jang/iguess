@@ -30,9 +30,12 @@ export function floodFill(image: PixelImage, at: Point, hex: string): void {
       Math.abs(b - other[2]!) +
       Math.abs(a - other[3]!) <
     TOLERANCE;
-  if (same(target[0]!, target[1]!, target[2]!, target[3]!, fill)) return;
+  if (target.every((channel, index) => channel === fill[index])) return;
+  const seen = same(target[0]!, target[1]!, target[2]!, target[3]!, fill)
+    ? new Uint8Array(w * h)
+    : null;
   const matches = (i: number) =>
-    same(px[i]!, px[i + 1]!, px[i + 2]!, px[i + 3]!, target);
+    !seen?.[i / 4] && same(px[i]!, px[i + 1]!, px[i + 2]!, px[i + 3]!, target);
   const stack: [number, number][] = [[sx, sy]];
   while (stack.length) {
     const [x0, y] = stack.pop()!;
@@ -42,6 +45,7 @@ export function floodFill(image: PixelImage, at: Point, hex: string): void {
     let belowSpan = false;
     for (; x < w && matches(offset(x, y)); x++) {
       const i = offset(x, y);
+      if (seen) seen[i / 4] = 1;
       px[i] = fill[0]!;
       px[i + 1] = fill[1]!;
       px[i + 2] = fill[2]!;

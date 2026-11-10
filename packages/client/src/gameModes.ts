@@ -5,6 +5,10 @@ export const TIER_LABEL: Record<WordTier, string> = {
   hard: "1.6x",
 };
 
+export function usesVision(mode: string) {
+  return mode === "ai" || mode === "team-battle" || mode === "duel";
+}
+
 export const MODES = [
   {
     value: "classic",

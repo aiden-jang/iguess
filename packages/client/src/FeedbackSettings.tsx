@@ -21,7 +21,8 @@ export function FeedbackSettings() {
         <span>Haptics</span>
         <input
           type="checkbox"
-          checked={haptics}
+          checked={supportsHaptics && haptics}
+          disabled={!supportsHaptics}
           onChange={(e) => setHaptics(e.target.checked)}
           aria-describedby={supportsHaptics ? undefined : "haptics-note"}
         />

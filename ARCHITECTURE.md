@@ -26,7 +26,7 @@ Room effects have separate owners:
 - `useGameFeedback`: event-specific audio, vibration and result celebrations; only observed participation updates lifetime stats.
 - `usePreference` and `FeedbackSettings`: synchronized browser-local sound, haptics and motion choices.
 - `useRoomViewport`: keeps composition inside a reduced visual viewport when a mobile keyboard opens.
-- `useRoundGallery`: capture completed drawings, preserve stroke replays and track explicitly marked AI guesses, excluding post-round commentary.
+- `useRoundGallery`: render finished drawings and stroke replays from the room archive. The live AI bubble uses explicitly marked guesses.
 - `useRoomSharing`: invitations and copied results, including pending requests and selectable link recovery.
 - `useEvidenceSharing`: gallery image preparation, downloads and native sharing from a fresh click; stale work cannot download after leaving or starting another gallery.
 - `Replay`: one-pass stroke playback with pause, restart, progress and background-tab pause.
@@ -86,7 +86,8 @@ The engine does not contain separate branches for human and AI players.
 
 Classic is the base human mode. AI Guesser adds a virtual player; AI Drawer emits
 curated doodle strokes through the engine’s draw operation. Team Battle scores
-round wins between humans and AI. Duel alternates drawing roles and accumulates
+turn wins between humans and AI. The team tally decides the winner and any first-to
+target. Duel alternates drawing roles and accumulates
 points. Mode-specific behavior stays in these strategies.
 
 Shared functions define word matching, difficulty, undo operations and awards.
@@ -131,6 +132,11 @@ rate limits, message limits and AI request
 budgets bound the app’s abuse surface. Watchers can be promoted into available
 seats. The edge rate limiter can be absent in local development; production
 bindings are configured in the game Worker’s Wrangler file.
+
+Finished rooms preserve scores and galleries through a rejoin until the host starts
+another game or the room expires. Each completed drawing is saved in its own bounded
+chunks in the same transaction as the room checkpoint. The server streams those turns
+individually at results, with the artist and AI verdict needed for replay and export.
 
 ## Validation and deployment
 

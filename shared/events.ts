@@ -1,5 +1,8 @@
 import type { RelayClientMessage, RelayServerMessage } from "./relay.ts";
 import type { RoomSettings } from "./settings.ts";
+import type { GalleryMessage } from "./gallery.ts";
+import type { PublicGameState } from "./gameState.ts";
+export type { GamePhase, PublicGameState, TeamScore } from "./gameState.ts";
 export type WordTier = "easy" | "medium" | "hard";
 export * from "./settings.ts";
 
@@ -7,8 +10,8 @@ export interface PlayerInfo {
   id: string;
   name: string;
   isHost?: boolean;
-  // Just a hint to everyone else. It does NOT stop the host starting without you.
   ready?: boolean;
+  connected?: boolean;
   // Watching, not playing. Gets a seat when the next game starts, if one has freed up.
   spectator?: boolean;
   // Validated against AVATARS at the room boundary.
@@ -68,36 +71,17 @@ export type DrawOp =
   // client can throw away that one stroke instead of being sent the whole canvas again.
   | { kind: "undo"; strokeId?: string };
 
-export type GamePhase =
-  "lobby" | "choosing" | "playing" | "intermission" | "ended";
-
 // Whoever makes the room picks the mode. Someone joining later gets that mode, not the one
 // they asked for, so show them the mode the server sends back in `welcome`.
 export type GameModeName =
   "classic" | "ai" | "ai-drawer" | "team-battle" | "duel" | "relay";
-
-// Safe to send to everyone. Never put the secret word in here: only its length. The word
-// itself goes to the drawer alone, in `your_word`.
-export interface PublicGameState {
-  phase: GamePhase;
-  drawerId: string | null;
-  turnIndex: number; // 0-based index of the current turn
-  totalTurns: number;
-  round: number; // 1-based current round (a round = every drawer drawing once)
-  totalRounds: number;
-  turnEndsAt: number | null; // epoch ms; clients derive their own countdown
-  wordLength: number;
-  // What guessers see, like "g _ i t _ r". More letters appear as the clock runs down.
-  hint: string;
-  scores: Record<string, number>; // playerId -> points
-  guessedIds: string[]; // who has guessed correctly this turn
-}
 
 export type ClientMessage =
   | RelayClientMessage
   | {
       type: "chat";
       text: string;
+      id?: string;
     }
   | {
       type: "draw";
@@ -116,7 +100,7 @@ export type ClientMessage =
   | {
       // Lobby only, and the server clamps every value.
       type: "set_settings";
-      settings: Partial<RoomSettings>;
+      settings: Partial<RoomSettings> & { togglePack?: string };
     }
   | {
       type: "kick";
@@ -138,6 +122,8 @@ export type ClientMessage =
 
 export type ServerMessage =
   | RelayServerMessage
+  | GalleryMessage
+  | { type: "chat_ack"; id: string }
   | {
       type: "welcome";
       you: PlayerInfo;
@@ -178,8 +164,6 @@ export type ServerMessage =
       text: string;
     }
   | {
-      // Only from OTHER people. You never get your own strokes back, because you already
-      // drew them on your own screen the instant you made them.
       type: "draw";
       op: DrawOp;
     }

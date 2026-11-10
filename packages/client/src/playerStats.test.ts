@@ -20,3 +20,9 @@ test("joint leaders count equally regardless of roster order", () => {
   assert.equal(didWin(ranked, scores, "third"), false);
   assert.equal(didWin(ranked, { first: 0, second: 0 }, "second"), false);
 });
+
+test("a duel tie does not count as a win", () => {
+  const ranked = [{ id: "me" }, { id: "ai" }];
+  assert.equal(didWin(ranked, { me: 100, ai: 100 }, "me", false), false);
+  assert.equal(didWin(ranked, { me: 110, ai: 100 }, "me", false), true);
+});

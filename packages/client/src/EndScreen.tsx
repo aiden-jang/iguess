@@ -28,6 +28,7 @@ interface EndScreenProps {
   blankRounds?: number;
   saving: boolean;
   players: PlayerInfo[];
+  status?: "loading" | "complete" | "incomplete";
 }
 
 export function EndScreen({
@@ -39,9 +40,16 @@ export function EndScreen({
   canShare,
   saving,
   players,
+  status,
 }: EndScreenProps) {
   const [shareMessage, setShareMessage] = useState("");
   const [replayIdx, setReplayIdx] = useState<number | null>(null);
+  if (status === "loading")
+    return (
+      <p className="blank-round-note" role="status">
+        Loading finished drawings…
+      </p>
+    );
   if (gallery.length === 0)
     return (
       <section className="empty-gallery">
@@ -49,9 +57,11 @@ export function EndScreen({
           {blankRounds ? "Minimalism. Committed." : "No evidence on file."}
         </h2>
         <p>
-          {blankRounds
-            ? `${blankRounds} blank ${blankRounds === 1 ? "canvas" : "canvases"}. Nothing to save this time. Another round?`
-            : "Drawings are collected while you’re in the room. Play another game to start your gallery."}
+          {status === "incomplete"
+            ? "The room couldn’t recover these drawings. Rejoin to try again."
+            : blankRounds
+              ? `${blankRounds} blank ${blankRounds === 1 ? "canvas" : "canvases"}. Nothing to save this time. Another round?`
+              : "There are no saved drawings from this game."}
         </p>
       </section>
     );
@@ -108,6 +118,11 @@ export function EndScreen({
           </p>
         </div>
       </div>
+      {status === "incomplete" && (
+        <p className="blank-round-note" role="status">
+          Some drawings couldn’t be recovered.
+        </p>
+      )}
       {blankRounds > 0 && (
         <p className="blank-round-note">
           Also submitted: {blankRounds} blank{" "}
@@ -165,7 +180,7 @@ export function EndScreen({
               <span className="exhibit-artist">
                 {isAI(g.drawerId)
                   ? "A curated doodle from the machine"
-                  : `By ${players.find((player) => player.id === g.drawerId)?.name ?? "an uncredited artist"}`}
+                  : `By ${g.artist ?? players.find((player) => player.id === g.drawerId)?.name ?? "an uncredited artist"}`}
               </span>
             </figcaption>
             {g.aiParticipated === false ? (

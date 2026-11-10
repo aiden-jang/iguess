@@ -20,8 +20,12 @@ export function ResourceLinks() {
   });
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLAnchorElement | null>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    if (active && !dialog.current?.open) dialog.current?.showModal();
+    if (!active) return;
+    if (!dialog.current?.open) dialog.current?.showModal();
+    dialog.current?.scrollTo(0, 0);
+    heading.current?.focus({ preventScroll: true });
   }, [active]);
   return (
     <>
@@ -38,6 +42,14 @@ export function ResourceLinks() {
             }
             href={`?info=${item}`}
             onClick={(event) => {
+              if (
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey ||
+                event.button !== 0
+              )
+                return;
               event.preventDefault();
               opener.current = event.currentTarget;
               setActive(item);
@@ -79,7 +91,9 @@ export function ResourceLinks() {
                 <Icon name="close" />
               </button>
             </div>
-            <h2 id="resource-title">{TITLES[active]}</h2>
+            <h2 id="resource-title" ref={heading} tabIndex={-1}>
+              {TITLES[active]}
+            </h2>
             <ResourceContent resource={active} />
             <p className="resource-contact">
               Questions? <a href="mailto:me@aidenjang.com">me@aidenjang.com</a>
@@ -92,7 +106,6 @@ export function ResourceLinks() {
                   aria-pressed={active === item}
                   onClick={() => {
                     setActive(item);
-                    dialog.current?.scrollTo(0, 0);
                   }}
                 >
                   {item === "help"
@@ -129,13 +142,13 @@ function ResourceContent({ resource }: { resource: Resource }) {
         <h3>What leaves it</h3>
         <p>
           Temporary recovery checkpoints store room names, avatars, settings,
-          drawings, scores and game progress on the server. They expire after a
-          day of inactivity. Reconnect credentials are stored as hashes; chat
-          messages are not included in checkpoints. This is not a permanent
-          drawing archive. In AI guessing modes, drawing snapshots and masked
-          hints may be sent to OpenAI, Anthropic, or Cloudflare, depending on
-          the configured provider. The secret answer is not sent to the AI
-          guesser.
+          drawings, scores and game progress on the server. The finished gallery
+          can include the AI’s last guess for a drawing. Checkpoints expire
+          after a day of inactivity. Reconnect credentials are stored as hashes.
+          Player chat stays out of checkpoints. This is not a permanent drawing
+          archive. In AI guessing modes, drawing snapshots and masked hints may
+          be sent to OpenAI, Anthropic, or Cloudflare, depending on the
+          configured provider. The secret answer is not sent to the AI guesser.
         </p>
         <p>
           Drawing Relay keeps each handoff private until the reveal. At the
@@ -225,8 +238,9 @@ function ResourceContent({ resource }: { resource: Resource }) {
       <h3>Playing with the machine</h3>
       <p>
         AI Guesser watches your drawing. AI Drawer reveals a curated doodle.
-        Team Battle and You vs AI alternate drawing roles. Classic needs at
-        least two humans. AI modes support solo play.
+        Team Battle and You vs AI alternate drawing roles. In Team Battle, the
+        first correct guess wins the turn for that side. Classic needs at least
+        two humans. AI modes support solo play.
       </p>
       <p>
         During a live AI guessing round, type <kbd>?word</kbd> to bet on what

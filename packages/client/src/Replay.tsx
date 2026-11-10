@@ -1,80 +1,66 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DrawOp } from "@iguess/shared";
+import { BOARD_WIDTH, BOARD_HEIGHT } from "@iguess/shared/strokePath";
 import { paintOp, newStrokeStates } from "./paint";
 import { Icon } from "./Icon";
+
 export function Replay({
   ops,
-  size = 260,
-  aspectRatio = 1,
+  aspectRatio = BOARD_WIDTH / BOARD_HEIGHT,
 }: {
   ops: DrawOp[];
   size?: number;
   aspectRatio?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const frame = useRef<{
-    ctx: CanvasRenderingContext2D;
-    width: number;
-    height: number;
-    index: number;
-    states: ReturnType<typeof newStrokeStates>;
-  } | null>(null);
+  const pauseRef = useRef<HTMLButtonElement>(null);
+  const frame = useRef({ index: 0, states: newStrokeStates() });
   const [playing, setPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [speed, setSpeed] = useState(ops.length > 1000 ? 4 : 1);
   const [error, setError] = useState(false);
-  const reset = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const dpr = Math.min(2, devicePixelRatio || 1);
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
-    const ctx = canvas.getContext("2d");
+  const width = Math.round(BOARD_HEIGHT * aspectRatio);
+
+  function seek(index: number) {
+    const ctx = canvasRef.current?.getContext("2d", {
+      willReadFrequently: true,
+    });
+    if (!ctx) return false;
+    const current = frame.current;
+    if (index < current.index) {
+      paintOp(ctx, { kind: "reset" }, current.states, width, BOARD_HEIGHT);
+      current.index = 0;
+    }
+    while (current.index < index)
+      paintOp(ctx, ops[current.index++]!, current.states, width, BOARD_HEIGHT);
+    setProgress(index);
+    return true;
+  }
+
+  useEffect(() => {
+    const ctx = canvasRef.current?.getContext("2d", {
+      willReadFrequently: true,
+    });
     if (!ctx) {
       setError(true);
       return;
     }
-    const ratio =
-      Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
-    const width = ratio < 1 ? size * ratio : size,
-      height = ratio > 1 ? size / ratio : size;
-    ctx.setTransform(
-      dpr,
-      0,
-      0,
-      dpr,
-      ((size - width) * dpr) / 2,
-      ((size - height) * dpr) / 2,
-    );
-    const states = newStrokeStates();
-    paintOp(ctx, { kind: "reset" }, states, width, height);
-    frame.current = { ctx, width, height, index: 0, states };
+    ctx.clearRect(0, 0, width, BOARD_HEIGHT);
+    frame.current = { index: 0, states: newStrokeStates() };
     setProgress(0);
     setPlaying(ops.length > 0);
-    setError(false);
-  }, [ops, size, aspectRatio]);
-  useEffect(reset, [reset]);
+    pauseRef.current?.focus({ preventScroll: true });
+  }, [ops, width]);
+
   useEffect(() => {
     if (!playing) return;
     const timer = setInterval(() => {
-      const current = frame.current;
-      if (!current) return;
-      for (
-        let count = 0;
-        count < 2 && current.index < ops.length;
-        count++, current.index++
-      )
-        paintOp(
-          current.ctx,
-          ops[current.index]!,
-          current.states,
-          current.width,
-          current.height,
-        );
-      setProgress(current.index);
-      if (current.index >= ops.length) setPlaying(false);
+      const next = Math.min(ops.length, frame.current.index + 2 * speed);
+      if (!seek(next) || next >= ops.length) setPlaying(false);
     }, 22);
     return () => clearInterval(timer);
-  }, [playing, ops]);
+  }, [playing, ops, speed, width]);
+
   useEffect(() => {
     const pause = () => {
       if (document.hidden) setPlaying(false);
@@ -82,6 +68,7 @@ export function Replay({
     document.addEventListener("visibilitychange", pause);
     return () => document.removeEventListener("visibilitychange", pause);
   }, []);
+
   return (
     <div className="drawing-replay">
       {error ? (
@@ -90,26 +77,58 @@ export function Replay({
         <>
           <canvas
             ref={canvasRef}
+            width={width}
+            height={BOARD_HEIGHT}
             role="img"
             aria-label="Animated replay of the drawing"
           />
           <div className="replay-controls">
             <button
+              ref={pauseRef}
               type="button"
               onClick={() => {
-                if (progress >= ops.length) reset();
-                else setPlaying((value) => !value);
+                if (progress >= ops.length) {
+                  seek(0);
+                  setPlaying(true);
+                } else setPlaying((value) => !value);
               }}
             >
               <Icon name={playing ? "pause" : "play"} />
               {playing ? "Pause" : "Play"}
             </button>
-            <progress
+            <input
+              type="range"
+              min={0}
               max={Math.max(1, ops.length)}
               value={progress}
-              aria-label="Replay progress"
+              aria-label="Replay position"
+              aria-valuetext={`${Math.round((progress / Math.max(1, ops.length)) * 100)}% complete`}
+              onChange={(event) => {
+                setPlaying(false);
+                seek(Number(event.target.value));
+              }}
             />
-            <button type="button" onClick={reset} aria-label="Restart replay">
+            <label>
+              <span className="sr-only">Replay speed</span>
+              <select
+                value={speed}
+                onChange={(event) => setSpeed(Number(event.target.value))}
+              >
+                {[1, 2, 4, 8].map((rate) => (
+                  <option key={rate} value={rate}>
+                    {rate}×
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                seek(0);
+                setPlaying(true);
+              }}
+              aria-label="Restart replay"
+            >
               <Icon name="restart" />
             </button>
           </div>

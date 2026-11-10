@@ -7,7 +7,6 @@ import type { RoomScreenProps } from "./Room";
 import { isAI, roomView } from "./roomView";
 import { useWakeLock } from "./useWakeLock";
 import { useAppBadge } from "./useAppBadge";
-import type { DrawOp } from "@iguess/shared";
 import { awardsFor } from "@iguess/shared/awards";
 import { RoomHeader } from "./RoomHeader";
 import { Scoreboard } from "./Scoreboard";
@@ -64,7 +63,6 @@ export function ClassicRoom({
     if (connected) setEverConnected(true);
   }, [connected]);
   const brush = useBrush(COLORS[0]!);
-  const roundOps = useRef<DrawOp[]>([]);
   const { toast, showToast, hideToast } = useToast();
   const { muted, toggleMuted } = useMuted();
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
@@ -87,27 +85,47 @@ export function ClassicRoom({
     soloWaiting,
   } = roomView(game, players, you);
   const canUseCanvas = connected && canDraw;
-  const { gallery, botGuess, blankRounds } = useRoundGallery({
-    turnEnd,
-    game,
-    phase,
-    log,
-    aiGuessedRight,
-    hasAI,
-    canvasElRef,
-    roundOps,
-  });
+  const main = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!you || (phase === "playing" && isDrawer)) return;
+    const heading = main.current?.querySelector<HTMLElement>("h1");
+    (heading?.offsetParent ? heading : main.current)?.focus({
+      preventScroll: true,
+    });
+  }, [!!you, phase, isDrawer]);
+  const {
+    gallery,
+    botGuess,
+    blankRounds,
+    ready: galleryReady,
+  } = useRoundGallery(socket);
+  const resultPlayers = game?.resultPlayers ?? players;
+  const resultRanked = game?.resultPlayers
+    ? resultPlayers
+        .map((player) => ({
+          ...player,
+          connected: players.some(
+            (live) => live.id === player.id && live.connected !== false,
+          ),
+        }))
+        .sort((a, b) => (game.scores[b.id] ?? 0) - (game.scores[a.id] ?? 0))
+    : ranked;
   const { burstKey, winConfetti } = useGameFeedback({
     canDraw: canUseCanvas,
     game,
     phase,
-    ranked,
+    mode: effectiveMode,
+    ranked: resultRanked,
     you,
     muted,
     showToast,
   });
-  useWakeLock(inGame || phase === "choosing");
-  useAppBadge(canDraw || (phase === "choosing" && isDrawer) ? 1 : 0);
+  useWakeLock(connected && (inGame || phase === "choosing"));
+  useAppBadge(
+    connected && isDrawer && (phase === "playing" || phase === "choosing")
+      ? 1
+      : 0,
+  );
   const hint = boardHint({
     canDraw,
     youAreWatching,
@@ -130,11 +148,17 @@ export function ClassicRoom({
   const modeMeta = MODES.find((m) => m.value === effectiveMode);
   const sharing = useRoomSharing({
     room,
+    ended: phase === "ended",
     effectiveMode,
     modeLabel: modeMeta?.label ?? effectiveMode,
-    standings: { ranked, scores: game?.scores ?? {}, youId: you?.id ?? null },
+    standings: {
+      ranked: resultRanked,
+      scores: game?.scores ?? {},
+      youId: you?.id ?? null,
+      teamScore: game?.teamScore,
+    },
     gallery,
-    players,
+    players: resultPlayers,
     showToast,
   });
 
@@ -156,7 +180,7 @@ export function ClassicRoom({
         onLeave={onLeave}
       >
         <Scoreboard
-          ranked={ranked}
+          ranked={phase === "ended" ? resultRanked : ranked}
           game={game}
           youId={you?.id ?? null}
           youAreHost={youAreHost}
@@ -164,7 +188,13 @@ export function ClassicRoom({
         />
       </RoomHeader>
 
-      <main aria-label="Drawing board" className="pane-canvas">
+      <main
+        ref={main}
+        id="room-main"
+        tabIndex={-1}
+        aria-label="Drawing board"
+        className="pane-canvas"
+      >
         <RoomBanner
           {...{
             phase,
@@ -173,6 +203,7 @@ export function ClassicRoom({
             youAreWatching,
             soloWaiting,
             isAIMode,
+            effectiveMode,
             readyCount,
             humans,
             watching,
@@ -184,6 +215,7 @@ export function ClassicRoom({
             startGame,
             copyResults: sharing.copyResults,
             resultsCopied: sharing.resultsCopied,
+            resultsFallback: sharing.resultsFallback,
             resultSummary: sharing.resultSummary,
             game,
             isDrawer,
@@ -216,7 +248,6 @@ export function ClassicRoom({
           }}
           brush={brush}
           canDraw={canUseCanvas}
-          opsRef={roundOps}
           onCanvas={(el) => (canvasElRef.current = el)}
           hint={connected ? (youAreWatching && hint) || null : "Connecting…"}
           waiting={inGame || !connected}
@@ -228,8 +259,9 @@ export function ClassicRoom({
           <EndScreen
             gallery={gallery}
             blankRounds={blankRounds}
-            players={players}
-            awards={awardsFor(gallery, players)}
+            players={resultPlayers}
+            awards={awardsFor(gallery, resultPlayers)}
+            status={galleryReady ? socket.galleryStatus : "loading"}
             onSave={sharing.saveEvidence}
             onShare={sharing.shareEvidence}
             canShare={sharing.canShareEvidence}
@@ -250,8 +282,10 @@ export function ClassicRoom({
         log={log}
         drawingNow={drawingNow}
         inGame={phase === "playing"}
+        canGuess={phase === "playing" && !youAreWatching && !isDrawer}
         onReact={react}
         onSend={sendChat}
+        chatAck={socket.chatAck}
         onSendFailed={() =>
           showToast("Not sent. Reconnecting—your message is still here.")
         }

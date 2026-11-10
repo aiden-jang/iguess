@@ -23,7 +23,10 @@ const nameOf = (players: PlayerInfo[], id: string | null) =>
  */
 export function awardsFor(rounds: Round[], players: PlayerInfo[]): Award[] {
   const out: Award[] = [];
-  const drawn = rounds.filter((r) => r.drawerId && r.aiParticipated !== false);
+  const drawn = rounds.filter(
+    (r) =>
+      r.drawerId && r.aiParticipated !== false && (r.right || Boolean(r.guess)),
+  );
   if (drawn.length === 0) return out;
 
   const byDrawer = new Map<string, { total: number; read: number }>();

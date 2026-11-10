@@ -69,14 +69,19 @@ export class ClassicMode implements GameMode {
     };
   }
 
-  pickDrawer(turnIndex: number, _ctx: EngineContext): string {
-    return this.drawOrder[turnIndex % this.drawOrder.length];
+  pickDrawer(turnIndex: number, ctx: EngineContext): string {
+    const active = new Set(ctx.participants().map(({ id }) => id));
+    const previous = this.drawOrder.indexOf(ctx.currentDrawerId() ?? "");
+    const start = turnIndex === 0 && previous < 0 ? 0 : previous + 1;
+    for (let offset = 0; offset < this.drawOrder.length; offset++) {
+      const id = this.drawOrder[(start + offset) % this.drawOrder.length];
+      if (active.has(id)) return id;
+    }
+    return "";
   }
 
   onPlayerLeave(playerId: string, _ctx: EngineContext): void {
-    // Out of the rotation, or a later turn picks someone who left and nothing gets drawn.
     this.bets.delete(playerId);
-    this.drawOrder = this.drawOrder.filter((id) => id !== playerId);
   }
 
   pickWord(_ctx: EngineContext): string {
@@ -185,13 +190,20 @@ export class ClassicMode implements GameMode {
   onChat(playerId: string, text: string, ctx: EngineContext): boolean {
     const word = ctx.currentWord();
     if (!word) return false; // not in a live turn → normal chat
-    if (this.takeCall(playerId, text, ctx)) return true;
+    if (this.id !== "classic" && this.takeCall(playerId, text, ctx))
+      return true;
     if (playerId === ctx.currentDrawerId()) return true; // hide drawer chat
     if (ctx.hasGuessed(playerId)) return true; // already done → stay quiet
     // Tidy up both sides, so capitals, accents and stray spaces never block a right answer.
     const guess = normalizeGuess(text);
     const target = normalizeGuess(word);
-    if (guess !== target) {
+    if (
+      guess !== target &&
+      !(
+        this.customWords.includes(word) &&
+        guess.replaceAll(" ", "") === target.replaceAll(" ", "")
+      )
+    ) {
       // Tell only them they were close. The wrong guess still goes to the room as normal.
       if (isClose(guess, target)) {
         ctx.sendToPlayer(playerId, { type: "system", text: "🔥 so close!" });

@@ -8,8 +8,8 @@ function read(key: string) {
     return "";
   }
 }
-export function useChatDraft(room: string) {
-  const key = `iguess_chat_${room}`;
+export function useChatDraft(room: string, purpose = "chat") {
+  const key = `iguess_${purpose}_${room}`;
   const [draft, setDraft] = useState(() => ({ key, text: read(key) }));
   const text = draft.key === key ? draft.text : read(key);
   const update = (next: string) => {

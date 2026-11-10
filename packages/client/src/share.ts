@@ -1,11 +1,13 @@
-import type { PlayerInfo } from "@iguess/shared";
+import type { PlayerInfo, TeamScore } from "@iguess/shared";
 import { isAI } from "./roomView";
+import { teamOutcome, teamScoreLine } from "./teamBattle";
 
 export interface Standings {
   /** Best first. */
   ranked: PlayerInfo[];
   scores: Record<string, number>;
   youId: string | null;
+  teamScore?: TeamScore;
 }
 
 // Only the top few fit on a shared card, and nobody brags about coming fifth.
@@ -17,7 +19,13 @@ const BAR_BLOCKS = 8;
 const scoreOf = (s: Standings, id: string): number => s.scores[id] ?? 0;
 
 /** One line of "who scored what", for the corner of the evidence card. */
-export function scoreLine({ ranked, scores, youId }: Standings): string {
+export function scoreLine({
+  ranked,
+  scores,
+  youId,
+  teamScore,
+}: Standings): string {
+  if (teamScore) return teamScoreLine(teamScore);
   return ranked
     .slice(0, SHOWN)
     .map(
@@ -38,6 +46,14 @@ export function resultsText(
   standings: Standings,
   { modeLabel, inviteUrl, streak }: FlexContext,
 ): string {
+  if (standings.teamScore)
+    return [
+      `iguess ✏️ · ${modeLabel}`,
+      teamOutcome(standings.teamScore),
+      teamScoreLine(standings.teamScore),
+      "",
+      `Join the room: ${inviteUrl}`,
+    ].join("\n");
   const { ranked, youId } = standings;
   const participant = ranked.find((player) => player.id === youId);
   const place = participant
@@ -64,11 +80,14 @@ export function resultsText(
 
   // Scale the bars against the winner, never against zero.
   const top = Math.max(1, ...ranked.map((p) => scoreOf(standings, p.id)));
-  const rows = ranked.slice(0, SHOWN).map((p, i) => {
+  const rows = ranked.slice(0, SHOWN).map((p) => {
     const score = scoreOf(standings, p.id);
     const filled = Math.max(1, Math.round((score / top) * BAR_BLOCKS));
     const block = p.id === youId ? "🟥" : isAI(p.id) ? "🤖" : "⬜";
-    return `${MEDALS[i] ?? "▪️"} ${block.repeat(filled)} ${score}`;
+    const rank = ranked.filter(
+      (player) => scoreOf(standings, player.id) > score,
+    ).length;
+    return `${MEDALS[rank] ?? "▪️"} ${block.repeat(filled)} ${score}`;
   });
 
   const brags = [

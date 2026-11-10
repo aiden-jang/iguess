@@ -9,15 +9,18 @@ import { randomWord } from "@iguess/shared/words";
 import { normalizeGuess } from "../text.ts";
 import type { AIGuess } from "../services/aiWorkerClient.ts";
 import { AI_NAME } from "../ai/persona.ts";
-import type { AiSkill, RoomSettings } from "@iguess/shared";
+import {
+  TEAM_TURN_POINTS,
+  type AiSkill,
+  type RoomSettings,
+  type TeamScore,
+} from "@iguess/shared";
 
 const AI_ID = "ai-team";
 
 type Team = "human" | "ai";
 
-// A race: one drawing, and the first correct guess wins the round for that side. Team scores
-// travel as chat messages on purpose, rather than being added to the shared game state, because
-// no other mode has teams.
+// A race: the first correct guess wins the turn for that side.
 export class TeamBattleMode extends ClassicMode {
   private drawProgress: DrawProgress = { index: 0 };
   private guessProgress: GuessProgress = {
@@ -32,7 +35,11 @@ export class TeamBattleMode extends ClassicMode {
   private humans: string[] = [];
   private aiDrawsThisTurn = false;
   private roundDecided = false;
-  private wins: Record<Team, number> = { human: 0, ai: 0 };
+  private wins: TeamScore = { human: 0, ai: 0 };
+
+  teamScore(): TeamScore {
+    return { ...this.wins };
+  }
   private stopLoop: (() => void) | null = null;
 
   constructor(
@@ -149,7 +156,7 @@ export class TeamBattleMode extends ClassicMode {
 
     const word = ctx.currentWord() ?? "";
     this.wins[team] += 1;
-    ctx.awardPoints(byId, 100); // individual scoreboard still moves
+    ctx.awardPoints(byId, TEAM_TURN_POINTS);
     ctx.markGuessed(byId);
 
     const label = team === "ai" ? "🤖 Team AI" : "Team Human";

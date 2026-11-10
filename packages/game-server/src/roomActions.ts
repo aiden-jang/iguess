@@ -30,18 +30,29 @@ export function handleRoomAction(
   switch (message.type) {
     case "chat": {
       const text = message.text.trim();
-      if (text && (spectator || !game.handleChat(id, text)))
+      if (!text) break;
+      if (
+        (!message.id || roster.acceptChat(id, message.id)) &&
+        (spectator || !game.handleChat(id, text))
+      )
         room.broadcast({ type: "chat", from: connection.player, text });
+      if (message.id)
+        room.send(connection, { type: "chat_ack", id: message.id });
       break;
     }
     case "draw": {
       if (spectator || !game.canDraw(id)) return;
       if (message.op.kind === "undo") {
-        const strokeId = canvas.undo();
+        const strokeId = canvas.undo(id, game.currentPhase === "playing");
         if (strokeId)
           room.broadcast({ type: "draw", op: { kind: "undo", strokeId } });
-      } else if (canvas.apply(message.op))
-        room.broadcast({ type: "draw", op: message.op }, connection);
+      } else if (canvas.apply(message.op, id))
+        room.broadcast(
+          { type: "draw", op: message.op },
+          game.currentPhase === "playing" && message.op.kind !== "clear"
+            ? connection
+            : undefined,
+        );
       else {
         room.send(connection, { type: "canvas_sync", ops: canvas.snapshot() });
         room.send(connection, {
@@ -54,7 +65,7 @@ export function handleRoomAction(
     case "start_game":
       if (!roster.isHost(id) || !["lobby", "ended"].includes(game.currentPhase))
         return;
-      roster.seatWatchers();
+      roster.seatWatchers(true);
       if (game.startGame(roster.humanIds())) {
         roster.clearReady();
         room.started();
@@ -89,10 +100,15 @@ export function handleRoomAction(
       removePlayer(roster, room.revoke, id, message.playerId);
       break;
     case "set_settings":
-      if (roster.isHost(id) && ["lobby", "ended"].includes(game.currentPhase))
-        room.updateSettings(
-          sanitizeSettings({ ...room.settings, ...message.settings }),
-        );
+      if (roster.isHost(id) && ["lobby", "ended"].includes(game.currentPhase)) {
+        const { togglePack, ...patch } = message.settings;
+        const packs = room.settings.packs;
+        if (typeof togglePack === "string")
+          patch.packs = packs.includes(togglePack)
+            ? packs.filter((pack) => pack !== togglePack)
+            : [...packs, togglePack];
+        room.updateSettings(sanitizeSettings({ ...room.settings, ...patch }));
+      }
       break;
   }
 }

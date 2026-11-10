@@ -29,11 +29,18 @@ export function Scoreboard({
     >
       {ranked.map((player, index) => {
         const me = player.id === youId;
+        const duplicate = ranked.some(
+          (other) => other.id !== player.id && other.name === player.name,
+        );
+        const identity = duplicate
+          ? `${player.name} (player ${index + 1})`
+          : player.name;
         const drawer = game?.drawerId === player.id;
         const guessed = game?.guessedIds.includes(player.id);
         const roles = [
           me && "You",
           player.isHost && "Host",
+          player.connected === false && "Reconnecting",
           player.spectator && "Watching",
           drawer && "Drawing",
           guessed && "Guessed",
@@ -64,7 +71,7 @@ export function Scoreboard({
             </span>
             <div className="player-identity">
               <span title={player.name} className="player-name">
-                {player.name}
+                {identity}
               </span>
               <span className="player-role">
                 {isAI(player.id)
@@ -80,18 +87,21 @@ export function Scoreboard({
                 {game?.scores[player.id] ?? 0}
               </strong>
             )}
-            {youAreHost && !me && !isAI(player.id) && (
-              <ConfirmButton
-                style={styles.kickButton}
-                label={`remove ${player.name}`}
-                title={`Remove ${player.name}?`}
-                description="They’ll be disconnected from this room. Other players can keep playing."
-                confirmLabel="Remove player"
-                onConfirm={() => onKick(player.id)}
-              >
-                ✕
-              </ConfirmButton>
-            )}
+            {youAreHost &&
+              !me &&
+              !isAI(player.id) &&
+              player.connected !== false && (
+                <ConfirmButton
+                  style={styles.kickButton}
+                  label={`remove ${identity}`}
+                  title={`Remove ${identity}?`}
+                  description="They’ll be disconnected from this room. Other players can keep playing."
+                  confirmLabel="Remove player"
+                  onConfirm={() => onKick(player.id)}
+                >
+                  ✕
+                </ConfirmButton>
+              )}
           </li>
         );
       })}

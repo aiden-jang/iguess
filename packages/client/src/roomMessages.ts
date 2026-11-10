@@ -1,4 +1,5 @@
 import type { RelayServerMessage, RelayState } from "@iguess/shared/relay";
+import type { GalleryTurn } from "@iguess/shared/gallery";
 import {
   DEFAULT_SETTINGS,
   type PlayerInfo,
@@ -12,6 +13,7 @@ import {
 type WordChoice = { word: string; tier: WordTier };
 type Choices = { options: WordChoice[]; canSkip: boolean };
 export interface ChatLine {
+  sequence?: number;
   kind: "chat" | "system";
   from?: PlayerInfo;
   text: string;
@@ -22,7 +24,10 @@ export interface RoomState {
   serverMode: GameModeName | null;
   players: PlayerInfo[];
   log: ChatLine[];
+  chatAck?: string;
   game: PublicGameState | null;
+  resultTurns: Record<number, GalleryTurn>;
+  galleryStatus: "loading" | "complete" | "incomplete";
   relay: RelayState | null;
   relayChain: Extract<RelayServerMessage, { type: "relay_chain" }> | null;
   relayNotice: string | null;
@@ -39,6 +44,8 @@ export const initialRoomState = (): RoomState => ({
   players: [],
   log: [],
   game: null,
+  resultTurns: {},
+  galleryStatus: "loading",
   relay: null,
   relayChain: null,
   relayNotice: null,
@@ -53,7 +60,10 @@ export type RoomEvent =
   | (ServerMessage & { receivedAt?: number })
   | { type: "reset" }
   | { type: "expire_reaction"; id: number };
-const append = (log: ChatLine[], line: ChatLine) => [...log.slice(-199), line];
+const append = (log: ChatLine[], line: ChatLine) => [
+  ...log.slice(-199),
+  { ...line, sequence: (log.at(-1)?.sequence ?? 0) + 1 },
+];
 export function roomMessage(state: RoomState, message: RoomEvent): RoomState {
   switch (message.type) {
     case "reset":
@@ -75,6 +85,8 @@ export function roomMessage(state: RoomState, message: RoomEvent): RoomState {
           message.players.find((player) => player.id === state.you?.id) ??
           state.you,
       };
+    case "chat_ack":
+      return { ...state, chatAck: message.id };
     case "chat":
       return {
         ...state,
@@ -93,12 +105,34 @@ export function roomMessage(state: RoomState, message: RoomEvent): RoomState {
     case "game_state":
       return {
         ...state,
+        ...(state.game?.phase === "ended" &&
+          message.state.phase !== "ended" && {
+            resultTurns: {},
+            galleryStatus: "loading" as const,
+          }),
         game: message.state,
         myWord: message.state.phase === "playing" ? state.myWord : null,
         wordChoices:
           message.state.phase === "choosing" ? state.wordChoices : null,
         peerCursor: null,
       };
+    case "gallery_turn":
+      return state.game?.phase === "ended" && !state.resultTurns[message.index]
+        ? {
+            ...state,
+            resultTurns: {
+              ...state.resultTurns,
+              [message.index]: message.turn,
+            },
+          }
+        : state;
+    case "gallery_done":
+      return state.game?.phase === "ended"
+        ? {
+            ...state,
+            galleryStatus: message.incomplete ? "incomplete" : "complete",
+          }
+        : state;
     case "relay_state":
       return {
         ...state,
@@ -160,6 +194,11 @@ export function roomMessage(state: RoomState, message: RoomEvent): RoomState {
     case "your_word":
       return { ...state, myWord: message.word, wordChoices: null };
     case "turn_end":
+      if (
+        state.game?.phase === "intermission" &&
+        state.turnEnd?.word === message.word
+      )
+        return state;
       return {
         ...state,
         myWord: null,

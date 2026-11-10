@@ -9,6 +9,7 @@ import { useEvidenceSharing } from "./useEvidenceSharing";
 
 type Props = {
   room: string;
+  ended: boolean;
   effectiveMode: string;
   modeLabel: string;
   standings: Standings;
@@ -18,6 +19,7 @@ type Props = {
 };
 export function useRoomSharing({
   room,
+  ended,
   effectiveMode,
   modeLabel,
   standings,
@@ -27,7 +29,11 @@ export function useRoomSharing({
 }: Props) {
   const invite = useRoomInvite(room, effectiveMode, modeLabel);
   const [resultsCopied, setResultsCopied] = useState(false);
+  const [resultsFallback, setResultsFallback] = useState("");
   const lifetime = useRef(0);
+  useEffect(() => {
+    if (!ended) setResultsFallback("");
+  }, [ended]);
   useLayoutEffect(() => {
     lifetime.current += 1;
     return () => {
@@ -51,18 +57,22 @@ export function useRoomSharing({
 
   const copyResults = async () => {
     const owner = lifetime.current;
-    const ok = await copyText(resultSummary());
+    const summary = resultSummary();
+    const ok = await copyText(summary);
     if (owner !== lifetime.current) return;
     if (ok) {
+      setResultsFallback("");
       setResultsCopied(true);
     } else {
-      showToast("Couldn’t copy the results. Please try again.");
+      setResultsFallback(summary);
+      showToast("Couldn’t copy the results. Select the summary to copy it.");
     }
   };
 
   return {
     ...invite,
     resultsCopied,
+    resultsFallback,
     copyResults,
     ...evidence,
     resultSummary,

@@ -13,6 +13,8 @@ export interface JoinProps {
   lastRoom: string | null;
   selectRoom: (room?: string) => void;
   entryError: string;
+  roomError: string;
+  regenerateRoom: () => void;
   stats: LifetimeStats;
   doJoin: () => void;
 }

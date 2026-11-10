@@ -1,24 +1,29 @@
 import { useEffect, useId, useRef, useState } from "react";
-import type { RoomSettings } from "@iguess/shared";
+import { teamWinTarget, type RoomSettings } from "@iguess/shared";
 import { PACK_NAMES } from "@iguess/shared/words";
 import { customWordDraft } from "./customWords";
 import { styles } from "./styles";
 import { useDismissibleDetails } from "./useDismissibleDetails";
+import { gameLengthLabel } from "./labels";
+import { usesVision } from "./gameModes";
 
 interface HostSettingsProps {
   settings: RoomSettings;
   /** Only the host's changes reach the server, so everyone else sees these disabled. */
   youAreHost: boolean;
-  isAIMode: boolean;
-  onChange: (patch: Partial<RoomSettings>) => void;
+  connected?: boolean;
+  mode: string;
+  onChange: (patch: Partial<RoomSettings> & { togglePack?: string }) => void;
 }
 
 export function HostSettings({
   settings,
   youAreHost,
-  isAIMode,
+  connected = true,
+  mode,
   onChange,
 }: HostSettingsProps) {
+  const teamBattle = mode === "team-battle";
   const disclosure = useDismissibleDetails();
   const wordsHint = useId();
   const customWords = settings.customWords.join(", ");
@@ -27,7 +32,7 @@ export function HostSettings({
   const dirty = useRef(false);
   const preview = customWordDraft(draftWords);
   const saveWords = () => {
-    if (preview.error || !youAreHost) return;
+    if (preview.error || !youAreHost || !connected) return;
     if (preview.words.join(", ") === customWords) {
       dirty.current = false;
       currentDraft.current = customWords;
@@ -50,18 +55,12 @@ export function HostSettings({
       <summary>
         <span>Game settings</span>
         <small className="settings-compact">
-          {settings.turnSeconds}s ·{" "}
-          {settings.scoreTarget > 0
-            ? `First to ${settings.scoreTarget}`
-            : `${settings.rounds} ${settings.rounds === 1 ? "round" : "rounds"}`}
+          {settings.turnSeconds}s · {gameLengthLabel(settings, teamBattle)}
         </small>
         <span aria-hidden>⌄</span>
       </summary>
       <p className="settings-summary">
-        {settings.turnSeconds}s turns ·{" "}
-        {settings.scoreTarget > 0
-          ? `First to ${settings.scoreTarget}`
-          : `${settings.rounds} ${settings.rounds === 1 ? "round" : "rounds"}`}{" "}
+        {settings.turnSeconds}s turns · {gameLengthLabel(settings, teamBattle)}{" "}
         · {youAreHost ? "You’re hosting" : "Host chooses the rules"}
       </p>
       <div className="settings-fields">
@@ -70,96 +69,94 @@ export function HostSettings({
             ? "You’re hosting. These rules apply to everyone in the room."
             : "The host chooses these rules. You can review them here."}
         </p>
-        <div
-          className="word-packs"
-          role="group"
-          aria-label="Word packs"
-          style={styles.packRow}
-        >
-          <span className="pack-heading">
-            Word packs ·{" "}
-            {settings.packs.length
-              ? `${settings.packs.length} selected`
-              : "all words"}
-          </span>
-          <button
-            type="button"
-            style={styles.packChip}
-            className="all-words"
-            aria-pressed={settings.packs.length === 0}
-            disabled={!youAreHost}
-            onClick={() => onChange({ packs: [] })}
-          >
-            All words
-          </button>
-          {PACK_NAMES.map((p) => {
-            const on = settings.packs.includes(p);
-            return (
+        {mode !== "ai-drawer" && (
+          <>
+            <div
+              className="word-packs"
+              role="group"
+              aria-label="Word packs"
+              style={styles.packRow}
+            >
+              <span className="pack-heading">
+                Word packs ·{" "}
+                {settings.packs.length
+                  ? `${settings.packs.length} selected`
+                  : "all words"}
+              </span>
               <button
-                key={p}
-                className="lift"
-                style={{
-                  ...styles.packChip,
-                  ...(on ? styles.packChipOn : null),
-                }}
-                aria-pressed={on}
-                disabled={!youAreHost}
-                onClick={() =>
-                  onChange({
-                    packs: on
-                      ? settings.packs.filter((x) => x !== p)
-                      : [...settings.packs, p],
-                  })
-                }
+                type="button"
+                style={styles.packChip}
+                className="all-words"
+                aria-pressed={settings.packs.length === 0}
+                disabled={!youAreHost || !connected}
+                onClick={() => onChange({ packs: [] })}
               >
-                {p}
+                All words
               </button>
-            );
-          })}
-        </div>
-        <label style={styles.settingLabel}>
-          Custom words
-          <input
-            style={{ ...styles.settingSelect, width: 150 }}
-            disabled={!youAreHost}
-            placeholder="your own words, comma separated"
-            value={draftWords}
-            onChange={(event) => {
-              dirty.current = true;
-              currentDraft.current = event.target.value;
-              setDraftWords(event.target.value);
-            }}
-            aria-describedby={wordsHint}
-            aria-invalid={!!preview.error}
-            onBlur={saveWords}
-            onKeyDown={(event) => {
-              if (
-                event.key !== "Enter" ||
-                event.nativeEvent.isComposing ||
-                event.keyCode === 229
-              )
-                return;
-              event.preventDefault();
-              saveWords();
-            }}
-          />
-        </label>
-        <p
-          className="custom-word-feedback"
-          id={wordsHint}
-          role={preview.error ? "alert" : undefined}
-        >
-          {preview.error
-            ? `Not applied. ${preview.error} The room still uses its saved words.`
-            : youAreHost
-              ? `${preview.words.length} custom words. Up to 40 unique words; save with Enter or leave the field.`
-              : `${preview.words.length} custom words. The host chooses these words.`}
-        </p>
+              {PACK_NAMES.map((p) => {
+                const on = settings.packs.includes(p);
+                return (
+                  <button
+                    key={p}
+                    className="lift"
+                    style={{
+                      ...styles.packChip,
+                      ...(on ? styles.packChipOn : null),
+                    }}
+                    aria-pressed={on}
+                    disabled={!youAreHost || !connected}
+                    onClick={() => onChange({ togglePack: p })}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+            </div>
+            <label style={styles.settingLabel}>
+              Custom words
+              <input
+                style={{ ...styles.settingSelect, width: 150 }}
+                disabled={!youAreHost || !connected}
+                placeholder="your own words, comma separated"
+                value={draftWords}
+                onChange={(event) => {
+                  dirty.current = true;
+                  currentDraft.current = event.target.value;
+                  setDraftWords(event.target.value);
+                }}
+                aria-describedby={wordsHint}
+                aria-invalid={!!preview.error}
+                onBlur={saveWords}
+                onKeyDown={(event) => {
+                  if (
+                    event.key !== "Enter" ||
+                    event.nativeEvent.isComposing ||
+                    event.keyCode === 229
+                  )
+                    return;
+                  event.preventDefault();
+                  saveWords();
+                }}
+              />
+            </label>
+            <p
+              className="custom-word-feedback"
+              id={wordsHint}
+              role={preview.error ? "alert" : undefined}
+            >
+              {preview.error
+                ? `Not applied. ${preview.error} The room still uses its saved words.`
+                : youAreHost
+                  ? `${preview.words.length} custom words. Up to 40 unique words; save with Enter or leave the field.`
+                  : `${preview.words.length} custom words. The host chooses these words.`}
+            </p>
+          </>
+        )}
         <label style={styles.settingLabel}>
           Turn time
           <select
             style={styles.settingSelect}
-            disabled={!youAreHost}
+            disabled={!youAreHost || !connected}
             value={settings.turnSeconds}
             onChange={(e) => onChange({ turnSeconds: Number(e.target.value) })}
           >
@@ -170,12 +167,12 @@ export function HostSettings({
             ))}
           </select>
         </label>
-        {isAIMode && (
+        {usesVision(mode) && (
           <label style={styles.settingLabel}>
             AI skill
             <select
               style={styles.settingSelect}
-              disabled={!youAreHost}
+              disabled={!youAreHost || !connected}
               value={settings.aiSkill}
               onChange={(e) =>
                 onChange({ aiSkill: e.target.value as typeof settings.aiSkill })
@@ -191,7 +188,7 @@ export function HostSettings({
           Game length
           <select
             style={styles.settingSelect}
-            disabled={!youAreHost}
+            disabled={!youAreHost || !connected}
             value={
               settings.scoreTarget > 0
                 ? `t${settings.scoreTarget}`
@@ -211,9 +208,9 @@ export function HostSettings({
                 {n} {n === 1 ? "round" : "rounds"}
               </option>
             ))}
-            {[300, 500, 1000].map((n) => (
+            {(teamBattle ? [300, 500, 800] : [300, 500, 1000]).map((n) => (
               <option key={`t${n}`} value={`t${n}`}>
-                first to {n}
+                first to {teamBattle ? `${teamWinTarget(n)} team wins` : n}
               </option>
             ))}
           </select>

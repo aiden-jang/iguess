@@ -100,6 +100,14 @@ export function newRoomCode(): string {
   return `${pick(ADJECTIVES)}-${pick(NOUNS)}-${Math.floor(Math.random() * 90) + 10}`;
 }
 
+export function visiblePlayerName(value: string) {
+  const name = value
+    .trim()
+    .slice(0, 24)
+    .replace(/[\ud800-\udbff]$/u, "");
+  return /[^\s\p{C}\p{M}]/u.test(name) ? name : "";
+}
+
 /** A mistyped percent escape should still reach the join screen, not throw a server error. */
 export function decodeRoomCode(value: string): string {
   try {

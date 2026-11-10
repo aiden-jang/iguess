@@ -82,6 +82,8 @@ export default {
     // Assets serves them `max-age=0, must-revalidate`, which spends a round trip per chunk on
     // every repeat visit. index.html keeps its name and is left to revalidate.
     if (url.pathname.startsWith("/assets/")) {
+      if (!asset.ok || asset.headers.get("content-type")?.includes("text/html"))
+        return secure(new Response("Asset not found.", { status: 404 }));
       asset.headers.set("Cache-Control", "public, max-age=31536000, immutable");
     }
     return asset;

@@ -45,7 +45,9 @@ export function useEvidenceSharing(
       const blob = await renderEvidencePng(
         gallery.map((item) => ({
           ...item,
-          artist: players.find((player) => player.id === item.drawerId)?.name,
+          artist:
+            item.artist ??
+            players.find((player) => player.id === item.drawerId)?.name,
         })),
         scoreLine(standings),
         awardsFor(gallery, players),

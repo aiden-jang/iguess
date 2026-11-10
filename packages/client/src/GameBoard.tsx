@@ -1,5 +1,5 @@
 import { ReactionSticker } from "./ReactionSticker";
-import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DrawOp, Point } from "@iguess/shared";
 import { ClubFace } from "./ClubFace";
 import { DrawingCanvas } from "./DrawingCanvas";
@@ -27,7 +27,6 @@ interface GameBoardProps {
   socket: BoardSocket;
   brush: Brush;
   canDraw: boolean;
-  opsRef: MutableRefObject<DrawOp[]>;
   onCanvas: (el: HTMLCanvasElement | null) => void;
   /** Why the board is dead, or null when it is not. */
   hint: string | null;
@@ -41,7 +40,6 @@ export function GameBoard({
   socket,
   brush,
   canDraw,
-  opsRef,
   onCanvas,
   hint,
   waiting,
@@ -54,13 +52,8 @@ export function GameBoard({
     if (canDraw && phase === "playing")
       canvas.current?.focus({ preventScroll: true });
   }, [canDraw, phase]);
-  useEffect(() => setScribbled(false), [phase]);
   return (
-    <div
-      className="canvas-wrap"
-      style={styles.canvasWrap}
-      onPointerDownCapture={() => canDraw && setScribbled(true)}
-    >
+    <div className="canvas-wrap" style={styles.canvasWrap}>
       <DrawingCanvas
         sendDraw={socket.sendDraw}
         subscribeDraw={socket.subscribeDraw}
@@ -68,11 +61,12 @@ export function GameBoard({
         width={brush.width}
         erasing={brush.erasing}
         filling={brush.filling}
-        opsRef={opsRef}
         socketBacklog={socket.socketBacklog}
         onCursor={socket.sendCursor}
         peerCursor={socket.peerCursor}
         canDraw={canDraw}
+        optimistic={phase === "playing"}
+        onInkChange={phase === "lobby" ? setScribbled : undefined}
         onCanvas={(element) => {
           canvas.current = element;
           onCanvas(element);
@@ -89,7 +83,7 @@ export function GameBoard({
         </span>
       ))}
       {phase === "lobby" && !scribbled && (
-        <div className="board-watermark" aria-hidden="true">
+        <div className="board-watermark">
           <ClubFace />
           <span>A blank canvas. Very on brand.</span>
           <small>Draw here. We’ll call it a warm-up.</small>

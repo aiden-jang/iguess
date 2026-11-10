@@ -14,7 +14,10 @@ function setMeta(html: string, key: string, value: string): string {
     `(<meta\\s+(?:property|name)="${key}"\\s+content=")[^"]*(")`,
     "i",
   );
-  return html.replace(re, `$1${esc(value)}$2`);
+  return html.replace(
+    re,
+    (_match, before, after) => `${before}${esc(value)}${after}`,
+  );
 }
 
 export function rewriteInviteMeta(
@@ -25,9 +28,19 @@ export function rewriteInviteMeta(
 ): string {
   const title = `join "${room}" on iguess`;
   const relay = mode === "relay";
-  const desc = relay
-    ? "Join Drawing Relay. Pass drawings and guesses around the room."
-    : "draw bad, win anyway. race the AI.";
+  const descriptions: Record<string, string> = {
+    classic:
+      "Join Classic. Draw a secret word and race your friends to guess it.",
+    relay: "Join Drawing Relay. Pass drawings and guesses around the room.",
+    ai: "Join AI Guesser. Draw a clue and see if the machine gets it.",
+    "ai-drawer": "Join AI Drawer. Guess the machine’s drawing as it appears.",
+    "team-battle":
+      "Join Team Battle. Your group races the AI to guess the drawing.",
+    duel: "Join You vs AI. Trade turns drawing and guessing against the machine.",
+  };
+  const desc = Object.hasOwn(descriptions, mode)
+    ? descriptions[mode]!
+    : "Join your friends for a game of iGuess.";
   // The card is rendered by the ai-worker (the only one of ours with a rasterizer). Without it
   // configured, the static og.png still applies.
   const image = aiWorkerUrl
@@ -35,6 +48,12 @@ export function rewriteInviteMeta(
     : null;
 
   let out = html;
+  const canonical = new URL(
+    `/r/${encodeURIComponent(room)}`,
+    "https://iguess.aidenjang.com",
+  );
+  if (mode) canonical.searchParams.set("mode", mode);
+  out = setMeta(out, "og:url", canonical.href);
   out = setMeta(out, "og:title", title);
   out = setMeta(out, "twitter:title", title);
   out = setMeta(out, "og:description", desc);

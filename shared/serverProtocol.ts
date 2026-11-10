@@ -17,7 +17,7 @@ function player(value: unknown) {
     object(value) &&
     text(value.id, 64) &&
     text(value.name, 24) &&
-    ["isHost", "ready", "spectator"].every(
+    ["isHost", "ready", "spectator", "connected"].every(
       (key) => value[key] === undefined || typeof value[key] === "boolean",
     ) &&
     (value.avatar === undefined || text(value.avatar, 8))
@@ -52,9 +52,35 @@ function game(value: unknown) {
       (key) => number(value[key]),
     ) &&
     (value.turnEndsAt === null || number(value.turnEndsAt)) &&
+    (value.serverNow === undefined || number(value.serverNow)) &&
     text(value.hint, 64) &&
     scores(value.scores) &&
-    strings(value.guessedIds, 24, 64)
+    strings(value.guessedIds, 24, 64) &&
+    (value.teamScore === undefined ||
+      (object(value.teamScore) &&
+        [value.teamScore.human, value.teamScore.ai].every(
+          (wins) =>
+            number(wins) && Number.isInteger(wins) && wins >= 0 && wins <= 16,
+        ))) &&
+    (value.resultPlayers === undefined ||
+      (Array.isArray(value.resultPlayers) &&
+        value.resultPlayers.length <= 24 &&
+        value.resultPlayers.every(player)))
+  );
+}
+
+function galleryTurn(value: unknown) {
+  return (
+    object(value) &&
+    text(value.word, 64) &&
+    text(value.drawerId, 64) &&
+    text(value.artist, 24) &&
+    (value.guess === null || text(value.guess)) &&
+    typeof value.right === "boolean" &&
+    typeof value.aiParticipated === "boolean" &&
+    Array.isArray(value.ops) &&
+    value.ops.length <= MAX_DRAW_OPS &&
+    value.ops.every(isDrawOp)
   );
 }
 /** Decode at the transport boundary; reducers and canvas listeners receive checked shapes. */
@@ -95,6 +121,9 @@ export function parseServerMessage(frame: unknown): ServerMessage | null {
         text(value.text) &&
         (value.isGuess === undefined || typeof value.isGuess === "boolean");
       break;
+    case "chat_ack":
+      valid = text(value.id, 36);
+      break;
     case "system":
       valid = text(value.text);
       break;
@@ -109,6 +138,17 @@ export function parseServerMessage(frame: unknown): ServerMessage | null {
       break;
     case "game_state":
       valid = game(value.state);
+      break;
+    case "gallery_turn":
+      valid =
+        number(value.index) &&
+        Number.isInteger(value.index) &&
+        value.index >= 0 &&
+        value.index < 64 &&
+        galleryTurn(value.turn);
+      break;
+    case "gallery_done":
+      valid = typeof value.incomplete === "boolean";
       break;
     case "cursor":
       valid =

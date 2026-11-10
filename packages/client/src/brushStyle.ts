@@ -44,3 +44,15 @@ export function widthDot(w: number, c: string, on: boolean): CSSProperties {
     flexShrink: 0,
   };
 }
+
+export function brushCursor(width: number, color: string, erasing: boolean) {
+  const d = Math.max(6, Math.min(width, 48));
+  const s = d + 4;
+  const half = s / 2;
+  const svg =
+    `<svg xmlns='http://www.w3.org/2000/svg' width='${s}' height='${s}'>` +
+    `<circle cx='${half}' cy='${half}' r='${d / 2}' fill='${erasing ? "#ffffff" : color}' ` +
+    `fill-opacity='${erasing ? 0.15 : 0.35}' ` +
+    `stroke='black' stroke-opacity='0.55' stroke-width='1.5'/></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${half} ${half}, crosshair`;
+}

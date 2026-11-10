@@ -1,3 +1,15 @@
+import { teamWinTarget, type RoomSettings } from "@iguess/shared";
+
+export function gameLengthLabel(
+  { rounds, scoreTarget }: RoomSettings,
+  teamBattle = false,
+): string {
+  if (scoreTarget <= 0) return `${rounds} ${rounds === 1 ? "round" : "rounds"}`;
+  if (!teamBattle) return `First to ${scoreTarget}`;
+  const target = teamWinTarget(scoreTarget);
+  return `First to ${target} ${target === 1 ? "team win" : "team wins"}`;
+}
+
 export type InviteResult = "sharing" | "failed" | "copied" | "shared" | null;
 
 export function chatPlaceholder(drawingNow: boolean, inGame: boolean): string {

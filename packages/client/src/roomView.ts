@@ -29,7 +29,9 @@ export function roomView(
 ): RoomView {
   const phase = game?.phase ?? "lobby";
   const isDrawer = !!game && game.drawerId === you?.id;
-  const humans = players.filter((p) => !isAI(p.id) && !p.spectator);
+  const humans = players.filter(
+    (p) => !isAI(p.id) && !p.spectator && p.connected !== false,
+  );
   const watching = players.filter((p) => p.spectator);
   const youAreWatching = watching.some((p) => p.id === you?.id);
   const hasAI = players.some((p) => isAI(p.id));
@@ -53,6 +55,6 @@ export function roomView(
     ),
     hasAI,
     aiGuessedRight: hasAI && (game?.guessedIds ?? []).some((id) => isAI(id)),
-    soloWaiting: !hasAI && players.filter((p) => !isAI(p.id)).length <= 1,
+    soloWaiting: !hasAI && humans.length <= 1,
   };
 }

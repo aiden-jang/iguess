@@ -1,4 +1,9 @@
-import type { GameModeName } from "@iguess/shared";
+import {
+  SETTINGS_LIMITS,
+  TEAM_TURN_POINTS,
+  type RoomSettings,
+  type GameModeName,
+} from "@iguess/shared";
 import type { GameMode } from "./modes/GameMode.ts";
 import type { AIGuess } from "./services/aiWorkerClient.ts";
 import { ClassicMode } from "./modes/ClassicMode.ts";
@@ -35,4 +40,14 @@ export function createMode(
     default:
       return new ClassicMode();
   }
+}
+
+export function settingsForMode(
+  settings: RoomSettings,
+  mode: GameModeName,
+): RoomSettings {
+  const max = SETTINGS_LIMITS.rounds.max * TEAM_TURN_POINTS;
+  return mode === "team-battle" && settings.scoreTarget > max
+    ? { ...settings, scoreTarget: max }
+    : settings;
 }

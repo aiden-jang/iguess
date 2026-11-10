@@ -1,7 +1,10 @@
 import { useCanvasPointer } from "./useCanvasPointer";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import type { DrawOp, Point } from "@iguess/shared";
 import { dropStroke } from "@iguess/shared/strokeLog";
+import { BOARD_WIDTH, BOARD_HEIGHT } from "@iguess/shared/strokePath";
+import { hasVisibleInk } from "./canvasExport";
+import { brushCursor } from "./brushStyle";
 import { paintOp, newStrokeStates } from "./paint";
 
 interface Props {
@@ -13,7 +16,9 @@ interface Props {
   filling: boolean;
   onCursor?: (p: Point | null) => void;
   peerCursor?: Point | null;
-  opsRef?: React.MutableRefObject<DrawOp[]>;
+  boardWidth?: number;
+  optimistic?: boolean;
+  onInkChange?: (hasInk: boolean) => void;
   socketBacklog?: () => number;
   label?: string;
   canDraw: boolean;
@@ -29,7 +34,9 @@ export function DrawingCanvas({
   filling,
   onCursor,
   peerCursor,
-  opsRef,
+  boardWidth = BOARD_WIDTH,
+  optimistic = true,
+  onInkChange,
   socketBacklog,
   label,
   canDraw,
@@ -38,13 +45,15 @@ export function DrawingCanvas({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const strokes = useRef(newStrokeStates());
-  const dims = useRef({ w: 0, h: 0 });
+  const inkFrame = useRef(0);
+  const inkListener = useRef(onInkChange);
+  inkListener.current = onInkChange;
   const opLog = useRef<DrawOp[]>([]);
 
   function render(op: DrawOp | { kind: "reset" }) {
     const ctx = ctxRef.current;
     if (!ctx) return;
-    paintOp(ctx, op, strokes.current, dims.current.w, dims.current.h);
+    paintOp(ctx, op, strokes.current, boardWidth, BOARD_HEIGHT);
   }
 
   function applyOp(op: DrawOp | { kind: "reset" }) {
@@ -55,69 +64,53 @@ export function DrawingCanvas({
       opLog.current = dropStroke(opLog.current, op.strokeId);
       render({ kind: "reset" });
       for (const o of opLog.current) render(o);
-      if (opsRef) opsRef.current = opLog.current;
-      return;
     } else {
       opLog.current.push(op);
     }
-    if (opsRef) opsRef.current = opLog.current;
-    render(op);
-  }
-
-  function resizeCanvas() {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(rect.width * dpr);
-    canvas.height = Math.round(rect.height * dpr);
-    dims.current = { w: rect.width, h: rect.height };
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in logical pixels
-    ctxRef.current = ctx;
-    ctx.clearRect(0, 0, rect.width, rect.height);
-    for (const op of opLog.current) render(op);
+    if (op.kind !== "undo") render(op);
+    if (
+      inkListener.current &&
+      !inkFrame.current &&
+      op.kind !== "start" &&
+      op.kind !== "move"
+    )
+      inkFrame.current = requestAnimationFrame(() => {
+        inkFrame.current = 0;
+        if (ctxRef.current)
+          inkListener.current?.(
+            hasVisibleInk(ctxRef.current, boardWidth, BOARD_HEIGHT),
+          );
+      });
   }
 
   useEffect(() => {
     const canvas = canvasRef.current!;
-    resizeCanvas();
+    ctxRef.current = canvas.getContext("2d", { willReadFrequently: true });
     onCanvas?.(canvas);
-
-    const ro = new ResizeObserver(() => resizeCanvas());
-    ro.observe(canvas);
     const unsub = subscribeDraw(applyOp);
     return () => {
-      ro.disconnect();
       unsub();
+      cancelAnimationFrame(inkFrame.current);
+      inkFrame.current = 0;
       onCanvas?.(null);
     };
-  }, [subscribeDraw]);
+  }, [subscribeDraw, boardWidth]);
 
   const pointer = useCanvasPointer({
     canvas: canvasRef,
     canDraw,
     brush: { color, width, erasing, filling },
-    apply: applyOp,
+    apply: optimistic ? applyOp : () => {},
     send: sendDraw,
     cursor: onCursor,
     backlog: socketBacklog,
   });
 
-  const d = Math.max(6, Math.min(width, 48));
-  const s = d + 4;
-  const half = s / 2;
-  const svg =
-    `<svg xmlns='http://www.w3.org/2000/svg' width='${s}' height='${s}'>` +
-    `<circle cx='${half}' cy='${half}' r='${d / 2}' fill='${erasing ? "#ffffff" : color}' ` +
-    `fill-opacity='${erasing ? 0.15 : 0.35}' ` +
-    `stroke='black' stroke-opacity='0.55' stroke-width='1.5'/></svg>`;
-  const brushCursor = `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${half} ${half}, crosshair`;
-
   return (
-    <>
+    <div
+      className="drawing-surface"
+      style={{ "--board-ratio": boardWidth / BOARD_HEIGHT } as CSSProperties}
+    >
       {peerCursor && !canDraw && (
         <span
           aria-hidden
@@ -147,6 +140,8 @@ export function DrawingCanvas({
             : "Live drawing to guess")
         }
         ref={canvasRef}
+        width={boardWidth}
+        height={BOARD_HEIGHT}
         {...pointer}
         tabIndex={canDraw ? 0 : -1}
         style={{
@@ -155,10 +150,10 @@ export function DrawingCanvas({
           border: "1px solid #d6d1c2",
           borderRadius: 12,
           touchAction: canDraw ? "none" : "auto",
-          cursor: canDraw ? brushCursor : "not-allowed",
+          cursor: canDraw ? brushCursor(width, color, erasing) : "default",
           background: "white",
         }}
       />
-    </>
+    </div>
   );
 }

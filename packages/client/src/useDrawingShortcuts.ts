@@ -13,7 +13,7 @@ export function useDrawingShortcuts(
       if (target.matches("input, textarea, select") || target.isContentEditable)
         return;
       if (
-        !target.closest(".draw-toolbar, .canvas-wrap") ||
+        !target.closest(".draw-toolbar, .canvas-wrap, .relay-board") ||
         document.querySelector("dialog[open]")
       )
         return;

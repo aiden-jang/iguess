@@ -49,7 +49,9 @@ export function readInvite(
   const shared = new URLSearchParams(location.search);
   const sharedLink = shared.get("url") ?? shared.get("text") ?? "";
   try {
-    const link = new URL(sharedLink);
+    const candidate =
+      sharedLink.match(/https?:\/\/[^\s<>]+/i)?.[0] ?? sharedLink;
+    const link = new URL(candidate);
     if (/^\/r\//.test(link.pathname)) return readInvite(link);
   } catch {
     // Shared text can be a message rather than a URL.

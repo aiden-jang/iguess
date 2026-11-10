@@ -3,7 +3,6 @@ import { createEngineContext, type EngineDeps } from "./engineContext.ts";
 import { EngineState } from "./engineBase.ts";
 import type { EngineSnapshot } from "./engineState.ts";
 import type { RoomSettings } from "@iguess/shared";
-import { tierOf } from "@iguess/shared/words";
 import type { GameMode, TurnContext, EngineContext } from "./modes/GameMode.ts";
 
 const INTERMISSION_MS = 5_000;
@@ -37,37 +36,14 @@ export class GameEngine extends EngineState {
   }
 
   handleChat(playerId: string, text: string): boolean {
+    if (this.clock.runDue("turn")) return true;
     if (this.phase !== "playing" || !this.roster.has(playerId)) return false;
     return this.mode.onChat(playerId, text, this.ctx);
   }
 
   sendStateTo(playerId: string) {
-    this.deps.sendToPlayer(playerId, {
-      type: "game_state",
-      state: this.publicState(),
-    });
-    if (this.phase === "intermission" && this.word)
-      this.deps.sendToPlayer(playerId, {
-        type: "turn_end",
-        word: this.word,
-        scores: this.scoreboard,
-      });
-    if (this.phase === "playing" && playerId === this.drawerId && this.word) {
-      this.deps.sendToPlayer(playerId, { type: "your_word", word: this.word });
-    }
-    // Word choices are private and must be resent to a returning drawer.
-    if (
-      this.phase === "choosing" &&
-      playerId === this.drawerId &&
-      this.pendingChoices
-    ) {
-      this.deps.sendToPlayer(playerId, {
-        type: "word_choices",
-        words: this.pendingChoices,
-        tiers: this.pendingChoices.map(tierOf),
-        canSkip: !this.skipsUsed.has(playerId),
-      });
-    }
+    for (const message of this.playerMessages(playerId))
+      this.deps.sendToPlayer(playerId, message);
   }
 
   applySettings(settings: RoomSettings) {
@@ -76,7 +52,6 @@ export class GameEngine extends EngineState {
   }
 
   startGame(humanIds: string[]): boolean {
-    // A second start must not create another turn clock.
     if (this.phase !== "lobby" && this.phase !== "ended") return false;
     if (humanIds.length < this.mode.minHumans) {
       this.deps.broadcast({
@@ -103,10 +78,10 @@ export class GameEngine extends EngineState {
 
     this.totalTurns = totalTurns;
     this.turnsPerRound = Math.max(1, turnsPerRound ?? totalTurns);
-    // Settings must not change a visible deadline mid-turn.
     this.turnMs = this.settings.turnSeconds * 1000;
     this.mode.useSettings?.(this.settings);
     this.turnIndex = 0;
+    this.drawerId = null;
     this.skipsUsed.clear();
     this.scoreboard = Object.fromEntries(
       [...this.roster.keys()].map((id) => [id, 0]),
@@ -116,7 +91,9 @@ export class GameEngine extends EngineState {
   }
 
   onPlayerLeave(playerId: string) {
+    if (this.phase === "ended") return;
     const wasDrawer = playerId === this.drawerId;
+    const artist = wasDrawer ? this.ctx.getName(playerId) : undefined;
     this.roster.delete(playerId);
     this.guessed.delete(playerId);
     delete this.scoreboard[playerId];
@@ -126,7 +103,8 @@ export class GameEngine extends EngineState {
       [...this.roster.values()].filter((player) => !player.isAI).length <
       this.mode.minHumans
     ) {
-      if (this.phase !== "lobby" && this.phase !== "ended") this.finish();
+      this.endTurn(artist);
+      if (this.phase !== "lobby") this.finish();
       return;
     }
     if (!wasDrawer) {
@@ -145,9 +123,9 @@ export class GameEngine extends EngineState {
     if (this.phase === "playing") {
       this.deps.broadcast({
         type: "system",
-        text: "the drawer left, ending the turn.",
+        text: "The drawer left, ending the turn.",
       });
-      this.endTurn();
+      this.endTurn(artist);
     } else if (this.phase === "choosing") {
       this.clock.cancel("choosing");
       this.deps.broadcast({
@@ -184,26 +162,20 @@ export class GameEngine extends EngineState {
     this.pendingChoices = choices;
 
     void this.deps.clearCanvas();
-    this.deps.sendToPlayer(drawerId, {
-      type: "word_choices",
-      words: choices,
-      tiers: choices.map(tierOf),
-      canSkip: !this.skipsUsed.has(drawerId),
-    });
-    this.broadcastState();
-
+    this.deps.sendToPlayer(drawerId, this.wordChoicesFor(drawerId, choices));
     this.clock.after("choosing", CHOOSE_MS);
+    this.broadcastState();
   }
 
   handleChooseWord(playerId: string, word: string) {
-    if (this.phase !== "choosing") return;
+    if (this.clock.runDue("choosing") || this.phase !== "choosing") return;
     if (playerId !== this.drawerId) return;
     if (!this.pendingChoices?.includes(word)) return;
     this.beginTurn(this.drawerId, word);
   }
 
   handleSkipWord(playerId: string) {
-    if (this.phase !== "choosing") return;
+    if (this.clock.runDue("choosing") || this.phase !== "choosing") return;
     if (playerId !== this.drawerId) return;
     if (this.skipsUsed.has(playerId)) return;
     const fresh = this.mode.pickWordChoices?.(this.ctx);
@@ -236,7 +208,6 @@ export class GameEngine extends EngineState {
     this.clock.after("turn", this.turnMs);
   }
 
-  // Reveal at most a third of the word, never the complete answer.
   private scheduleHints(word: string) {
     this.revealed.clear();
     const letterIdx = [...word]
@@ -259,19 +230,27 @@ export class GameEngine extends EngineState {
     return this.computeHint();
   }
 
-  private endTurn() {
+  private endTurn(artist?: string) {
     if (this.phase !== "playing") return; // guard against double-end
     this.clock.clear();
-    const word = this.word ?? "";
     const turn: TurnContext = {
       turnIndex: this.turnIndex,
       drawerId: this.drawerId ?? "",
-      word,
+      word: this.word ?? "",
     };
 
     this.phase = "intermission";
     this.turnEndsAt = null;
-    this.deps.broadcast({ type: "turn_end", word, scores: this.scoreboard });
+    this.deps.recordTurn?.(
+      turn,
+      artist ?? this.ctx.getName(turn.drawerId),
+      [...this.guessed].some((id) => id.startsWith("ai-")),
+    );
+    this.deps.broadcast({
+      type: "turn_end",
+      word: turn.word,
+      scores: this.scoreboard,
+    });
     this.mode.onTurnEnd(turn, this.ctx);
     this.broadcastState();
 
@@ -303,11 +282,8 @@ export class GameEngine extends EngineState {
         ]!,
       );
     } else if (key === "intermission") {
-      const reached =
-        this.settings.scoreTarget > 0 &&
-        Math.max(0, ...Object.values(this.scoreboard)) >=
-          this.settings.scoreTarget;
-      if (reached || this.turnIndex >= this.totalTurns) this.finish();
+      if (this.reachedScoreTarget() || this.turnIndex >= this.totalTurns)
+        this.finish();
       else this.startTurn();
     } else if (key.startsWith("hint:") && this.phase === "playing") {
       this.revealed.add(Number(key.slice(5)));

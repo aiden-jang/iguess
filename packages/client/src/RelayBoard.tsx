@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { DrawOp } from "@iguess/shared";
-import { hasRelayInk } from "@iguess/shared/relay";
+import { RELAY_BOARD_WIDTH } from "@iguess/shared/strokePath";
 import { DrawingCanvas } from "./DrawingCanvas";
 import { DrawToolbar } from "./DrawToolbar";
 import { useBrush } from "./useBrush";
@@ -26,9 +26,7 @@ export function RelayBoard({
 }) {
   const brush = useBrush(COLORS[0]!);
   const canvas = useRef<HTMLCanvasElement | null>(null);
-  const liveOps = useRef<DrawOp[]>(ops);
-  const [ink, setInk] = useState(() => hasRelayInk(ops));
-  useEffect(() => setInk(hasRelayInk(ops)), [ops]);
+  const [ink, setInk] = useState(false);
   const subscribe = useCallback(
     (listener: (op: DrawOp | { kind: "reset" }) => void) => {
       listener({ kind: "reset" });
@@ -44,17 +42,10 @@ export function RelayBoard({
     <div className="relay-board">
       <DrawingCanvas
         label={label}
-        sendDraw={(op) => {
-          if (
-            !ink &&
-            (op.kind === "move" || op.kind === "fill") &&
-            hasRelayInk(liveOps.current)
-          )
-            setInk(true);
-          editing?.send(op);
-        }}
+        sendDraw={editing?.send ?? noop}
         subscribeDraw={subscribe}
-        opsRef={liveOps}
+        boardWidth={RELAY_BOARD_WIDTH}
+        onInkChange={editing ? setInk : undefined}
         color={brush.color}
         width={brush.width}
         erasing={brush.erasing}

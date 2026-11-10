@@ -18,7 +18,13 @@ export function useDismissibleDetails() {
   return {
     ref,
     onKeyDown: (event: KeyboardEvent<HTMLDetailsElement>) => {
-      if (event.key === "Escape") {
+      if (
+        event.key === "Escape" &&
+        !(
+          event.target instanceof Element &&
+          event.target.closest("dialog[open]")
+        )
+      ) {
         event.currentTarget.querySelector("summary")?.focus();
         event.currentTarget.open = false;
       }

@@ -1,6 +1,5 @@
 import { AvatarPicker } from "./AvatarPicker";
-import { newRoomCode } from "@iguess/shared/roomCode";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { VisionNotice } from "./VisionNotice";
 import { ClubFace } from "./ClubFace";
 import { MODES, randomName } from "./gameModes";
@@ -11,6 +10,14 @@ export function JoinForm(p: JoinProps) {
     (mode) => mode.value === p.draftMode,
   );
   const [optionsOpen, setOptionsOpen] = useState(extraMode);
+  useEffect(() => {
+    if (p.roomError) {
+      setOptionsOpen(true);
+      requestAnimationFrame(() =>
+        document.getElementById("room-code")?.focus(),
+      );
+    } else if (p.entryError) document.getElementById("player-name")?.focus();
+  }, [p.roomError, p.entryError]);
   return (
     <form
       id="join-form"
@@ -67,7 +74,7 @@ export function JoinForm(p: JoinProps) {
           title="Enter a name with at least one non-space character."
           value={p.draftName}
           onChange={(e) => p.setDraftName(e.target.value)}
-          placeholder="A name you can defend…"
+          placeholder="Your nickname…"
           enterKeyHint="go"
           aria-describedby="entry-feedback"
           aria-invalid={!!p.entryError}
@@ -153,7 +160,11 @@ export function JoinForm(p: JoinProps) {
               ? "Humans draw and guess. Bring at least one friend."
               : p.draftMode === "relay"
                 ? "Draw, guess, and reveal how each word changed."
-                : "The AI guesses from your drawing. Confidence varies."}
+                : p.draftMode === "team-battle"
+                  ? "Your group faces the AI. The first correct guess wins the turn for its team."
+                  : p.draftMode === "duel"
+                    ? "Take turns drawing with the AI. The highest score wins."
+                    : "The AI guesses from your drawing. Confidence varies."}
         </p>
       )}
       {!p.invited && p.draftMode !== "relay" && (
@@ -176,6 +187,8 @@ export function JoinForm(p: JoinProps) {
             <input
               id="room-code"
               name="room"
+              aria-invalid={Boolean(p.roomError)}
+              aria-describedby="room-code-note"
               value={p.draftRoom}
               maxLength={32}
               onChange={(e) => p.setDraftRoom(e.target.value)}
@@ -187,7 +200,7 @@ export function JoinForm(p: JoinProps) {
             <button
               type="button"
               aria-label="New room code"
-              onClick={() => p.setDraftRoom(newRoomCode())}
+              onClick={p.regenerateRoom}
             >
               ↻
             </button>
@@ -213,16 +226,20 @@ export function JoinForm(p: JoinProps) {
               </div>
             </fieldset>
           )}
-          <p className="join-options-note">
-            The first person in sets a new room’s mode. Existing rooms keep
-            their host’s choice.
+          <p
+            className="join-options-note"
+            id="room-code-note"
+            role={p.roomError ? "alert" : undefined}
+          >
+            {p.roomError ||
+              "Room codes are case-sensitive. Existing rooms keep the host’s mode."}
           </p>
         </div>
       </details>
       <AvatarPicker value={p.avatar} onChange={p.setAvatar} />
       {p.stats.games > 0 && (
         <p className="join-stats">
-          {p.stats.games} games · {p.stats.wins} wins · best streak{" "}
+          {p.stats.games} scored games · {p.stats.wins} wins · best streak{" "}
           {p.stats.bestStreak}
         </p>
       )}

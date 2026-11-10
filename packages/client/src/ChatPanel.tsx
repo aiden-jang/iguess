@@ -25,9 +25,11 @@ interface ChatPanelProps {
   log: ChatLine[];
   drawingNow: boolean;
   inGame: boolean;
+  canGuess: boolean;
   onReact: (emoji: string) => void;
   /** Returns whether it actually went out. */
-  onSend: (text: string) => boolean;
+  onSend: (text: string, id: string) => boolean;
+  chatAck?: string;
   onSendFailed: () => void;
 }
 
@@ -43,8 +45,10 @@ export function ChatPanel({
   log,
   drawingNow,
   inGame,
+  canGuess,
   onReact,
   onSend,
+  chatAck,
   onSendFailed,
 }: ChatPanelProps) {
   const [expanded, setExpanded] = useState(false);
@@ -54,6 +58,16 @@ export function ChatPanel({
   useRoomViewport();
   const online = useOnline();
   const [text, setText] = useChatDraft(room);
+  const submission = useRef<{ id: string; text: string }>();
+  useEffect(() => {
+    if (!submission.current || submission.current.id !== chatAck) return;
+    if (text.trim() === submission.current.text) setText("");
+    submission.current = undefined;
+  }, [chatAck, text, setText]);
+  const confirmation = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (guessed && inGame) confirmation.current?.focus({ preventScroll: true });
+  }, [guessed, inGame]);
   const composing = useRef(false);
   const { chatLogRef, hasNewChat, scrollChatToBottom, onChatScroll } =
     useChatScroll(log.at(-1));
@@ -72,7 +86,7 @@ export function ChatPanel({
         <p>
           {drawingNow
             ? "Your pen has the floor."
-            : inGame
+            : canGuess
               ? "Guess before the clock runs out."
               : "Constructive criticism, loosely."}
         </p>
@@ -80,10 +94,17 @@ export function ChatPanel({
       <span className="sr-only" id="chat-instruction">
         {drawingNow
           ? "The drawer cannot send chat during their turn."
-          : "Type and press Enter to send. Correct guesses score automatically."}
+          : canGuess
+            ? "Type and press Enter to guess. Correct guesses score automatically."
+            : "Type and press Enter to send a public chat message."}
       </span>
       {guessed && inGame ? (
-        <div className="guess-complete" role="status">
+        <div
+          ref={confirmation}
+          className="guess-complete"
+          role="status"
+          tabIndex={-1}
+        >
           <ClubFace mood="happy" />
           <div>
             <strong>Correct. Nicely observed.</strong>
@@ -101,28 +122,29 @@ export function ChatPanel({
             if (composing.current) return;
             const t = text.trim();
             if (!t) return;
-            // An emptied box is how you know you sent it.
-            if (online && onSend(t)) setText("");
+            const previous = submission.current;
+            const id = previous?.text === t ? previous.id : crypto.randomUUID();
+            if (online && onSend(t, id)) submission.current = { id, text: t };
             else onSendFailed();
           }}
         >
           <input
             style={{ ...styles.input, flex: 1, margin: 0 }}
             aria-describedby="chat-instruction"
-            aria-label={inGame ? "Your guess" : "Chat message"}
+            aria-label={canGuess ? "Your guess" : "Chat message"}
             name="message"
             maxLength={500}
             autoComplete="off"
-            spellCheck={!inGame}
-            autoCorrect={inGame ? "off" : "on"}
-            autoCapitalize={inGame ? "none" : "sentences"}
+            spellCheck={!canGuess}
+            autoCorrect={canGuess ? "off" : "on"}
+            autoCapitalize={canGuess ? "none" : "sentences"}
             enterKeyHint="send"
             placeholder={
               !connected
                 ? "Reconnecting. Your draft stays here."
                 : !online
                   ? "Offline. Your draft stays here."
-                  : chatPlaceholder(drawingNow, inGame)
+                  : chatPlaceholder(drawingNow, canGuess)
             }
             disabled={drawingNow}
             value={text}
@@ -156,16 +178,25 @@ export function ChatPanel({
           onScroll={onChatScroll}
           style={styles.chatLog}
           role="log"
+          tabIndex={0}
           aria-live="polite"
           aria-label="game chat and guesses"
         >
           {log.map((line, i) =>
             line.kind === "system" ? (
-              <div key={i} className="system-line" style={styles.system}>
+              <div
+                key={line.sequence ?? i}
+                className="system-line"
+                style={styles.system}
+              >
                 {line.text}
               </div>
             ) : (
-              <div key={i} className="chat-line" style={styles.chatLine}>
+              <div
+                key={line.sequence ?? i}
+                className="chat-line"
+                style={styles.chatLine}
+              >
                 <span
                   className="chat-author"
                   style={{
@@ -190,7 +221,11 @@ export function ChatPanel({
             className="lift"
             style={styles.newMsgBtn}
             onPointerDown={(event) => event.preventDefault()}
-            onClick={scrollChatToBottom}
+            onClick={(event) => {
+              if (event.detail === 0)
+                chatLogRef.current?.focus({ preventScroll: true });
+              scrollChatToBottom();
+            }}
           >
             ↓ new messages
           </button>

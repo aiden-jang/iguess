@@ -11,6 +11,7 @@ export interface Member {
   player: PlayerInfo;
   spectator: boolean;
   ready: boolean;
+  receipts?: string[];
 }
 export interface RosterSnapshot {
   members: Member[];
@@ -65,6 +66,7 @@ export class RoomRoster {
       spectator:
         watching || (existing?.spectator ?? playing >= MAX_PLAYERS_PER_ROOM),
       ready: existing?.ready ?? false,
+      receipts: existing?.receipts,
     });
     this.connections.set(id, connection);
     this.ensureHost();
@@ -108,6 +110,12 @@ export class RoomRoster {
     const member = this.members.get(id);
     if (member && !member.spectator) member.ready = value;
   }
+  acceptChat(player: string, receipt: string) {
+    const member = this.members.get(player);
+    if (!member || member.receipts?.includes(receipt)) return false;
+    member.receipts = [...(member.receipts ?? []).slice(-23), receipt];
+    return true;
+  }
   clearReady() {
     for (const member of this.members.values()) member.ready = false;
   }
@@ -146,7 +154,8 @@ export class RoomRoster {
     return [...this.members.values()].map((member) => ({
       ...member.player,
       spectator: member.spectator,
-      ready: member.ready,
+      ready: member.ready && this.connections.has(member.player.id),
+      connected: this.connections.has(member.player.id),
       isHost: this.isHost(member.player.id),
     }));
   }
@@ -157,6 +166,14 @@ export class RoomRoster {
   }
   get empty() {
     return this.members.size === 0;
+  }
+  clear() {
+    this.dispose();
+    const connections = [...this.connections.values()];
+    this.connections.clear();
+    this.members.clear();
+    this.hostId = null;
+    for (const { ws } of connections) ws.close(4012, "This room expired.");
   }
   dispose() {
     for (const timer of this.pending.values()) clearTimeout(timer);

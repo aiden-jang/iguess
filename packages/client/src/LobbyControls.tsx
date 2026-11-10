@@ -1,59 +1,55 @@
 import type { RoomBannerProps } from "./roomBanner.types";
 import { VisionNotice } from "./VisionNotice";
-import { lobbyStatus } from "./labels";
+import { gameLengthLabel, lobbyStatus } from "./labels";
 import { HostSettings } from "./HostSettings";
 import { styles } from "./styles";
 import { StudioSketch } from "./StudioSketch";
 
 export function LobbyControls(p: RoomBannerProps) {
   const needsFriend = p.soloWaiting && !p.isAIMode;
+  const teamBattle = p.effectiveMode === "team-battle";
+  const curated = p.effectiveMode === "ai-drawer";
   return (
     <>
       <div className="lobby-welcome">
         <StudioSketch kind="lobby" />
-        <h1>
+        <h1 tabIndex={-1}>
           Warm up. <em>Or don’t.</em>
         </h1>
         <p className="lobby-status" role="status">
-          {lobbyStatus({
-            youAreWatching: p.youAreWatching,
-            soloWaiting: p.soloWaiting,
-            isAIMode: p.isAIMode,
-            readyCount: p.readyCount,
-            humanCount: p.humans.length,
-            watchingCount: p.watching.length,
-          })}
+          {curated && p.soloWaiting && !p.youAreWatching
+            ? "The AI draws. You guess."
+            : lobbyStatus({
+                youAreWatching: p.youAreWatching,
+                soloWaiting: p.soloWaiting,
+                isAIMode: p.isAIMode,
+                readyCount: p.readyCount,
+                humanCount: p.humans.length,
+                watchingCount: p.watching.length,
+              })}
         </p>
         <p className="lobby-rules">
           {p.settings.turnSeconds}s turns ·{" "}
-          {p.settings.scoreTarget
-            ? `First to ${p.settings.scoreTarget}`
-            : `${p.settings.rounds} ${p.settings.rounds === 1 ? "round" : "rounds"}`}{" "}
-          ·{" "}
-          {p.settings.packs.length
-            ? `${p.settings.packs.length} word packs`
-            : "All word packs"}
+          {gameLengthLabel(p.settings, teamBattle)} ·{" "}
+          {curated
+            ? "Curated doodles"
+            : p.settings.packs.length
+              ? `${p.settings.packs.length} word packs`
+              : "All word packs"}
         </p>
         <p className="lobby-guidance">
           {p.youAreHost
             ? "You’re hosting. Ready tells the room who’s here. Start when you’re ready."
             : "Ready tells the host you’re here. The host starts the game."}
         </p>
-        {p.isAIMode && (
-          <VisionNotice
-            mode={
-              p.players.some((player) => player.id === "ai-drawer")
-                ? "ai-drawer"
-                : "ai"
-            }
-          />
-        )}
       </div>
+      <VisionNotice mode={p.effectiveMode} />
       <div className="lobby-actions">
         <HostSettings
           settings={p.settings}
-          youAreHost={p.youAreHost && p.connected}
-          isAIMode={p.isAIMode}
+          youAreHost={p.youAreHost}
+          connected={p.connected}
+          mode={p.effectiveMode}
           onChange={p.updateSettings}
         />
         {!p.youAreWatching && (

@@ -24,6 +24,16 @@ export class GameClock {
   clear() {
     for (const key of this.jobs.keys()) this.cancel(key);
   }
+  deadline(key: string) {
+    return this.jobs.get(key)?.at ?? null;
+  }
+  runDue(key: string) {
+    const job = this.jobs.get(key);
+    if (!job || job.at > Date.now()) return false;
+    this.cancel(key);
+    this.fire(key);
+    return true;
+  }
   snapshot() {
     return Object.fromEntries(
       [...this.jobs].map(([key, job]) => [key, job.at]),

@@ -197,7 +197,7 @@
   border-radius: 4px;
   overflow: hidden;
 }
-.relay-board > canvas {
+.relay-board canvas {
   position: absolute;
   inset: 0;
   border: 0 !important;
@@ -400,4 +400,30 @@
   html[data-keyboard="true"] .relay-choices button {
     padding-inline: 6px;
   }
+}
+
+.relay-entry-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--bad);
+  font-size: 0.875rem;
+}
+
+.relay-chain-controls {
+  display: flex;
+  gap: 4px;
+}
+.relay-chain-controls button {
+  min-width: 44px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+}
+.relay-chain-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.relay-room[data-phase="active"] .room-invite {
+  background: transparent;
+  color: var(--text);
 }

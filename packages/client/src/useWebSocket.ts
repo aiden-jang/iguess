@@ -6,15 +6,16 @@ import type {
   RoomSettings,
 } from "@iguess/shared";
 import { initialRoomState, roomMessage } from "./roomMessages";
+import { DrawFeed } from "./drawFeed";
 import { roomTransport } from "./roomTransport";
 export type { ChatLine } from "./roomMessages";
 
-type DrawListener = (op: DrawOp | { kind: "reset" }) => void;
 export function useGameSocket(
   room: string,
   name: string,
   mode: string,
   avatar: string,
+  create?: boolean,
 ) {
   const [state, dispatch] = useReducer(
     roomMessage,
@@ -24,11 +25,9 @@ export function useGameSocket(
   const [connected, setConnected] = useState(false);
   const [fatal, setFatal] = useState<string | null>(null);
   const transport = useRef<ReturnType<typeof roomTransport> | null>(null);
-  const drawListeners = useRef(new Set<DrawListener>());
-  const emitDraw = useCallback((op: DrawOp | { kind: "reset" }) => {
-    for (const listener of drawListeners.current) listener(op);
-  }, []);
+  const feed = useRef(new DrawFeed()).current;
   useEffect(() => {
+    feed.reset();
     dispatch({ type: "reset" });
     setConnected(false);
     setFatal(null);
@@ -38,14 +37,13 @@ export function useGameSocket(
       name,
       mode,
       avatar,
+      create,
       connected: setConnected,
       fatal: setFatal,
       message: (message) => {
-        if (message.type === "draw") emitDraw(message.op);
-        else if (message.type === "canvas_sync") {
-          emitDraw({ kind: "reset" });
-          for (const op of message.ops) emitDraw(op);
-        } else
+        if (message.type === "draw") feed.emit(message.op);
+        else if (message.type === "canvas_sync") feed.reset(message.ops);
+        else
           dispatch(
             message.type === "react"
               ? { ...message, receivedAt: Date.now() }
@@ -58,7 +56,7 @@ export function useGameSocket(
       connection.dispose();
       transport.current = null;
     };
-  }, [room, name, mode, avatar, emitDraw]);
+  }, [room, name, mode, avatar, create, feed]);
   useEffect(() => {
     const oldest = state.reactions[0];
     if (!oldest) return;
@@ -78,14 +76,9 @@ export function useGameSocket(
     },
     [send],
   );
-  const subscribeDraw = useCallback((listener: DrawListener) => {
-    drawListeners.current.add(listener);
-    return () => drawListeners.current.delete(listener);
-  }, []);
   const clearBoard = useCallback(() => {
-    if (send({ type: "draw", op: { kind: "clear" } }))
-      emitDraw({ kind: "reset" });
-  }, [emitDraw, send]);
+    send({ type: "draw", op: { kind: "clear" } });
+  }, [send]);
   const lastCursorAt = useRef(0);
   const sendCursor = useCallback(
     (point: Point | null) => {
@@ -102,11 +95,11 @@ export function useGameSocket(
     fatal,
     send,
     sendDraw,
-    subscribeDraw,
+    subscribeDraw: feed.subscribe,
     clearBoard,
     sendCursor,
     sendChat: useCallback(
-      (text: string) => send({ type: "chat", text }),
+      (text: string, id: string) => send({ type: "chat", text, id }),
       [send],
     ),
     chooseWord: useCallback(
@@ -119,7 +112,7 @@ export function useGameSocket(
       send({ type: "skip_word" });
     }, [send]),
     updateSettings: useCallback(
-      (settings: Partial<RoomSettings>) => {
+      (settings: Partial<RoomSettings> & { togglePack?: string }) => {
         send({ type: "set_settings", settings });
       },
       [send],

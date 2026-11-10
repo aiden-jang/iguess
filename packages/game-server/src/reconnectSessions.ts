@@ -34,6 +34,9 @@ export class ReconnectSessions {
     const hash = await digest(token);
     return this.snapshot().find((record) => record.digest === hash) ?? null;
   }
+  renew(record: SessionRecord) {
+    record.expires = this.now() + LIFETIME_MS;
+  }
   async create(protectedIds = new Set<string>()) {
     const token = [...crypto.getRandomValues(new Uint8Array(32))]
       .map((byte) => byte.toString(16).padStart(2, "0"))
