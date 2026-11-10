@@ -57,13 +57,25 @@ export function ChatPanel({
   }, [ended]);
   useRoomViewport();
   const online = useOnline();
-  const [text, setText] = useChatDraft(room);
-  const submission = useRef<{ id: string; text: string }>();
+  const [chatText, setChatText] = useChatDraft(room);
+  const [guessText, setGuessText] = useChatDraft(room, "guess");
+  const kind = canGuess ? "guess" : "chat";
+  const text = canGuess ? guessText : chatText;
+  const setText = canGuess ? setGuessText : setChatText;
+  const submissions = useRef<
+    Partial<Record<typeof kind, { id: string; text: string }>>
+  >({});
   useEffect(() => {
-    if (!submission.current || submission.current.id !== chatAck) return;
-    if (text.trim() === submission.current.text) setText("");
-    submission.current = undefined;
-  }, [chatAck, text, setText]);
+    for (const [kind, value, update] of [
+      ["chat", chatText, setChatText],
+      ["guess", guessText, setGuessText],
+    ] as const) {
+      const pending = submissions.current[kind];
+      if (!pending || pending.id !== chatAck) continue;
+      if (value.trim() === pending.text) update("");
+      delete submissions.current[kind];
+    }
+  }, [chatAck, chatText, guessText, setChatText, setGuessText]);
   const confirmation = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (guessed && inGame) confirmation.current?.focus({ preventScroll: true });
@@ -122,9 +134,10 @@ export function ChatPanel({
             if (composing.current) return;
             const t = text.trim();
             if (!t) return;
-            const previous = submission.current;
+            const previous = submissions.current[kind];
             const id = previous?.text === t ? previous.id : crypto.randomUUID();
-            if (online && onSend(t, id)) submission.current = { id, text: t };
+            if (online && onSend(t, id))
+              submissions.current[kind] = { id, text: t };
             else onSendFailed();
           }}
         >
@@ -132,7 +145,7 @@ export function ChatPanel({
             style={{ ...styles.input, flex: 1, margin: 0 }}
             aria-describedby="chat-instruction"
             aria-label={canGuess ? "Your guess" : "Chat message"}
-            name="message"
+            name={canGuess ? "guess" : "message"}
             maxLength={500}
             autoComplete="off"
             spellCheck={!canGuess}

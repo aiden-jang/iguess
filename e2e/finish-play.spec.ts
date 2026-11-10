@@ -94,3 +94,43 @@ test("going offline preserves the draft and disables sending until reconnection"
   ).toBeEnabled();
   await expect(input).toHaveValue("An unfinished thought.");
 });
+
+test("Classic keeps chat and guess drafts separate across turns and refresh", async ({
+  page,
+  browser,
+}) => {
+  const guest = await browser.newPage();
+  try {
+    const room = code();
+    await enter(page, room);
+    await enter(guest, room, "Reader");
+    const chat = guest.getByRole("textbox", { name: "Chat message" });
+    const guess = guest.getByRole("textbox", { name: "Your guess" });
+    const lobbyDraft = "Save me a spot for the next game";
+    await chat.fill(lobbyDraft);
+    await page.getByRole("button", { name: "Start game", exact: true }).click();
+    const word = await page
+      .locator(".word-choice")
+      .first()
+      .locator("strong")
+      .innerText();
+    await page.locator(".word-choice").first().click();
+    await expect(guess).toHaveValue("");
+    await guess.fill("My unfinished guess");
+    await guest.reload();
+    await guest
+      .getByRole("button", { name: "Join the room", exact: true })
+      .click();
+    await expect(guess).toHaveValue("My unfinished guess");
+    await guess.fill(word);
+    await guess.press("Enter");
+    await expect(guest.locator(".turn-recap")).toContainText(word);
+    await guest.locator(".word-choice").first().waitFor();
+    await expect(chat).toHaveValue(lobbyDraft);
+    await chat.press("Enter");
+    await expect(chat).toHaveValue("");
+    await expect(page.getByRole("log")).toContainText(lobbyDraft);
+  } finally {
+    await guest.close();
+  }
+});

@@ -93,6 +93,29 @@ test("rejoining a finished Classic game preserves the results for everyone", asy
     await expect(
       guest.getByRole("slider", { name: "Replay position" }),
     ).toHaveAttribute("aria-valuetext", "100% complete");
+    await guest.getByRole("button", { name: `Show still: ${word}` }).click();
+    await guest.emulateMedia({ reducedMotion: "no-preference" });
+    const now = Date.now();
+    await guest.clock.install({ time: now });
+    await guest.clock.pauseAt(now + 1000);
+    await guest
+      .getByRole("button", { name: `Replay: ${word}`, exact: true })
+      .click();
+    await expect(
+      guest.getByRole("button", { name: "Pause", exact: true }),
+    ).toBeVisible();
+    await guest.emulateMedia({ reducedMotion: "reduce" });
+    await expect(
+      guest.getByRole("button", { name: "Play", exact: true }),
+    ).toBeVisible();
+    await expect(
+      guest.getByRole("slider", { name: "Replay position" }),
+    ).toHaveAttribute("aria-valuetext", "100% complete");
+    await guest.emulateMedia({ reducedMotion: "no-preference" });
+    await guest.clock.resume();
+    await expect(
+      guest.getByRole("button", { name: "Play", exact: true }),
+    ).toBeVisible();
     await expect(
       guest.getByRole("link", { name: /Post to X/ }),
     ).toHaveAttribute("target", "_blank");

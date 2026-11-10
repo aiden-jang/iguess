@@ -391,15 +391,18 @@
   .relay-compose label {
     grid-column: 1 / -1;
   }
-  html[data-keyboard="true"] .relay-compose {
-    align-self: center;
+}
+@media (max-width: 880px) {
+  html[data-keyboard="true"] .relay-workspace:has(> .relay-compose) {
+    grid-template-columns:
+      min(27%, clamp(72px, calc(var(--room-height) * 0.42), 140px))
+      minmax(0, 1fr);
+    align-items: center;
   }
-  html[data-keyboard="true"] .relay-workspace:has(.relay-compose) .relay-board {
-    width: min(
-      100%,
-      clamp(96px, calc(var(--room-height, 400px) * 0.42), 180px)
-    );
-    margin-inline: auto;
+  html[data-keyboard="true"] .relay-workspace .relay-compose {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 0;
+    border: 0;
   }
   html[data-keyboard="true"] .relay-room .relay-main {
     padding-top: 6px;

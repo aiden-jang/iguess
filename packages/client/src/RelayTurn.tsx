@@ -238,7 +238,7 @@ export function RelayTurn({
             draftKey={`${room}:${id}:${leg}`}
             name="guess"
             label="Your guess"
-            placeholder="Type what you see…"
+            placeholder="A guess…"
             limit={RELAY_GUESS_LIMIT}
             button={pending ? "Passing…" : "Pass guess"}
             canSend={canSend}

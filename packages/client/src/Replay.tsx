@@ -50,10 +50,17 @@ export function Replay({
     ctx.clearRect(0, 0, width, BOARD_HEIGHT);
     frame.current = { index: 0, states: newStrokeStates() };
     setProgress(0);
-    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!motion || reduced) seek(ops.length);
-    setPlaying(motion && !reduced && ops.length > 0);
+    const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+    if (!motion || reducedMotion.matches) seek(ops.length);
+    setPlaying(motion && !reducedMotion.matches && ops.length > 0);
     pauseRef.current?.focus({ preventScroll: true });
+    const showStill = (event: MediaQueryListEvent) => {
+      if (!event.matches) return;
+      setPlaying(false);
+      seek(ops.length);
+    };
+    reducedMotion.addEventListener("change", showStill);
+    return () => reducedMotion.removeEventListener("change", showStill);
   }, [ops, width, motion]);
 
   useEffect(() => {
